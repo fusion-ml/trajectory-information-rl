@@ -120,10 +120,10 @@ def rollout_cem_continuous_cartpole(env, unroller):
     start_obs = env.reset()
     action_dim = 1
     horizon = 10
-    alpha = 0.25
-    popsize = 100
-    elite_frac = 0.25
-    n_iters = 5
+    alpha = 0.2
+    popsize = 50
+    elite_frac = 0.1
+    n_iters = 3
     done = False
     rewards = []
     env_horizon = env.horizon
@@ -145,7 +145,7 @@ def test_cem_continuous_cartpole():
     unroller = EnvDynamicsUnroller(plan_env)
     query_counts = []
     returns = []
-    neps = 25
+    neps = 10
     for _ in trange(neps):
         unroller.query_count = 0
         rollout_return = rollout_cem_continuous_cartpole(env, unroller)
@@ -153,8 +153,8 @@ def test_cem_continuous_cartpole():
         query_counts.append(unroller.query_count)
     returns = np.array(returns)
     query_counts = np.array(query_counts)
-    print(f"CEM gets {returns.mean():.1f} mean return with std {returns.std():.1f}")
-    print(f"CEM uses {query_counts.mean():.1f} queries per trial with std {query_counts.std():.1f}")
+    print(f"CEM gets {returns.mean():.1f} mean return with stderr {returns.std() / np.sqrt(neps):.1f}")
+    print(f"CEM uses {query_counts.mean():.1f} queries per trial with stderr {query_counts.std() / np.sqrt(neps):.1f}")
 
 
 if __name__ == '__main__':
