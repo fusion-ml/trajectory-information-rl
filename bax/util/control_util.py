@@ -1,7 +1,15 @@
 import numpy as np
 import gym
+import colorednoise
 from tqdm import tqdm, trange
 from abc import ABC, abstractmethod
+
+
+def choose_subset(data_list, idx):
+    out = []
+    for ix in idx:
+        out.append(data_list[ix])
+    return out
 
 
 def CEM(start_obs,
@@ -42,6 +50,61 @@ def CEM(start_obs,
     return best_return, best_obs, best_sample
 
 
+def iCEM(start_obs,
+         action_dim,
+         dynamics_unroller,
+         num_samples,
+         horizon,
+         n_elites,
+         beta,
+         num_iters,
+         gamma,
+         mem_fraction=0.3,
+         prev_samples=None,
+         verbose=False):
+    action_upper_bound = 1
+    action_lower_bound = -1
+    initial_variance_divisor = 4
+    mean = np.zeros(action_dim)
+    var = np.ones_like(mean) * ((action_upper_bound - action_lower_bound) / initial_variance_divisor) ** 2
+    elites, elite_observations, elite_returns = None, None, None
+    best_sample, best_obs, best_return = None, None, -np.inf
+    for i in trange(num_iters, disable=not verbose):
+        num_traj = int(max(num_samples * (gamma ** -i), 2 * n_elites))
+        samples = colorednoise.powerlaw_psd_gaussian(beta, size=(num_traj, action_dim,
+                                                     horizon)).transpose([0, 2, 1]) * np.sqrt(var) + mean
+        samples = np.clip(samples, action_lower_bound, action_upper_bound)
+        if i == 0 and prev_samples is not None:
+            bs = prev_samples.shape[0]
+            shifted_samples = np.concatenate([prev_samples[:, 1:, :], np.zeros((bs, 1, action_dim))], axis=1)
+            shifted_subset = shifted_samples[np.random.choice(bs, int(bs * mem_fraction), replace=False), ...]
+            samples = np.concatenate([samples, shifted_subset], axis=0)
+        if i + 1 == num_iters:
+            samples = np.concatenate([samples, mean[None, :]], axis=0)
+        observations, returns = dynamics_unroller(start_obs, samples)
+        if i > 0:
+            elite_subset_idx = np.random.choice(n_elites, int(n_elites * mem_fraction), replace=False)
+            elite_subset = elites[elite_subset_idx, ...]
+            elite_obs_subset = choose_subset(elite_observations, elite_subset_idx)
+            elite_return_subset = elite_returns[elite_subset_idx]
+            samples = np.concatenate([samples, elite_subset], axis=0)
+            observations = observations + elite_obs_subset
+            returns = np.concatenate([returns, elite_return_subset])
+        elite_idx = np.argsort(returns)[-n_elites:]
+        elites = samples[elite_idx, ...]
+        elite_observations = choose_subset(observations, elite_idx)
+        elite_returns = returns[elite_idx]
+        mean = np.mean(elites, axis=0)
+        var = np.var(elites, axis=0)
+        best_idx = np.argmax(returns)
+        best_current_return = returns[best_idx]
+        if best_current_return > best_return:
+            best_return = best_current_return
+            best_sample = samples[best_idx, ...]
+            best_obs = observations[best_idx]
+    return best_return, best_obs, best_sample, elites
+
+
 class DynamicsUnroller(ABC):
     def __init__(self, gamma):
         self.gamma = gamma
@@ -52,7 +115,7 @@ class DynamicsUnroller(ABC):
             observations, rewards = self.unroll(start_obs, sample)
             all_observations.append(observations)
             all_returns.append(self.compute_return(rewards))
-        return all_observations, all_returns
+        return all_observations, np.array(all_returns)
 
     @abstractmethod
     def unroll(self, start_obs, action_samples):
@@ -138,24 +201,52 @@ def rollout_cem_continuous_cartpole(env, unroller):
     return sum(rewards)
 
 
-def test_cem_continuous_cartpole():
+def rollout_icem_continuous_cartpole(env, unroller):
+    start_obs = env.reset()
+    action_dim = 1
+    budget = 8
+    horizon = 10
+    n_elites = 4
+    beta = 3
+    gamma = 1.25
+    num_iters = 4
+    actions_per_plan = 4
+    done = False
+    rewards = []
+    env_horizon = env.horizon
+    elites = None
+    for _ in trange(env_horizon):
+        seq_return, observations, actions, elites = iCEM(start_obs, action_dim, unroller, budget, horizon, n_elites,
+                                                         beta, num_iters, gamma, prev_samples=elites)
+        for i in range(actions_per_plan):
+            action = actions[i]
+            start_obs, rew, done, info = env.step(action)
+            rewards.append(rew)
+            if done:
+                return sum(rewards)
+    return sum(rewards)
+
+
+def test_continuous_cartpole():
     from continuous_cartpole import ContinuousCartPoleEnv
+    algo = 'iCEM'
+    fn = rollout_cem_continuous_cartpole if algo == 'CEM' else rollout_icem_continuous_cartpole
     env = ContinuousCartPoleEnv()
     plan_env = ContinuousCartPoleEnv()
     unroller = EnvDynamicsUnroller(plan_env)
     query_counts = []
     returns = []
-    neps = 10
+    neps = 25
     for _ in trange(neps):
         unroller.query_count = 0
-        rollout_return = rollout_cem_continuous_cartpole(env, unroller)
+        rollout_return = fn(env, unroller)
         returns.append(rollout_return)
         query_counts.append(unroller.query_count)
     returns = np.array(returns)
     query_counts = np.array(query_counts)
-    print(f"CEM gets {returns.mean():.1f} mean return with stderr {returns.std() / np.sqrt(neps):.1f}")
-    print(f"CEM uses {query_counts.mean():.1f} queries per trial with stderr {query_counts.std() / np.sqrt(neps):.1f}")
+    print(f"{algo} gets {returns.mean():.1f} mean return with stderr {returns.std() / np.sqrt(neps):.1f}")
+    print(f"{algo} uses {query_counts.mean():.1f} queries per trial with stderr {query_counts.std() / np.sqrt(neps):.1f}")  # NOQA
 
 
 if __name__ == '__main__':
-    test_cem_continuous_cartpole()
+    test_continuous_cartpole()
