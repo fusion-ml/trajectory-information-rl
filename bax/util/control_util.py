@@ -209,7 +209,7 @@ def rollout_icem_continuous_cartpole(env, unroller):
     n_elites = 4
     beta = 3
     gamma = 1.25
-    num_iters = 4
+    num_iters = 3
     actions_per_plan = 4
     done = False
     rewards = []
