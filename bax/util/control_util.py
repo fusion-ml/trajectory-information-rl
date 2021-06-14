@@ -1,5 +1,6 @@
 import numpy as np
 import gym
+from gym.envs.mujoco.mujoco_env import MujocoEnv
 import colorednoise
 from tqdm import tqdm, trange
 from abc import ABC, abstractmethod
@@ -150,6 +151,8 @@ class ResettableEnv(gym.Env):
         self._wrapped_env = env
         self.action_space = self._wrapped_env.action_space
         self.observation_space = self._wrapped_env.observation_space
+        self.is_mujoco = isinstance(env, MujocoEnv)
+        self.npos = len(env.init_qpos) if self.is_mujoco else None
 
     @property
     def wrapped_env(self):
@@ -157,9 +160,16 @@ class ResettableEnv(gym.Env):
 
     def reset(self, obs=None, **kwargs):
         reset_obs = self._wrapped_env.reset(**kwargs)
-        if obs is not None:
+        if obs is not None and not self.is_mujoco:
             obs = np.array(obs)
             self._wrapped_env.state = obs
+            return obs
+        elif obs is not None:
+            breakpoint()
+            obs = np.array(obs)
+            qpos = obs[:self.npos]
+            qvel = obs[self.npos:]
+            self._wrapped_env.set_state(qpos, qvel)
             return obs
         return reset_obs
 
@@ -186,7 +196,7 @@ def rollout_cem_continuous_cartpole(env, unroller):
     alpha = 0.2
     popsize = 50
     elite_frac = 0.1
-    n_iters = 3
+    n_iters = 5
     done = False
     rewards = []
     env_horizon = env.horizon
@@ -229,19 +239,23 @@ def rollout_icem_continuous_cartpole(env, unroller):
 
 def test_continuous_cartpole():
     from continuous_cartpole import ContinuousCartPoleEnv
+    # from pets_cartpole import PETSCartpoleEnv
     algo = 'iCEM'
     fn = rollout_cem_continuous_cartpole if algo == 'CEM' else rollout_icem_continuous_cartpole
     env = ContinuousCartPoleEnv()
-    plan_env = ContinuousCartPoleEnv()
+    plan_env = ResettableEnv(ContinuousCartPoleEnv())
     unroller = EnvDynamicsUnroller(plan_env)
     query_counts = []
     returns = []
-    neps = 25
-    for _ in trange(neps):
+    neps = 5
+    pbar = trange(neps)
+    for _ in pbar:
         unroller.query_count = 0
         rollout_return = fn(env, unroller)
         returns.append(rollout_return)
         query_counts.append(unroller.query_count)
+        pbar.set_postfix(ordered_dict={'Mean Return': np.mean(returns), 'Mean Query Count': np.mean(query_counts)})
+
     returns = np.array(returns)
     query_counts = np.array(query_counts)
     print(f"{algo} gets {returns.mean():.1f} mean return with stderr {returns.std() / np.sqrt(neps):.1f}")
