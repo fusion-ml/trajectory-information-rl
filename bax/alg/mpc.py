@@ -28,9 +28,9 @@ class MPC(Algorithm):
         self.params.start_obs = params.start_obs
         self.params.env = params.env
         self.params.discount_factor = getattr(params, 'discount_factor', 0.99)
-        # reward function is currently required, needs to take state x action -> R
+        # reward function is currently required, needs to take (state x action) x next_state -> R
         self.params.reward_function = params.reward_function
-        self.params.env_horizon = params.env_horizon
+        self.params.env_horizon = params.env.horizon
         self.params.action_dim = params.env.action_space.low.size
         self.params.obs_dim = params.env.observation_space.low.size
         self.params.action_lower_bound = getattr(params, "action_lower_bound", 1)
@@ -68,8 +68,6 @@ class MPC(Algorithm):
         self.best_actions = None
         self.best_obs = None
         self.best_rewards = None
-
-
 
     def initialize(self):
         """Initialize algorithm, reset execution path."""
@@ -169,7 +167,7 @@ class MPC(Algorithm):
         self.traj_rewards = []
 
     def process_prev_output(self):
-        reward = self.params.reward_function(self.exe_path.x[-1])
+        reward = self.params.reward_function(self.exe_path.x[-1], self.exe_path.y[-1])
         if not self.shift_done:
             # do all the shift stuff
             self.shifted_states[self.current_traj_idx].append(self.exe_path.y[-1])
@@ -250,3 +248,29 @@ class MPC(Algorithm):
             exe_path_crop.x.append(x)
             exe_path_crop.y.append(y)
         return exe_path_crop
+
+
+def test_MPC_algorithm():
+    from continuous_cartpole import ContinuousCartPoleEnv, continuous_cartpole_reward
+    env = ContinuousCartPoleEnv()
+    obs_dim = env.observation_space.low.size
+    action_dim = env.action_space.low.size
+    plan_env = ResettableEnv(ContinuousCartPoleEnv())
+    def f(x):
+        obs = x[:obs_dim]
+        action = x[obs_dim:]
+        plan_env.reset(obs)
+        next_obs, reward, done, info = plan_env.step(action)
+        return next_obs
+    start_obs = env.reset()
+    params = dict(
+            start_obs=start_obs,
+            env=env,
+            reward_function=continuous_cartpole_reward)
+    mpc = MPC(params)
+    path, output = mpc.run_algorithm_on_f(f)
+    total_return = sum(output[2])
+    print(f"MPC gets {total_return} return with {len(path.x)} queries")
+
+if __name__ == '__main__':
+    test_MPC_algorithm()
