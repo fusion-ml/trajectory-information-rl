@@ -7,10 +7,10 @@ import copy
 import numpy as np
 from abc import ABC, abstractmethod
 
-from util.base import Base
-from util.misc_util import dict_to_namespace
-from util.domain_util import unif_random_sample_domain
-from util.graph import jaccard_similarity
+from ..util.base import Base
+from ..util.misc_util import dict_to_namespace
+from ..util.domain_util import unif_random_sample_domain
+from ..util.graph import jaccard_similarity
 
 
 class Algorithm(ABC, Base):
