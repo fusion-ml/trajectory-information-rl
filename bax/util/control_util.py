@@ -58,8 +58,8 @@ def iCEM_generate_samples(nsamps,
                           var,
                           action_lower_bound,
                           action_upper_bound):
-    action_dim = mean.size
-    samples = colorednoise.powerlaw_psd_gaussian(beta, size=(num_traj, action_dim,
+    action_dim = mean.shape[-1]
+    samples = colorednoise.powerlaw_psd_gaussian(beta, size=(nsamps, action_dim,
                                                  horizon)).transpose([0, 2, 1]) * np.sqrt(var) + mean
     samples = np.clip(samples, action_lower_bound, action_upper_bound)
     return samples
@@ -180,7 +180,6 @@ class ResettableEnv(gym.Env):
             self._wrapped_env.state = obs
             return obs
         elif obs is not None:
-            breakpoint()
             obs = np.array(obs)
             qpos = obs[:self.npos]
             qvel = obs[self.npos:]
