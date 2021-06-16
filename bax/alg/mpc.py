@@ -119,7 +119,6 @@ class MPC(Algorithm):
             self.process_prev_output()
         # at this point the *_done should be correct
         if self.samples_done and self.iter_num + 1 == self.params.num_iters:
-            breakpoint()
             self.save_planned_actions()
             if self.current_t + 1 >= self.params.env_horizon:
                 # done planning
@@ -135,7 +134,10 @@ class MPC(Algorithm):
         return query
 
     def get_shift_x(self):
-        obs = self.shifted_states[self.current_traj_idx][-1]
+        if len(self.shifted_states[self.current_traj_idx]) > 0:
+            obs = self.shifted_states[self.current_traj_idx][-1]
+        else:
+            obs = self.current_obs
         action = self.shifted_actions[self.current_traj_idx][self.current_t_plan]
         query = np.concatenate([obs, action])
         return query
@@ -179,6 +181,9 @@ class MPC(Algorithm):
         self.traj_samples = list(samples)
         self.traj_states = [[] for _ in range(len(self.traj_samples))]
         self.traj_rewards = [[] for _ in range(len(self.traj_samples))]
+        self.shifted_states = []
+        self.shifted_actions = []
+        self.shifted_rewards = []
         self.current_traj_idx = 0
         self.samples_done = False
 
@@ -190,7 +195,7 @@ class MPC(Algorithm):
             self.shifted_rewards[self.current_traj_idx].append(reward)
             self.current_t_plan += 1
             if self.current_t_plan == self.params.planning_horizon:
-                self.current_t_plan -= self.params.actions_per_plan
+                self.current_t_plan = 0
                 self.current_traj_idx += 1
             if self.current_traj_idx == len(self.shifted_states):
                 self.current_traj_idx = 0
@@ -250,19 +255,23 @@ class MPC(Algorithm):
         self.saved_rewards = []
         self.samples_done = False
         self.current_traj_idx = 0
+        self.best_return = -np.inf
+        self.best_actions = None
+        self.best_obs = None
+        self.best_rewards = None
 
     def shift_samples(self, all_returns, all_states, all_actions, all_rewards):
         n_keep = ceil(self.params.xi * self.params.n_elites)
-        keep_indices = np.argsort(all_returns)[n_keep:]
+        keep_indices = np.argsort(all_returns)[-n_keep:]
         self.shifted_states = []
         self.shifted_actions = []
         self.shifted_rewards = []
         for idx in keep_indices:
-            self.shifted_states.append(all_states[idx][self.params.actions_per_plan:])
             new_actions = np.array([self.params.env.action_space.sample() for _ in range(self.params.actions_per_plan)])
             self.shifted_actions.append(np.concatenate([all_actions[idx][self.params.actions_per_plan:], new_actions]))
-            self.shifted_rewards.append(all_rewards[idx][self.params.actions_per_plan:])
-        self.current_t_plan = self.params.planning_horizon - self.params.actions_per_plan
+            self.shifted_rewards.append([])
+            self.shifted_states.append([])
+        self.current_t_plan = 0
         self.shift_done = False
 
     def get_output(self):
@@ -305,15 +314,16 @@ def test_MPC_algorithm():
     mpc = MPC(params)
     mpc.initialize()
     path, output = mpc.run_algorithm_on_f(f)
-    total_return = sum(output[2])
+    observations, actions, rewards = output
+    total_return = sum(rewards)
     print(f"MPC gets {total_return} return with {len(path.x)} queries based on itself")
-    actions = output[1]
-    obs = output[1]
-    breakpoint()
     done = False
     rewards = []
-    for action in actions:
+    for i, action in enumerate(actions):
         next_obs, rew, done, info = env.step(action)
+        if (next_obs != observations[i + 1]).any():
+            error = np.linalg.norm(next_obs - observations[i + 1])
+            print(f"{i=}, {error=}")
         rewards.append(rew)
         if done:
             break
