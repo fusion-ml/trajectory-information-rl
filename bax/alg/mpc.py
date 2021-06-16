@@ -308,6 +308,8 @@ def test_MPC_algorithm():
     total_return = sum(output[2])
     print(f"MPC gets {total_return} return with {len(path.x)} queries based on itself")
     actions = output[1]
+    obs = output[1]
+    breakpoint()
     done = False
     rewards = []
     for action in actions:
