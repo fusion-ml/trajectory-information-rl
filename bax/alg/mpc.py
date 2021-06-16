@@ -6,13 +6,11 @@ from argparse import Namespace
 import copy
 import numpy as np
 from math import ceil
-import sys
-sys.path.append('..')
 
 
-from algorithms import Algorithm
-from util.misc_util import dict_to_namespace
-from util.control_util import compute_return, iCEM_generate_samples
+from .algorithms import Algorithm
+from ..util.misc_util import dict_to_namespace
+from ..util.control_util import compute_return, iCEM_generate_samples
 
 
 class MPC(Algorithm):
