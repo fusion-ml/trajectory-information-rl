@@ -36,7 +36,7 @@ class AcqOptimizer(Base):
         acqfunction : AcqFunction
             AcqFunction instance.
         """
-        
+
         # Set self.acqfunction
         self.set_acqfunction(acqfunction)
 
