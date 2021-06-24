@@ -1,6 +1,10 @@
 import numpy as np
 import gym
-from gym.envs.mujoco.mujoco_env import MujocoEnv
+try:
+    from gym.envs.mujoco.mujoco_env import MujocoEnv
+    mj_here = True
+except:
+    mj_here = False
 import colorednoise
 from tqdm import tqdm, trange
 from abc import ABC, abstractmethod
@@ -14,12 +18,14 @@ def choose_subset(data_list, idx):
 
 
 def get_f_mpc(env):
+    obs_dim = len(env.observation_space.low)
     def f(x):
+        x = np.array(x)
         obs = x[:obs_dim]
         action = x[obs_dim:]
         env.reset(obs)
         next_obs, reward, done, info = env.step(action)
-        return next_obs
+        return next_obs - obs
     return f
 
 
@@ -176,7 +182,10 @@ class ResettableEnv(gym.Env):
         self._wrapped_env = env
         self.action_space = self._wrapped_env.action_space
         self.observation_space = self._wrapped_env.observation_space
-        self.is_mujoco = isinstance(env, MujocoEnv)
+        if mj_here:
+            self.is_mujoco = isinstance(env, MujocoEnv)
+        else:
+            self.is_mujoco = False
         self.npos = len(env.init_qpos) if self.is_mujoco else None
 
     @property

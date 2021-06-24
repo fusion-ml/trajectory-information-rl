@@ -101,6 +101,9 @@ class MPC(Algorithm):
         self.saved_states = []
         self.saved_actions = []
         self.saved_rewards = []
+        self.shifted_actions = []
+        self.shifted_states = []
+        self.shifted_rewards = []
         self.traj_states = [[] for _ in range(initial_nsamps)]
         self.traj_rewards = [[] for _ in range(initial_nsamps)]
         self.best_return = -np.inf
@@ -186,10 +189,13 @@ class MPC(Algorithm):
         self.samples_done = False
 
     def process_prev_output(self):
-        reward = self.params.reward_function(self.exe_path.x[-1], self.exe_path.y[-1])
+        query_state = self.exe_path.x[-1][:-1]
+        displacement = self.exe_path.y[-1]
+        next_state = query_state + displacement
+        reward = self.params.reward_function(self.exe_path.x[-1], next_state)
         if not self.shift_done:
             # do all the shift stuff
-            self.shifted_states[self.current_traj_idx].append(self.exe_path.y[-1])
+            self.shifted_states[self.current_traj_idx].append(next_state)
             self.shifted_rewards[self.current_traj_idx].append(reward)
             self.current_t_plan += 1
             if self.current_t_plan == self.params.planning_horizon:
@@ -201,7 +207,7 @@ class MPC(Algorithm):
                 self.shift_done = True
             return
         # otherwise do the stuff for the standard CEM
-        self.traj_states[self.current_traj_idx].append(self.exe_path.y[-1])
+        self.traj_states[self.current_traj_idx].append(next_state)
         self.traj_rewards[self.current_traj_idx].append(reward)
         self.current_t_plan += 1
         if self.current_t_plan == self.params.planning_horizon:
