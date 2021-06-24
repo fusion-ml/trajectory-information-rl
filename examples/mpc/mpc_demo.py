@@ -5,6 +5,7 @@ Testing MultiGpfsGp and MultiBaxAcqFunction classes
 from argparse import Namespace
 import numpy as np
 import matplotlib.pyplot as plt
+from matplotlib.patches import Rectangle
 import tensorflow as tf
 
 from bax.models.gpfs_gp import MultiGpfsGp
@@ -40,7 +41,7 @@ def plot_path_2d(path, ax=None, true_path=False):
 
     if true_path:
         ax.plot(x_plot, y_plot, 'k--', linewidth=3)
-        ax.plot(x_plot, y_plot, '*', color='k', markersize=15)
+        ax.plot(x_plot, y_plot, '*', color='k', markersize=5)
     else:
         ax.plot(x_plot, y_plot, 'k--', linewidth=1, alpha=0.3)
         ax.plot(x_plot, y_plot, 'o', alpha=0.3)
@@ -91,10 +92,11 @@ n_rand_acqopt = 1000
 
 # Compute true path
 true_algo = algo_class(algo_params)
-true_path, output = algo.run_algorithm_on_f(f)
+full_path, output = true_algo.run_algorithm_on_f(f)
+true_path = true_algo.get_exe_path_crop()
 
 # Run BAX loop
-n_iter = 25
+n_iter = 200
 
 for i in range(n_iter):
     print('---' * 5 + f' Start iteration i={i} ' + '---' * 5)
@@ -132,8 +134,8 @@ for i in range(n_iter):
     ax.set(
         xlim=(domain[0][0], domain[0][1]),
         ylim=(domain[2][0], domain[2][1]),
-        xlabel='$x_1$',
-        ylabel='$x_2$',
+        xlabel='$x$',
+        ylabel='$\\theta$',
     )
 
     save_figure = True

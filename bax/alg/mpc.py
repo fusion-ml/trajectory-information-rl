@@ -30,7 +30,7 @@ class MPC(Algorithm):
         self.params.discount_factor = getattr(params, 'discount_factor', 0.99)
         # reward function is currently required, needs to take (state x action) x next_obs -> R
         self.params.reward_function = params.reward_function
-        self.params.reward_function = getattr(params, "terminal_function", None)
+        self.terminal_function = self.params.terminal_function = getattr(params, "terminal_function", None)
         self.params.env_horizon = params.env.horizon
         self.params.action_dim = params.env.action_space.low.size
         self.params.obs_dim = params.env.observation_space.low.size
@@ -190,7 +190,7 @@ class MPC(Algorithm):
         self.samples_done = False
 
     def get_next_obs(self, x, y):
-        start_obs = x[:self.obs_dim]
+        start_obs = x[:self.params.obs_dim]
         delta_obs = y
         return start_obs + delta_obs
 
