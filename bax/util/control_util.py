@@ -51,6 +51,20 @@ def CEM(start_obs,
     return best_return, best_obs, best_sample
 
 
+def iCEM_generate_samples(nsamps,
+                          horizon,
+                          beta,
+                          mean,
+                          var,
+                          action_lower_bound,
+                          action_upper_bound):
+    action_dim = mean.shape[-1]
+    samples = colorednoise.powerlaw_psd_gaussian(beta, size=(nsamps, action_dim,
+                                                 horizon)).transpose([0, 2, 1]) * np.sqrt(var) + mean
+    samples = np.clip(samples, action_lower_bound, action_upper_bound)
+    return samples
+
+
 def iCEM(start_obs,
          action_dim,
          dynamics_unroller,
@@ -72,9 +86,7 @@ def iCEM(start_obs,
     best_sample, best_obs, best_return = None, None, -np.inf
     for i in trange(num_iters, disable=not verbose):
         num_traj = int(max(num_samples * (gamma ** -i), 2 * n_elites))
-        samples = colorednoise.powerlaw_psd_gaussian(beta, size=(num_traj, action_dim,
-                                                     horizon)).transpose([0, 2, 1]) * np.sqrt(var) + mean
-        samples = np.clip(samples, action_lower_bound, action_upper_bound)
+        samples = iCEM_generate_samples(num_traj, horizon, beta, mean, var, action_lower_bound, action_upper_bound)
         if i == 0 and prev_samples is not None:
             bs = prev_samples.shape[0]
             shifted_samples = np.concatenate([prev_samples[:, 1:, :], np.zeros((bs, 1, action_dim))], axis=1)
@@ -106,6 +118,10 @@ def iCEM(start_obs,
     return best_return, best_obs, best_sample, elites
 
 
+def compute_return(rewards, discount_factor):
+    return np.polynomial.polynomial.polyval(discount_factor, rewards)
+
+
 class DynamicsUnroller(ABC):
     def __init__(self, gamma):
         self.gamma = gamma
@@ -124,7 +140,6 @@ class DynamicsUnroller(ABC):
 
     def compute_return(self, rewards):
         return np.polynomial.polynomial.polyval(self.gamma, rewards)
-
 
 class EnvDynamicsUnroller(DynamicsUnroller):
     def __init__(self, env, gamma=0.99, verbose=False):
@@ -165,7 +180,6 @@ class ResettableEnv(gym.Env):
             self._wrapped_env.state = obs
             return obs
         elif obs is not None:
-            breakpoint()
             obs = np.array(obs)
             qpos = obs[:self.npos]
             qvel = obs[self.npos:]

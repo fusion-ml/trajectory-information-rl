@@ -168,3 +168,14 @@ Any further steps are undefined behavior.
     def close(self):
         if self.viewer:
             self.viewer.close()
+
+def continuous_cartpole_reward(x, y):
+    x_prob = y[0]
+    theta = y[2]
+    theta_threshold_radians = 12 * 2 * math.pi / 360
+    x_threshold = 2.4
+    if np.abs(x_prob) > x_threshold or np.abs(theta) > theta_threshold_radians:
+        return 0
+    else:
+        return 1
+
