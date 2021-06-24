@@ -293,17 +293,12 @@ class MPC(Algorithm):
 
 def test_MPC_algorithm():
     from util.continuous_cartpole import ContinuousCartPoleEnv, continuous_cartpole_reward
-    from util.control_util import ResettableEnv
+    from util.control_util import ResettableEnv, get_f_mpc
     env = ContinuousCartPoleEnv()
     obs_dim = env.observation_space.low.size
     action_dim = env.action_space.low.size
     plan_env = ResettableEnv(ContinuousCartPoleEnv())
-    def f(x):
-        obs = x[:obs_dim]
-        action = x[obs_dim:]
-        plan_env.reset(obs)
-        next_obs, reward, done, info = plan_env.step(action)
-        return next_obs
+    f = get_f_mpc(plan_env)
     start_obs = env.reset()
     params = dict(
             start_obs=start_obs,

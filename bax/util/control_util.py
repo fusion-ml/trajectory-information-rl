@@ -13,6 +13,16 @@ def choose_subset(data_list, idx):
     return out
 
 
+def get_f_mpc(env):
+    def f(x):
+        obs = x[:obs_dim]
+        action = x[obs_dim:]
+        env.reset(obs)
+        next_obs, reward, done, info = env.step(action)
+        return next_obs
+    return f
+
+
 def CEM(start_obs,
         action_dim,
         dynamics_unroller,
