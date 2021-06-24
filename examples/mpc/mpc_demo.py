@@ -137,7 +137,7 @@ for i in range(n_iter):
     )
 
     save_figure = True
-    if save_figure: neatplot.save_figure(f'bax_multi_{i}', 'pdf')
+    if save_figure: neatplot.save_figure(f'mpc_{i}', 'pdf')
 
     # Query function, update data
     print(f'Length of data.x: {len(data.x)}')
