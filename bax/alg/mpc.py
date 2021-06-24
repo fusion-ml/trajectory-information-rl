@@ -28,8 +28,9 @@ class MPC(Algorithm):
         self.params.start_obs = params.start_obs
         self.params.env = params.env
         self.params.discount_factor = getattr(params, 'discount_factor', 0.99)
-        # reward function is currently required, needs to take (state x action) x next_state -> R
+        # reward function is currently required, needs to take (state x action) x next_obs -> R
         self.params.reward_function = params.reward_function
+        self.params.reward_function = getattr(params, "terminal_function", None)
         self.params.env_horizon = params.env.horizon
         self.params.action_dim = params.env.action_space.low.size
         self.params.obs_dim = params.env.observation_space.low.size
@@ -188,14 +189,17 @@ class MPC(Algorithm):
         self.current_traj_idx = 0
         self.samples_done = False
 
+    def get_next_obs(self, x, y):
+        start_obs = x[:self.obs_dim]
+        delta_obs = y
+        return start_obs + delta_obs
+
     def process_prev_output(self):
-        query_state = self.exe_path.x[-1][:-1]
-        displacement = self.exe_path.y[-1]
-        next_state = query_state + displacement
-        reward = self.params.reward_function(self.exe_path.x[-1], next_state)
+        next_obs = self.get_next_obs(self.exe_path.x[-1], self.exe_path.y[-1])
+        reward = self.params.reward_function(self.exe_path.x[-1], next_obs)
         if not self.shift_done:
             # do all the shift stuff
-            self.shifted_states[self.current_traj_idx].append(next_state)
+            self.shifted_states[self.current_traj_idx].append(next_obs)
             self.shifted_rewards[self.current_traj_idx].append(reward)
             self.current_t_plan += 1
             if self.current_t_plan == self.params.planning_horizon:
@@ -207,7 +211,7 @@ class MPC(Algorithm):
                 self.shift_done = True
             return
         # otherwise do the stuff for the standard CEM
-        self.traj_states[self.current_traj_idx].append(next_state)
+        self.traj_states[self.current_traj_idx].append(next_obs)
         self.traj_rewards[self.current_traj_idx].append(reward)
         self.current_t_plan += 1
         if self.current_t_plan == self.params.planning_horizon:
@@ -291,9 +295,11 @@ class MPC(Algorithm):
         for i, (obs, action) in enumerate(zip(self.planned_states, self.planned_actions)):
             next_obs = self.planned_states[i + 1]
             x = np.concatenate([obs, action])
-            y = next_obs
+            y = next_obs - obs
             exe_path_crop.x.append(x)
             exe_path_crop.y.append(y)
+            if self.terminal_function is not None and self.terminal_function(x, next_obs):
+                break
         return exe_path_crop
 
 

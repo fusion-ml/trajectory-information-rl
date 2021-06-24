@@ -179,3 +179,5 @@ def continuous_cartpole_reward(x, y):
     else:
         return 1
 
+def continuous_cartpole_terminal(x, y):
+    return continuous_cartpole_reward(x, y) == 0
