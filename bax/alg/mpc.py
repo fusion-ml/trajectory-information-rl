@@ -304,7 +304,7 @@ class MPC(Algorithm):
 
 
 def test_MPC_algorithm():
-    from util.continuous_cartpole import ContinuousCartPoleEnv, continuous_cartpole_reward
+    from util.envs.continuous_cartpole import ContinuousCartPoleEnv, continuous_cartpole_reward
     from util.control_util import ResettableEnv, get_f_mpc
     env = ContinuousCartPoleEnv()
     obs_dim = env.observation_space.low.size

@@ -271,7 +271,7 @@ def rollout_icem_continuous_cartpole(env, unroller):
 
 
 def test_continuous_cartpole():
-    from continuous_cartpole import ContinuousCartPoleEnv
+    from envs.continuous_cartpole import ContinuousCartPoleEnv
     # from pets_cartpole import PETSCartpoleEnv
     algo = 'iCEM'
     fn = rollout_cem_continuous_cartpole if algo == 'CEM' else rollout_icem_continuous_cartpole

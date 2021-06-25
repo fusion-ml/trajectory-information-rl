@@ -6,6 +6,7 @@ from argparse import Namespace
 import numpy as np
 import matplotlib.pyplot as plt
 from matplotlib.patches import Rectangle
+from tqdm import trange
 import tensorflow as tf
 
 from bax.models.gpfs_gp import MultiGpfsGp
@@ -13,8 +14,8 @@ from bax.acq.acquisition import MultiBaxAcqFunction
 from bax.acq.acqoptimize import AcqOptimizer
 from bax.alg.mpc import MPC
 from bax.util.misc_util import dict_to_namespace
-from bax.util.continuous_cartpole import ContinuousCartPoleEnv, continuous_cartpole_reward, continuous_cartpole_terminal
-from bax.util.control_util import ResettableEnv, get_f_mpc
+from bax.util.envs.pendulum import PendulumEnv, pendulum_reward
+from bax.util.control_util import ResettableEnv, get_f_mpc, compute_return
 from bax.util.domain_util import unif_random_sample_domain, project_to_domain
 import neatplot
 
@@ -37,7 +38,7 @@ def plot_path_2d(path, ax=None, true_path=False):
         fig, ax = plt.subplots(1, 1, figsize=(5, 5))
 
     x_plot = [xi[0] for xi in path.x]
-    y_plot = [xi[2] for xi in path.x]
+    y_plot = [xi[1] for xi in path.x]
 
     if true_path:
         ax.plot(x_plot, y_plot, 'k--', linewidth=3)
@@ -51,10 +52,12 @@ def plot_path_2d(path, ax=None, true_path=False):
 # Start Script
 # -------------
 # Set black-box function
-env = ContinuousCartPoleEnv()
+env = PendulumEnv()
+env.seed(seed)
 obs_dim = env.observation_space.low.size
 action_dim = env.action_space.low.size
-plan_env = ResettableEnv(ContinuousCartPoleEnv())
+plan_env = PendulumEnv()
+plan_env.seed(seed)
 f = get_f_mpc(plan_env)
 start_obs = env.reset()
 
@@ -69,8 +72,15 @@ algo_class = MPC
 algo_params = dict(
         start_obs=start_obs,
         env=plan_env,
-        reward_function=continuous_cartpole_reward,
-        terminal_function=continuous_cartpole_terminal,
+        reward_function=pendulum_reward,
+        base_nsamps=10,
+        planning_horizon=20,
+        n_elites=3,
+        beta=3,
+        gamma=1.25,
+        xi=0.3,
+        num_iters=3,
+        actions_per_plan=6,
         )
 algo = algo_class(algo_params)
 
@@ -95,8 +105,37 @@ true_algo = algo_class(algo_params)
 full_path, output = true_algo.run_algorithm_on_f(f)
 true_path = true_algo.get_exe_path_crop()
 
+# Plot
+fig, ax = plt.subplots(1, 1, figsize=(5, 5))
+
+
+# Plot true path and posterior path samples
+returns = []
+path_lengths = []
+for _ in trange(10):
+    full_path, output = true_algo.run_algorithm_on_f(f)
+    tp = true_algo.get_exe_path_crop()
+    path_lengths.append(len(full_path.x))
+    plot_path_2d(tp, ax)
+    returns.append(compute_return(output[2], 1))
+returns = np.array(returns)
+path_lengths = np.array(path_lengths)
+print(f"GT Results: {returns.mean()=} {returns.std()=}")
+print(f"GT Execution: {path_lengths.mean()=} {path_lengths.std()=}")
+
+# Plot settings
+ax.set(
+    xlim=(domain[0][0], domain[0][1]),
+    ylim=(domain[1][0], domain[1][1]),
+    xlabel='$\\cos\\theta$',
+    ylabel='$\\sin\\theta$',
+)
+
+save_figure = True
+if save_figure: neatplot.save_figure(f'mpc_gt', 'pdf')
+
 # Run BAX loop
-n_iter = 200
+n_iter = 2000
 
 for i in range(n_iter):
     print('---' * 5 + f' Start iteration i={i} ' + '---' * 5)
@@ -112,14 +151,10 @@ for i in range(n_iter):
 
     # Plot
     fig, ax = plt.subplots(1, 1, figsize=(5, 5))
-    ax.add_patch(Rectangle((-env.x_threshold, -env.theta_threshold_radians),
-                           2 * env.x_threshold, 2 * env.theta_threshold_radians,
-                           edgecolor='red',
-                           fill=False))
 
     # Plot observations
     x_obs = [xi[0] for xi in data.x]
-    y_obs = [xi[2] for xi in data.x]
+    y_obs = [xi[1] for xi in data.x]
     ax.scatter(x_obs, y_obs, color='k', s=120)
 
     # Plot true path and posterior path samples
@@ -128,12 +163,12 @@ for i in range(n_iter):
         plot_path_2d(path, ax)
 
     # Plot x_next
-    ax.scatter(x_next[0], x_next[2], color='deeppink', s=120, zorder=100)
+    ax.scatter(x_next[0], x_next[1], color='deeppink', s=120, zorder=100)
 
     # Plot settings
     ax.set(
         xlim=(domain[0][0], domain[0][1]),
-        ylim=(domain[2][0], domain[2][1]),
+        ylim=(domain[1][0], domain[1][1]),
         xlabel='$x$',
         ylabel='$\\theta$',
     )
