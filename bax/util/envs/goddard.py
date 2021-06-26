@@ -144,17 +144,24 @@ class GoddardEnv(gym.Env):
         self.horizon = 30
 
         self.U_INDEX = 0
+
+        # changed from original to be [-1, 1], for consistency. we denormalize in the step function
         self.action_space = gym.spaces.Box(
-            low   = np.array([0.0]),
+            low   = np.array([-1.0]),
             high  = np.array([1.0]),
             shape = (1,),
             dtype = np.float
         )
 
         self.V_INDEX, self.H_INDEX, self.M_INDEX = 0, 1, 2
+        self.observation_space_norm = gym.spaces.Box(
+            low   = np.array([-0.15, 1, self._r.M1]),
+            high  = np.array([0.15, 1.02, self._r.M0]),
+            dtype = np.float
+        )
         self.observation_space = gym.spaces.Box(
-            low   = np.array([-1000, 0.0, self._r.M1]),
-            high  = np.array([1000, np.finfo(np.float).max, self._r.M0]),
+            low   = -np.ones_like(self.observation_space_norm.low),
+            high  = np.ones_like(self.observation_space_norm.high),
             dtype = np.float
         )
 
@@ -168,7 +175,12 @@ class GoddardEnv(gym.Env):
 
         is_tank_empty = (m <= self._r.M1)
 
-        a = 0.0 if is_tank_empty else action[self.U_INDEX]
+        # action is normalized to be between -1 and 1 for consistency
+        a = -1.0 if is_tank_empty else action[self.U_INDEX]
+        # this gets fixed here to be between 0 and 1
+        a += 1
+        a /= 2
+        # should now be fixed
         thrust = self._r.THRUST_MAX*a
 
         self._thrust_last = thrust
@@ -182,6 +194,7 @@ class GoddardEnv(gym.Env):
             max(h + self._r.DT * v, self._r.H0),
             max(m - self._r.DT * self._r.GAMMA * thrust, self._r.M1)
         )
+        new_m = self._state[2]
 
         self._h_max = max(self._h_max, self._state[self.H_INDEX])
 
@@ -201,13 +214,29 @@ class GoddardEnv(gym.Env):
     def maximum_altitude(self):
         return self._h_max
 
+    def normalize(self, unnorm):
+        norm = (unnorm - self.observation_space_norm.low) / (self.observation_space_norm.high -
+                                                           self.observation_space_norm.low)
+        norm *= 2
+        norm -= 1
+        return norm
+
+    def unnormalize(self, norm):
+        unnorm = norm + 1
+        unnorm /= 2
+        unnorm = (unnorm * (self.observation_space_norm.high - self.observation_space_norm.low)) + \
+                  self.observation_space_norm.low
+        return unnorm
+
     def _observation(self):
-        return np.array(self._state)
+        unnorm = np.array(self._state)
+        return self.normalize(unnorm)
 
     def reset(self, obs=None):
         self._state = (self._r.V0, self._r.H0, self._r.M0)
         if obs is not None:
-            self._state = tuple(obs)
+            unnorm = self.unnormalize(obs)
+            self._state = tuple(unnorm)
         self._h_max = self._r.H0
         self._thrust_last = None
         return self._observation()
@@ -268,7 +297,7 @@ class GoddardEnv(gym.Env):
         self.fuel.v = self.make_fuel_poly(m)
 
         s = 0 if self._thrust_last is None else self._thrust_last/self._r.THRUST_MAX
-        
+
         self.f_trans.set_scale(newx=s, newy=s)
         self.fo_trans.set_scale(newx=s, newy=s)
 
@@ -279,10 +308,13 @@ class GoddardEnv(gym.Env):
             self.viewer.close()
             self.viewer = None
 
+_env = GoddardEnv()
+
 def goddard_terminal(x, y):
-    v = x[0]
-    h = x[1]
-    m = x[2]
+    unnorm_x = _env.unnormalize(x[:3])
+    v = unnorm_x[0]
+    h = unnorm_x[1]
+    m = unnorm_x[2]
     u = x[3]
     v2 = x[0]
     M1 = 0.6
@@ -295,8 +327,10 @@ def goddard_reward(x, y):
 
     if not goddard_terminal(x, y):
         return 0
-    h0 = x[1]
-    h1 = y[1]
+    unnorm_x = _env.unnormalize(x[:3])
+    unnorm_y = _env.unnormalize(y)
+    h0 = unnorm_x[1]
+    h1 = unnorm_y[1]
     return max(h0, h1) - 1
 
 class GoddardDefaultEnv(GoddardEnv):
@@ -312,6 +346,9 @@ class GoddardSaturnEnv(GoddardEnv):
 if __name__ == '__main__':
     env = GoddardDefaultEnv()
     obs = env.reset()
+    unnorm = env.unnormalize(obs)
+    norm = env.normalize(unnorm)
+    assert np.allclose(norm, obs), f"{norm=}, {obs=}"
     done = False
     rewards = []
     while not done:

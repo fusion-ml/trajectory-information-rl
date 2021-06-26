@@ -36,3 +36,6 @@ docs/_build/
 
 # virtual envionments
 venvbac/
+
+# dump files
+experiments/
