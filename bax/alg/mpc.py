@@ -11,6 +11,7 @@ from math import ceil
 from .algorithms import Algorithm
 from ..util.misc_util import dict_to_namespace
 from ..util.control_util import compute_return, iCEM_generate_samples
+from ..util.domain_util import project_to_domain
 
 
 class MPC(Algorithm):
@@ -45,6 +46,8 @@ class MPC(Algorithm):
         self.params.xi = getattr(params, "xi", 0.3)
         self.params.num_iters = getattr(params, "num_iters", 3)
         self.params.actions_per_plan = getattr(params, "actions_per_plan", 4)
+        self.params.project_to_domain = getattr(params, 'project_to_domain', False)
+        self.params.domain = getattr(params, "domain", None)
         self.traj_samples = None
         self.traj_states = None
         self.traj_rewards = None
@@ -133,6 +136,11 @@ class MPC(Algorithm):
             query = self.get_shift_x()
         elif not self.samples_done:
             query = self.get_sample_x()
+
+        # Optionally, project to domain
+        if self.params.project_to_domain:
+            query = project_to_domain(query, self.params.domain)
+
         return query
 
     def get_shift_x(self):
@@ -295,6 +303,11 @@ class MPC(Algorithm):
         for i, (obs, action) in enumerate(zip(self.planned_states, self.planned_actions)):
             next_obs = self.planned_states[i + 1]
             x = np.concatenate([obs, action])
+
+            # Optionally, project to domain
+            if self.params.project_to_domain:
+                x = project_to_domain(x, self.params.domain)
+
             y = next_obs - obs
             exe_path_crop.x.append(x)
             exe_path_crop.y.append(y)
