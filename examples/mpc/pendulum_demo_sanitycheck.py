@@ -107,7 +107,7 @@ true_path = true_algo.get_exe_path_crop()
 fig, ax = plt.subplots(1, 1, figsize=(5, 5))
 
 
-# Plot true path and posterior path samples
+# Compute and plot true path (on true function) multiple times
 returns = []
 path_lengths = []
 for _ in trange(10):
