@@ -328,7 +328,7 @@ def test_MPC_algorithm():
         next_obs, rew, done, info = env.step(action)
         if (next_obs != observations[i + 1]).any():
             error = np.linalg.norm(next_obs - observations[i + 1])
-            print(f"{i=}, {error=}")
+            print(f"i={i}, error={error}")
         rewards.append(rew)
         if done:
             break

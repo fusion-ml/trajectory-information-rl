@@ -15,7 +15,7 @@ from bax.acq.acqoptimize import AcqOptimizer
 from bax.alg.mpc import MPC
 from bax.util.misc_util import dict_to_namespace
 from bax.util.envs.pendulum import PendulumEnv, pendulum_reward
-from bax.util.control_util import ResettableEnv, get_f_mpc, compute_return
+from bax.util.control_util import get_f_mpc, compute_return
 from bax.util.domain_util import unif_random_sample_domain, project_to_domain
 import neatplot
 
@@ -52,15 +52,13 @@ def plot_path_2d(path, ax=None, true_path=False):
 # Start Script
 # -------------
 # Set black-box function
-env = PendulumEnv()
-env.seed(seed)
+env = PendulumEnv(seed=seed)
 obs_dim = env.observation_space.low.size
 action_dim = env.action_space.low.size
-plan_env = PendulumEnv()
-plan_env.seed(seed)
+
+plan_env = PendulumEnv(seed=seed)
 f = get_f_mpc(plan_env)
 start_obs = env.reset()
-
 
 # Set domain
 low = np.concatenate([env.observation_space.low, env.action_space.low])
@@ -84,21 +82,21 @@ algo_params = dict(
         )
 algo = algo_class(algo_params)
 
-# Set model
-gp_params = {'ls': 8.0, 'alpha': 5.0, 'sigma': 1e-2, 'n_dimx': obs_dim + action_dim}
-multi_gp_params = {'n_dimy': obs_dim, 'gp_params': gp_params}
-gp_model_class = MultiGpfsGp
-
 # Set data
 data = Namespace()
-n_init_data = 1
+n_init_data = 4000
 data.x = unif_random_sample_domain(domain, n_init_data)
 data.y = [f(xi) for xi in data.x]
 
+# Set model
+gp_params = {'ls': 0.85, 'alpha': 1.0, 'sigma': 1e-2, 'n_dimx': obs_dim + action_dim}
+multi_gp_params = {'n_dimy': obs_dim, 'gp_params': gp_params}
+gp_model_class = MultiGpfsGp
+
 # Set acqfunction
-acqfn_params = {'n_path': 30, 'crop': True}
+acqfn_params = {'n_path': 15, 'crop': True}
 acqfn_class = MultiBaxAcqFunction
-n_rand_acqopt = 1000
+n_rand_acqopt = 500
 
 # Compute true path
 true_algo = algo_class(algo_params)
@@ -120,8 +118,8 @@ for _ in trange(10):
     returns.append(compute_return(output[2], 1))
 returns = np.array(returns)
 path_lengths = np.array(path_lengths)
-print(f"GT Results: {returns.mean()=} {returns.std()=}")
-print(f"GT Execution: {path_lengths.mean()=} {path_lengths.std()=}")
+print(f"GT Results: returns.mean()={returns.mean()} returns.std()={returns.std()}")
+print(f"GT Execution: path_lengths.mean()={path_lengths.mean()} path_lengths.std()={path_lengths.std()}")
 
 # Plot settings
 ax.set(
@@ -135,7 +133,7 @@ save_figure = True
 if save_figure: neatplot.save_figure(f'mpc_gt', 'pdf')
 
 # Run BAX loop
-n_iter = 2000
+n_iter = 1
 
 for i in range(n_iter):
     print('---' * 5 + f' Start iteration i={i} ' + '---' * 5)
@@ -155,7 +153,7 @@ for i in range(n_iter):
     # Plot observations
     x_obs = [xi[0] for xi in data.x]
     y_obs = [xi[1] for xi in data.x]
-    ax.scatter(x_obs, y_obs, color='k', s=120)
+    #ax.scatter(x_obs, y_obs, color='k', s=120)
 
     # Plot true path and posterior path samples
     plot_path_2d(true_path, ax, true_path=True)

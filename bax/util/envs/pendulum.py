@@ -11,7 +11,11 @@ class PendulumEnv(gym.Env):
         'video.frames_per_second': 30
     }
 
-    def __init__(self, g=10.0):
+    def __init__(self, g=10.0, seed=None):
+
+        # Set gym env seed
+        self.seed(seed)
+
         self.max_speed = 8
         self.max_torque = 2.
         self.dt = .05
@@ -33,8 +37,6 @@ class PendulumEnv(gym.Env):
             high=high,
             dtype=np.float32
         )
-
-        self.seed()
 
     def seed(self, seed=None):
         self.np_random, seed = seeding.np_random(seed)
