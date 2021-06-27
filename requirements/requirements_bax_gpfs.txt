@@ -1,5 +1,6 @@
-numpy>=1.19.0
-matplotlib>=3.2.2
+numpy==1.19.4
+matplotlib==3.3.3
+dm-tree==0.1.5
 tensorflow==2.4.0
 tensorflow-probability==0.12.1
 gpflow==2.1.4
