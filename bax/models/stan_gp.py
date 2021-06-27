@@ -118,3 +118,23 @@ def get_stangp_hypers(f, domain=[[0.0, 10.0]], n_samp=200):
     }
 
     return gp_hypers
+
+
+def get_stangp_hypers_from_data(data):
+    """
+    Return hypers fit by StanGp, using data Namespace (with fields x and y). Assumes y
+    is a list of scalars (i.e. 1 dimensional output).
+    """
+    data = dict_to_namespace(data)
+
+    # Fit params with StanGp on data
+    model = StanGp(data=data)
+    model.fit_hypers()
+    gp_hypers = {
+        'ls': model.params.ls,
+        'alpha': model.params.alpha,
+        'sigma': model.params.sigma,
+        'n_dimx': len(data.x[0]),
+    }
+
+    return gp_hypers
