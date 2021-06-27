@@ -348,12 +348,12 @@ if __name__ == '__main__':
     obs = env.reset()
     unnorm = env.unnormalize(obs)
     norm = env.normalize(unnorm)
-    assert np.allclose(norm, obs), f"{norm=}, {obs=}"
+    assert np.allclose(norm, obs), f"norm={norm}, obs={obs}"
     done = False
     rewards = []
     while not done:
         next_obs, rew, done, info = env.step(env.action_space.sample())
         print(rew)
         rewards.append(rew)
-    print(f"{len(rewards)=}")
+    print(f"len(rewards)={len(rewards)}")
 

@@ -121,8 +121,8 @@ for _ in trange(10):
     returns.append(compute_return(output[2], 1))
 returns = np.array(returns)
 path_lengths = np.array(path_lengths)
-print(f"GT Results: {returns.mean()=} {returns.std()=}")
-print(f"GT Execution: {path_lengths.mean()=} {path_lengths.std()=}")
+print(f"GT Results: returns.mean()={returns.mean()} returns.std()={returns.std()}")
+print(f"GT Execution: path_lengths.mean()={path_lengths.mean()} path_lengths.std()={path_lengths.std()}")
 
 # Plot settings
 ax.set(
