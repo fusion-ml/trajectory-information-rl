@@ -47,7 +47,7 @@ class MPC(Algorithm):
         self.params.num_iters = getattr(params, "num_iters", 3)
         self.params.actions_per_plan = getattr(params, "actions_per_plan", 4)
         self.params.project_to_domain = getattr(params, 'project_to_domain', False)
-        self.params.domain = getattr(params, "domain", None)
+        self.params.domain = params.domain
         self.traj_samples = None
         self.traj_states = None
         self.traj_rewards = None
