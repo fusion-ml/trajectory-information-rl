@@ -71,17 +71,18 @@ class GpfsGp(SimpleGp):
             noise_variance=self.params.sigma**2,
         )
 
-    def initialize_function_sample_list(self, n_samp=1):
-        """Initialize a list of n_samp function samples."""
+    def initialize_function_sample_list(self, n_fsamp=1):
+        """Initialize a list of n_fsamp function samples."""
         n_bases = self.params.n_bases
-        paths = self.params.model.generate_paths(num_samples=n_samp, num_bases=n_bases)
+        paths = self.params.model.generate_paths(num_samples=n_fsamp, num_bases=n_bases)
         _ = self.params.model.set_paths(paths)
 
         Xinit = tf.random.uniform(
-            [n_samp, self.params.n_dimx], minval=0.0, maxval=0.1, dtype=floatx()
+            [n_fsamp, self.params.n_dimx], minval=0.0, maxval=0.1, dtype=floatx()
         )
         Xvars = tf.Variable(Xinit)
         self.fsl_xvars = Xvars
+        self.n_fsamp = n_fsamp
 
     @tf.function
     def call_fsl_on_xvars(self, model, xvars, sample_axis=0):
@@ -100,6 +101,21 @@ class GpfsGp(SimpleGp):
         y_tf = self.call_fsl_on_xvars(self.params.model, self.fsl_xvars)
         y_list = list(y_tf.numpy().reshape(-1))
         return y_list
+
+    def call_function_sample_list_mean(self, x):
+        """
+        Call a set of posterior function samples on an input x and return mean of
+        outputs.
+        """
+
+        # Construct x_dupe_list
+        x_dupe_list = [x for _ in range(self.n_fsamp)]
+
+        # Set fsl_xvars as x_dupe_list, call fsl, return y_list
+        self.fsl_xvars.assign(x_dupe_list)
+        y_tf = self.call_fsl_on_xvars(self.params.model, self.fsl_xvars)
+        y_mean = y_tf.numpy().reshape(-1).mean()
+        return y_mean
 
     def replace_x_list_none(self, x_list):
         """Replace any Nones in x_list with first non-None value and return x_list."""
@@ -170,6 +186,18 @@ class MultiGpfsGp(Base):
         # y_list is a list, where each element is a list representing a multidim y
         y_list = [list(x) for x in zip(*y_list_list)]
         return y_list
+
+    def call_function_sample_list_mean(self, x):
+        """
+        Call a set of posterior function samples on an input x and return mean of
+        outputs, for each GP in self.gpfsgp_list.
+        """
+
+        # y_vec is a list of outputs for a single x (one output per gpfsgp)
+        y_vec = [
+            gpfsgp.call_function_sample_list_mean(x) for gpfsgp in self.gpfsgp_list
+        ]
+        return y_vec
 
     def get_post_mu_cov(self, x_list, full_cov=False):
         """See SimpleGp. Returns a list of mu, and a list of cov/std."""
