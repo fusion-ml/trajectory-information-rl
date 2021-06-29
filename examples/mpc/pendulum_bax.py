@@ -81,7 +81,7 @@ algo_params = dict(
         num_iters=3,
         actions_per_plan=6,
         domain=domain,
-        )
+)
 algo = algo_class(algo_params)
 
 # Set data

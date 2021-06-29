@@ -61,21 +61,6 @@ plan_env.seed(seed)
 f = get_f_mpc(plan_env)
 start_obs = env.reset()
 
-algo_params = dict(
-        start_obs=start_obs,
-        env=plan_env,
-        reward_function=goddard_reward,
-        terminal_function=goddard_terminal,
-        base_nsamps=20,
-        planning_horizon=30,
-        n_elites=6,
-        beta=3,
-        gamma=1.25,
-        xi=0.3,
-        num_iters=3,
-        actions_per_plan=4,
-        )
-
 # Set domain
 low = np.concatenate([env.observation_space.low, env.action_space.low])
 high = np.concatenate([env.observation_space.high, env.action_space.high])
@@ -83,6 +68,22 @@ domain = [elt for elt in zip(low, high)]
 
 # Set algorithm
 algo_class = MPC
+algo_params = dict(
+    start_obs=start_obs,
+    env=plan_env,
+    reward_function=goddard_reward,
+    terminal_function=goddard_terminal,
+    base_nsamps=20,
+    planning_horizon=30,
+    n_elites=6,
+    beta=3,
+    gamma=1.25,
+    xi=0.3,
+    num_iters=3,
+    actions_per_plan=4,
+    project_to_domain=True,
+    domain=domain,
+)
 algo = algo_class(algo_params)
 
 # Set model
