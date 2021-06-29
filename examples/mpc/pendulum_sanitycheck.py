@@ -153,7 +153,8 @@ for i in range(n_iter):
     # Plot observations
     x_obs = [xi[0] for xi in data.x]
     y_obs = [xi[1] for xi in data.x]
-    #ax.scatter(x_obs, y_obs, color='k', s=120)
+    ax.scatter(x_obs, y_obs, color='grey', s=5, alpha=0.1)  # small grey dots
+    #ax.scatter(x_obs, y_obs, color='k', s=120)             # big black dots
 
     # Plot true path and posterior path samples
     plot_path_2d(true_path, ax, true_path=True)
