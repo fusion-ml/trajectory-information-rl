@@ -270,7 +270,7 @@ def rollout_icem_continuous_cartpole(env, unroller):
     return sum(rewards)
 
 def evaluate_policy(env, policy, start_obs=None):
-    obs = env.reset(start_state)
+    obs = env.reset(start_obs)
     observations = [obs]
     actions = []
     rewards = []

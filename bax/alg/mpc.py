@@ -315,19 +315,18 @@ class MPC(Algorithm):
                 break
         return exe_path_crop
 
-    def execute_mpc(self, f, obs):
+    def execute_mpc(self, obs, f):
         '''
         run MPC on a state, returns the optimal action
         '''
-        breakpoint()
         old_horizon = self.params.env_horizon
         old_start_obs = self.params.start_obs
         self.params.env_horizon = 1
-        self.params.start_obs = state
+        self.params.start_obs = obs
         exe_path, output = self.run_algorithm_on_f(f)
         action = output[1][0]
         self.params.env_horizon = old_horizon
-        self.params.start_obs = start_obs
+        self.params.start_obs = old_start_obs
         return action
 
 
