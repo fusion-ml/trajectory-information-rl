@@ -269,6 +269,20 @@ def rollout_icem_continuous_cartpole(env, unroller):
                 return sum(rewards)
     return sum(rewards)
 
+def evaluate_policy(env, policy, start_obs=None):
+    obs = env.reset(start_state)
+    observations = [obs]
+    actions = []
+    rewards = []
+    done = False
+    while not done:
+        action = policy(obs)
+        obs, rew, done, info = env.step(action)
+        observations.append(obs)
+        actions.append(action)
+        rewards.append(rew)
+    return observations, actions, rewards
+
 
 def test_continuous_cartpole():
     from envs.continuous_cartpole import ContinuousCartPoleEnv

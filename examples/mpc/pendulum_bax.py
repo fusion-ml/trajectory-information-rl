@@ -7,6 +7,7 @@ import numpy as np
 import matplotlib.pyplot as plt
 from matplotlib.patches import Rectangle
 from tqdm import trange
+from functools import partial
 import tensorflow as tf
 
 from bax.models.gpfs_gp import MultiGpfsGp
@@ -15,7 +16,7 @@ from bax.acq.acqoptimize import AcqOptimizer
 from bax.alg.mpc import MPC
 from bax.util.misc_util import dict_to_namespace
 from bax.util.envs.pendulum import PendulumEnv, pendulum_reward
-from bax.util.control_util import get_f_mpc, compute_return
+from bax.util.control_util import get_f_mpc, compute_return, evaluate_policy
 from bax.util.domain_util import unif_random_sample_domain, project_to_domain
 import neatplot
 
@@ -180,6 +181,15 @@ for i in range(n_iter):
     # Query function, update data
     print(f'Length of data.x: {len(data.x)}')
     print(f'Length of data.y: {len(data.y)}')
+
+    # execute the best we can
+    n_postmean_f_samp = 100
+    model.initialize_function_sample_list(n_postmean_f_samp)
+    policy = partial(algo.execute_mpc(f=model.call_function_sample_list_mean(x))
+    real_obs, real_actions, real_rewards = evaluate_policy(env, policy, start_obs=start_obs)
+    print(f"Return on executed MPC: {compute_return(real_rewards, 1)}")
+
+
     y_next = f(x_next)
     data.x.append(x_next)
     data.y.append(y_next)
