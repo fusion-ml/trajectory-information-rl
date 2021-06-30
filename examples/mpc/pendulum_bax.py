@@ -22,6 +22,7 @@ from bax.util.timing import Timer
 import neatplot
 
 
+# How often to perform evaluation between iterations
 eval_frequency = 25
 
 # Set plot settings
