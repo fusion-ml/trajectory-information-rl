@@ -20,6 +20,7 @@ from bax.util.misc_util import dict_to_namespace, Dumper
 from bax.util.envs.pendulum import PendulumEnv, pendulum_reward
 from bax.util.control_util import get_f_mpc, compute_return, evaluate_policy
 from bax.util.domain_util import unif_random_sample_domain, project_to_domain
+from bax.util.timing import Timer
 import neatplot
 
 
