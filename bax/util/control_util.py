@@ -1,6 +1,10 @@
 import numpy as np
 import gym
-from gym.envs.mujoco.mujoco_env import MujocoEnv
+try:
+    from gym.envs.mujoco.mujoco_env import MujocoEnv
+    mj_here = True
+except:
+    mj_here = False
 import colorednoise
 from tqdm import tqdm, trange
 from abc import ABC, abstractmethod
@@ -11,6 +15,18 @@ def choose_subset(data_list, idx):
     for ix in idx:
         out.append(data_list[ix])
     return out
+
+
+def get_f_mpc(env):
+    obs_dim = len(env.observation_space.low)
+    def f(x):
+        x = np.array(x)
+        obs = x[:obs_dim]
+        action = x[obs_dim:]
+        env.reset(obs)
+        next_obs, reward, done, info = env.step(action)
+        return next_obs - obs
+    return f
 
 
 def CEM(start_obs,
@@ -166,7 +182,10 @@ class ResettableEnv(gym.Env):
         self._wrapped_env = env
         self.action_space = self._wrapped_env.action_space
         self.observation_space = self._wrapped_env.observation_space
-        self.is_mujoco = isinstance(env, MujocoEnv)
+        if mj_here:
+            self.is_mujoco = isinstance(env, MujocoEnv)
+        else:
+            self.is_mujoco = False
         self.npos = len(env.init_qpos) if self.is_mujoco else None
 
     @property
@@ -250,9 +269,23 @@ def rollout_icem_continuous_cartpole(env, unroller):
                 return sum(rewards)
     return sum(rewards)
 
+def evaluate_policy(env, policy, start_obs=None):
+    obs = env.reset(start_obs)
+    observations = [obs]
+    actions = []
+    rewards = []
+    done = False
+    while not done:
+        action = policy(obs)
+        obs, rew, done, info = env.step(action)
+        observations.append(obs)
+        actions.append(action)
+        rewards.append(rew)
+    return observations, actions, rewards
+
 
 def test_continuous_cartpole():
-    from continuous_cartpole import ContinuousCartPoleEnv
+    from envs.continuous_cartpole import ContinuousCartPoleEnv
     # from pets_cartpole import PETSCartpoleEnv
     algo = 'iCEM'
     fn = rollout_cem_continuous_cartpole if algo == 'CEM' else rollout_icem_continuous_cartpole

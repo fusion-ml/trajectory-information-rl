@@ -39,9 +39,10 @@ class ContinuousCartPoleEnv(gym.Env):
         # is still within bounds
         high = np.array([
             self.x_threshold * 2,
-            np.finfo(np.float32).max,
+            6, # np.finfo(np.float32).max,
             self.theta_threshold_radians * 2,
-            np.finfo(np.float32).max])
+            6, # np.finfo(np.float32).max
+            ])
 
         self.action_space = spaces.Box(
             low=self.min_action,
@@ -179,3 +180,5 @@ def continuous_cartpole_reward(x, y):
     else:
         return 1
 
+def continuous_cartpole_terminal(x, y):
+    return continuous_cartpole_reward(x, y) == 0

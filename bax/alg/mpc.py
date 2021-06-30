@@ -11,12 +11,14 @@ from math import ceil
 from .algorithms import Algorithm
 from ..util.misc_util import dict_to_namespace
 from ..util.control_util import compute_return, iCEM_generate_samples
+from ..util.domain_util import project_to_domain
 
 
 class MPC(Algorithm):
     """
-    An algorithm for model-predictive control. Here, the queries are concatenated states and actions and the output of the query is the next state.
-    We need the reward function in our algorithm as well as a start state.
+    An algorithm for model-predictive control. Here, the queries are concatenated states
+    and actions and the output of the query is the next state.  We need the reward
+    function in our algorithm as well as a start state.
     """
 
     def set_params(self, params):
@@ -28,8 +30,9 @@ class MPC(Algorithm):
         self.params.start_obs = params.start_obs
         self.params.env = params.env
         self.params.discount_factor = getattr(params, 'discount_factor', 0.99)
-        # reward function is currently required, needs to take (state x action) x next_state -> R
+        # reward function is currently required, needs to take (state x action) x next_obs -> R
         self.params.reward_function = params.reward_function
+        self.terminal_function = self.params.terminal_function = getattr(params, "terminal_function", None)
         self.params.env_horizon = params.env.horizon
         self.params.action_dim = params.env.action_space.low.size
         self.params.obs_dim = params.env.observation_space.low.size
@@ -44,6 +47,8 @@ class MPC(Algorithm):
         self.params.xi = getattr(params, "xi", 0.3)
         self.params.num_iters = getattr(params, "num_iters", 3)
         self.params.actions_per_plan = getattr(params, "actions_per_plan", 4)
+        self.params.project_to_domain = getattr(params, 'project_to_domain', False)
+        self.params.domain = params.domain
         self.traj_samples = None
         self.traj_states = None
         self.traj_rewards = None
@@ -68,6 +73,7 @@ class MPC(Algorithm):
         self.best_actions = None
         self.best_obs = None
         self.best_rewards = None
+        self.is_test = False
 
     def initialize(self):
         """Initialize algorithm, reset execution path."""
@@ -101,6 +107,9 @@ class MPC(Algorithm):
         self.saved_states = []
         self.saved_actions = []
         self.saved_rewards = []
+        self.shifted_actions = []
+        self.shifted_states = []
+        self.shifted_rewards = []
         self.traj_states = [[] for _ in range(initial_nsamps)]
         self.traj_rewards = [[] for _ in range(initial_nsamps)]
         self.best_return = -np.inf
@@ -129,6 +138,11 @@ class MPC(Algorithm):
             query = self.get_shift_x()
         elif not self.samples_done:
             query = self.get_sample_x()
+
+        # Optionally, project to domain
+        if self.params.project_to_domain:
+            query = project_to_domain(query, self.params.domain)
+
         return query
 
     def get_shift_x(self):
@@ -185,11 +199,17 @@ class MPC(Algorithm):
         self.current_traj_idx = 0
         self.samples_done = False
 
+    def get_next_obs(self, x, y):
+        start_obs = x[:self.params.obs_dim]
+        delta_obs = y
+        return start_obs + delta_obs
+
     def process_prev_output(self):
-        reward = self.params.reward_function(self.exe_path.x[-1], self.exe_path.y[-1])
+        next_obs = self.get_next_obs(self.exe_path.x[-1], self.exe_path.y[-1])
+        reward = self.params.reward_function(self.exe_path.x[-1], next_obs)
         if not self.shift_done:
             # do all the shift stuff
-            self.shifted_states[self.current_traj_idx].append(self.exe_path.y[-1])
+            self.shifted_states[self.current_traj_idx].append(next_obs)
             self.shifted_rewards[self.current_traj_idx].append(reward)
             self.current_t_plan += 1
             if self.current_t_plan == self.params.planning_horizon:
@@ -201,7 +221,7 @@ class MPC(Algorithm):
                 self.shift_done = True
             return
         # otherwise do the stuff for the standard CEM
-        self.traj_states[self.current_traj_idx].append(self.exe_path.y[-1])
+        self.traj_states[self.current_traj_idx].append(next_obs)
         self.traj_rewards[self.current_traj_idx].append(reward)
         self.current_t_plan += 1
         if self.current_t_plan == self.params.planning_horizon:
@@ -285,25 +305,43 @@ class MPC(Algorithm):
         for i, (obs, action) in enumerate(zip(self.planned_states, self.planned_actions)):
             next_obs = self.planned_states[i + 1]
             x = np.concatenate([obs, action])
-            y = next_obs
+
+            # Optionally, project to domain
+            if self.params.project_to_domain:
+                x = project_to_domain(x, self.params.domain)
+
+            y = next_obs - obs
             exe_path_crop.x.append(x)
             exe_path_crop.y.append(y)
+            if self.terminal_function is not None and self.terminal_function(x, next_obs):
+                break
         return exe_path_crop
+
+    def execute_mpc(self, obs, f):
+        """Run MPC on a state, returns the optimal action."""
+        old_horizon = self.params.env_horizon
+        old_start_obs = self.params.start_obs
+        self.params.env_horizon = 1
+        self.params.start_obs = obs
+        self.initialize()
+        # this doesn't do anything rn but maybe will in future (it did in debugging too)
+        self.is_test = True
+        exe_path, output = self.run_algorithm_on_f(f)
+        self.is_test = False
+        action = output[1][0]
+        self.params.env_horizon = old_horizon
+        self.params.start_obs = old_start_obs
+        return action
 
 
 def test_MPC_algorithm():
-    from util.continuous_cartpole import ContinuousCartPoleEnv, continuous_cartpole_reward
-    from util.control_util import ResettableEnv
+    from util.envs.continuous_cartpole import ContinuousCartPoleEnv, continuous_cartpole_reward
+    from util.control_util import ResettableEnv, get_f_mpc
     env = ContinuousCartPoleEnv()
     obs_dim = env.observation_space.low.size
     action_dim = env.action_space.low.size
     plan_env = ResettableEnv(ContinuousCartPoleEnv())
-    def f(x):
-        obs = x[:obs_dim]
-        action = x[obs_dim:]
-        plan_env.reset(obs)
-        next_obs, reward, done, info = plan_env.step(action)
-        return next_obs
+    f = get_f_mpc(plan_env)
     start_obs = env.reset()
     params = dict(
             start_obs=start_obs,
@@ -321,7 +359,7 @@ def test_MPC_algorithm():
         next_obs, rew, done, info = env.step(action)
         if (next_obs != observations[i + 1]).any():
             error = np.linalg.norm(next_obs - observations[i + 1])
-            print(f"{i=}, {error=}")
+            print(f"i={i}, error={error}")
         rewards.append(rew)
         if done:
             break

@@ -29,7 +29,7 @@ tf.random.set_seed(seed)
 
 # Global variables
 DEFAULT_F_IS_DIFF = True
-LONG_PATH = False
+LONG_PATH = True
 
 
 class NStep(Algorithm):

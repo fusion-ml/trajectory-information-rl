@@ -14,8 +14,20 @@ def unif_random_sample_domain(domain, n=1):
 
 def project_to_domain(x, domain):
     """Project x, a list of scalars, to be within domain (a list of tuple bounds)."""
+
+    # Assume input x is either a list or 1d numpy array
+    assert isinstance(x, list) or isinstance(x, np.ndarray)
+    if isinstance(x, np.ndarray):
+        assert len(x.shape) == 1
+        x_is_list = False
+
+    # Project x to be within domain
     x_arr = np.array(x).reshape(-1)
     min_list = [tup[0] for tup in domain]
     max_list = [tup[1] for tup in domain]
     x_arr_clip = np.clip(x_arr, min_list, max_list)
-    return list(x_arr_clip)
+
+    # Convert to original type (either list or keep as 1d numpy array)
+    x_return = list(x_arr_clip) if x_is_list else x_arr_clip
+
+    return x_return
