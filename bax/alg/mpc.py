@@ -72,6 +72,7 @@ class MPC(Algorithm):
         self.best_actions = None
         self.best_obs = None
         self.best_rewards = None
+        self.is_test = False
 
     def initialize(self):
         """Initialize algorithm, reset execution path."""
@@ -319,11 +320,16 @@ class MPC(Algorithm):
         '''
         run MPC on a state, returns the optimal action
         '''
+        breakpoint()
         old_horizon = self.params.env_horizon
         old_start_obs = self.params.start_obs
         self.params.env_horizon = 1
         self.params.start_obs = obs
+        self.initialize()
+        # this doesn't do anything rn but maybe will in future (it did in debugging too)
+        self.is_test = True
         exe_path, output = self.run_algorithm_on_f(f)
+        self.is_test = False
         action = output[1][0]
         self.params.env_horizon = old_horizon
         self.params.start_obs = old_start_obs

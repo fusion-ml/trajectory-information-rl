@@ -196,12 +196,13 @@ for i in range(n_iter):
     print(f'Length of data.x: {len(data.x)}')
     print(f'Length of data.y: {len(data.y)}')
 
-    # execute the best we can
-    n_postmean_f_samp = 100
-    model.initialize_function_sample_list(n_postmean_f_samp)
-    policy = partial(algo.execute_mpc, f=model.call_function_sample_list_mean)
-    real_obs, real_actions, real_rewards = evaluate_policy(env, policy, start_obs=start_obs)
-    print(f"Return on executed MPC: {compute_return(real_rewards, 1)}")
+    with Timer("Evaluate the current MPC policy"):
+        # execute the best we can
+        n_postmean_f_samp = 100
+        model.initialize_function_sample_list(n_postmean_f_samp)
+        policy = partial(algo.execute_mpc, f=model.call_function_sample_list_mean)
+        real_obs, real_actions, real_rewards = evaluate_policy(env, policy, start_obs=start_obs)
+        print(f"Return on executed MPC: {compute_return(real_rewards, 1)}")
 
 
     y_next = f(x_next)
