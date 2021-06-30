@@ -22,6 +22,8 @@ from bax.util.timing import Timer
 import neatplot
 
 
+eval_frequency = 25
+
 # Set plot settings
 neatplot.set_style()
 neatplot.update_rc('figure.dpi', 120)
@@ -34,18 +36,23 @@ np.random.seed(seed)
 tf.random.set_seed(seed)
 
 
-def plot_path_2d(path, ax=None, true_path=False):
+def plot_path_2d(path, ax=None, path_str="samp"):
     """Plot a path through an assumed two-dimensional state space."""
+    assert path_str in ["samp", "true", "postmean"]
+
     if ax is None:
         fig, ax = plt.subplots(1, 1, figsize=(5, 5))
 
     x_plot = [xi[0] for xi in path.x]
     y_plot = [xi[1] for xi in path.x]
 
-    if true_path:
+    if path_str == "true":
         ax.plot(x_plot, y_plot, 'k--', linewidth=3)
         ax.plot(x_plot, y_plot, '*', color='k', markersize=5)
-    else:
+    elif path_str == "postmean":
+        ax.plot(x_plot, y_plot, 'r--', linewidth=3)
+        ax.plot(x_plot, y_plot, '*', color='r', markersize=5)
+    elif path_str == "samp":
         ax.plot(x_plot, y_plot, 'k--', linewidth=1, alpha=0.3)
         ax.plot(x_plot, y_plot, 'o', alpha=0.3)
 
@@ -118,7 +125,7 @@ for _ in trange(10):
     full_path, output = true_algo.run_algorithm_on_f(f)
     tp = true_algo.get_exe_path_crop()
     path_lengths.append(len(full_path.x))
-    plot_path_2d(tp, ax)
+    plot_path_2d(tp, ax, 'true')
     returns.append(compute_return(output[2], 1))
 returns = np.array(returns)
 path_lengths = np.array(path_lengths)
@@ -161,9 +168,9 @@ for i in range(n_iter):
     #ax.scatter(x_obs, y_obs, color='k', s=120)             # big black dots
 
     # Plot true path and posterior path samples
-    plot_path_2d(true_path, ax, true_path=True)
+    plot_path_2d(true_path, ax, 'true')
     for path in acqfn.exe_path_list:
-        plot_path_2d(path, ax)
+        plot_path_2d(path, ax, 'samp')
 
     # Plot x_next
     ax.scatter(x_next[0], x_next[1], color='deeppink', s=120, zorder=100)
@@ -176,20 +183,25 @@ for i in range(n_iter):
         ylabel='$\\theta$',
     )
 
-    save_figure = True
-    if save_figure: neatplot.save_figure(f'mpc_{i}', 'pdf')
 
     # Query function, update data
     print(f'Length of data.x: {len(data.x)}')
     print(f'Length of data.y: {len(data.y)}')
 
-    with Timer("Evaluate the current MPC policy"):
-        # execute the best we can
-        n_postmean_f_samp = 100
-        model.initialize_function_sample_list(n_postmean_f_samp)
-        policy = partial(algo.execute_mpc, f=model.call_function_sample_list_mean)
-        real_obs, real_actions, real_rewards = evaluate_policy(env, policy, start_obs=start_obs)
-        print(f"Return on executed MPC: {compute_return(real_rewards, 1)}")
+    if i % eval_frequency == 0 or i + 1 == n_iter:
+        with Timer("Evaluate the current MPC policy"):
+            # execute the best we can
+            n_postmean_f_samp = 100
+            model.initialize_function_sample_list(n_postmean_f_samp)
+            policy = partial(algo.execute_mpc, f=model.call_function_sample_list_mean)
+            real_obs, real_actions, real_rewards = evaluate_policy(env, policy, start_obs=start_obs)
+            print(f"Return on executed MPC: {compute_return(real_rewards, 1)}")
+        real_path_mpc = Namespace()
+        real_path_mpc.x = real_obs
+        plot_path_2d(real_path_mpc, ax, 'postmean')
+
+    save_figure = True
+    if save_figure: neatplot.save_figure(f'mpc_{i}', 'pdf')
 
 
     y_next = f(x_next)

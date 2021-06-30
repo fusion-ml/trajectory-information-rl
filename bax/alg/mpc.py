@@ -320,7 +320,6 @@ class MPC(Algorithm):
         '''
         run MPC on a state, returns the optimal action
         '''
-        breakpoint()
         old_horizon = self.params.env_horizon
         old_start_obs = self.params.start_obs
         self.params.env_horizon = 1
