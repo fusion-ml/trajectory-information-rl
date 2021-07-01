@@ -198,7 +198,7 @@ for i in range(args.n_iter):
     print(f'Length of data.x: {len(data.x)}')
     print(f'Length of data.y: {len(data.y)}')
 
-    if i % args.eval_frequency == 0 or i + 1 == n_iter:
+    if i % args.eval_frequency == 0 or i + 1 == args.n_iter:
         with Timer("Evaluate the current MPC policy"):
             # execute the best we can
             n_postmean_f_samp = 100
