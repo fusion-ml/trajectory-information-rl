@@ -29,6 +29,7 @@ def parse_arguments():
     parser.add_argument('-ow', dest='overwrite', action='store_true')
     parser.add_argument('--num_eval_trials', type=int, default=1)
     parser.add_argument('--eval_frequency', type=int, default=25)
+    parser.add_argument('-ni', '--n_iter', type=int, default=200)
     return parser.parse_args()
 
 args = parse_arguments()
@@ -154,10 +155,8 @@ save_figure = True
 if save_figure:
     neatplot.save_figure(dumper.expdir / 'mpc_gt', 'pdf')
 
-# Run BAX loop
-n_iter = 1000
 
-for i in range(n_iter):
+for i in range(args.n_iter):
     print('---' * 5 + f' Start iteration i={i} ' + '---' * 5)
 
     # Set model
