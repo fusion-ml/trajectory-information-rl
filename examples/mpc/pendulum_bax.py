@@ -198,6 +198,7 @@ for i in range(args.n_iter):
     print(f'Length of data.x: {len(data.x)}')
     print(f'Length of data.y: {len(data.y)}')
 
+    save_figure = False
     if i % args.eval_frequency == 0 or i + 1 == args.n_iter:
         with Timer("Evaluate the current MPC policy"):
             # execute the best we can
@@ -217,7 +218,7 @@ for i in range(args.n_iter):
             dumper.add('Eval Returns', real_returns)
             dumper.add('Eval ndata', len(data.x))
 
-    save_figure = True
+        save_figure = True
     if save_figure: neatplot.save_figure(str(dumper.expdir / f'mpc_{i}'), 'pdf')
     dumper.save()
 
