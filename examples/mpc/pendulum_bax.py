@@ -3,23 +3,36 @@ Testing MultiGpfsGp and MultiBaxAcqFunction classes
 """
 
 from argparse import Namespace
+import argparse
 import numpy as np
 import matplotlib.pyplot as plt
 from matplotlib.patches import Rectangle
 from tqdm import trange
 from functools import partial
 import tensorflow as tf
+import sys
 
 from bax.models.gpfs_gp import MultiGpfsGp
 from bax.acq.acquisition import MultiBaxAcqFunction
 from bax.acq.acqoptimize import AcqOptimizer
 from bax.alg.mpc import MPC
-from bax.util.misc_util import dict_to_namespace
+from bax.util.misc_util import dict_to_namespace, Dumper
 from bax.util.envs.pendulum import PendulumEnv, pendulum_reward
 from bax.util.control_util import get_f_mpc, compute_return, evaluate_policy
 from bax.util.domain_util import unif_random_sample_domain, project_to_domain
 import neatplot
 
+
+def parse_arguments():
+    parser = argparse.ArgumentParser()
+    parser.add_argument('name', help="The name of the experiment and output directory.")
+    parser.add_argument('-ow', dest='overwrite', action='store_true')
+    parser.add_argument('--num_eval_trials', type=int, default=1)
+    parser.add_argument('--eval_frequency', type=int, default=1)
+    return parser.parse_args()
+
+args = parse_arguments()
+dumper = Dumper(args.name, args.overwrite)
 
 # Set plot settings
 neatplot.set_style()
@@ -133,7 +146,8 @@ ax.set(
 )
 
 save_figure = True
-if save_figure: neatplot.save_figure(f'mpc_gt', 'pdf')
+if save_figure:
+    neatplot.save_figure(dumper.expdir / 'mpc_gt', 'pdf')
 
 # Run BAX loop
 n_iter = 1000
@@ -176,7 +190,7 @@ for i in range(n_iter):
     )
 
     save_figure = True
-    if save_figure: neatplot.save_figure(f'mpc_{i}', 'pdf')
+    if save_figure: neatplot.save_figure(dumper.expdir / f'mpc_{i}', 'pdf')
 
     # Query function, update data
     print(f'Length of data.x: {len(data.x)}')

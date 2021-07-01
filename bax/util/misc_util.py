@@ -3,15 +3,18 @@ Miscellaneous utilities.
 """
 
 from argparse import Namespace
+from pathlib import Path
 import os
+import shutil
+import pickle
+from collections import defaultdict
 
 
 def dict_to_namespace(params):
     """
     If params is a dict, convert it to a Namespace, and return it.
 
-    Parameters
-    ----------
+    Parameters ----------
     params : Namespace_or_dict
         Namespace or dict.
 
@@ -56,3 +59,24 @@ class suppress_stdout_stderr:
         # Close the null files
         for fd in self.null_fds + self.save_fds:
             os.close(fd)
+
+
+class Dumper:
+    def __init__(self, experiment_name, overwrite=False):
+        cwd = Path.cwd()
+        while cwd.name != 'bayesian-active-control':
+            cwd = cwd.parent
+        # this should be the root of the repo
+        self.expdir = cwd / 'experiments' / experiment_name
+        if self.expdir.exists() and overwrite:
+            shutil.rmtree(self.expdir)
+        self.expdir.mkdir(parents=True)
+        self.info = defaultdict(list)
+        self.info_path = self.expdir / 'info.pkl'
+
+    def add(self, name, val):
+        self.info[name].append(val)
+
+    def save(self):
+        with self.info_path.open('wb') as f:
+            pickle.dump(self.info, f)
