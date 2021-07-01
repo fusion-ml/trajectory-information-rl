@@ -34,7 +34,6 @@ def parse_arguments():
 
 args = parse_arguments()
 dumper = Dumper(args.name, args.overwrite)
-eval_frequency = 25
 
 # Set plot settings
 neatplot.set_style()
