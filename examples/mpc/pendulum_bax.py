@@ -10,7 +10,6 @@ from matplotlib.patches import Rectangle
 from tqdm import trange
 from functools import partial
 import tensorflow as tf
-import sys
 
 from bax.models.gpfs_gp import MultiGpfsGp
 from bax.acq.acquisition import MultiBaxAcqFunction
@@ -206,14 +205,21 @@ for i in range(n_iter):
             n_postmean_f_samp = 100
             model.initialize_function_sample_list(n_postmean_f_samp)
             policy = partial(algo.execute_mpc, f=model.call_function_sample_list_mean)
-            real_obs, real_actions, real_rewards = evaluate_policy(env, policy, start_obs=start_obs)
-            print(f"Return on executed MPC: {compute_return(real_rewards, 1)}")
-        real_path_mpc = Namespace()
-        real_path_mpc.x = real_obs
-        plot_path_2d(real_path_mpc, ax, 'postmean')
+            real_returns = []
+            for j in range(args.num_eval_trials):
+                real_obs, real_actions, real_rewards = evaluate_policy(env, policy, start_obs=start_obs)
+                real_return = compute_return(real_rewards, 1)
+                real_returns.append(real_returns)
+                real_path_mpc = Namespace()
+                real_path_mpc.x = real_obs
+                plot_path_2d(real_path_mpc, ax, 'postmean')
+            print(f"Return on executed MPC: {np.mean(real_returns)}, std: {np.std(real_returns)}")
+            dumper.add('Eval Returns', real_returns)
+            dumper.add('Eval ndata', len(data.x))
 
     save_figure = True
     if save_figure: neatplot.save_figure(dumper.expdir / f'mpc_{i}', 'pdf')
+    dumper.save()
 
 
     y_next = f(x_next)
