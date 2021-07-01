@@ -148,7 +148,7 @@ ax.set(
 
 save_figure = True
 if save_figure:
-    neatplot.save_figure(dumper.expdir / 'mpc_gt', 'pdf')
+    neatplot.save_figure(str(dumper.expdir / 'mpc_gt'), 'pdf')
 
 
 for i in range(args.n_iter):
@@ -191,20 +191,21 @@ for i in range(args.n_iter):
         for j in range(args.num_eval_trials):
             real_obs, real_actions, real_rewards = evaluate_policy(env, policy, start_obs=start_obs)
             real_return = compute_return(real_rewards, 1)
-            real_returns.append(real_returns)
+            real_returns.append(real_return)
             real_path_mpc = Namespace()
             real_path_mpc.x = real_obs
             plot_path_2d(real_path_mpc, ax, 'postmean')
+        real_returns = np.array(real_returns)
         print(f"Return on executed MPC: {np.mean(real_returns)}, std: {np.std(real_returns)}")
         dumper.add('Eval Returns', real_returns)
         dumper.add('Eval ndata', len(data.x))
 
     save_figure = True
-    if save_figure: neatplot.save_figure(dumper.expdir / f'mpc_{i}', 'pdf')
+    if save_figure: neatplot.save_figure(str(dumper.expdir / f'mpc_{i}'), 'pdf')
     dumper.save()
 
     new_x = [np.concatenate((obs, action)) for obs, action in zip(real_obs, real_actions)]
-    new_y = [next_obs - obs for obs, next_obs in zip(real_obs, real_obs[1:]]
+    new_y = [next_obs - obs for obs, next_obs in zip(real_obs, real_obs[1:])]
 
     data.x.extend(new_x)
     data.y.extend(new_y)
