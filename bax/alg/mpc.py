@@ -31,7 +31,7 @@ class MPC(Algorithm):
         self.params.env = params.env
         self.params.discount_factor = getattr(params, 'discount_factor', 0.99)
         # reward function is currently required, needs to take (state x action) x next_obs -> R
-        self.params.reward_function = params.reward_function
+        self.params.reward_function = getattr(params.reward_function, None)
         self.terminal_function = self.params.terminal_function = getattr(params, "terminal_function", None)
         self.params.env_horizon = params.env.horizon
         self.params.action_dim = params.env.action_space.low.size
@@ -82,7 +82,7 @@ class MPC(Algorithm):
         # set up initial CEM distribution
         self.mean = np.zeros((self.params.planning_horizon, self.params.action_dim))
         self.var = np.ones_like(self.mean) * ((self.params.action_upper_bound - self.params.action_lower_bound) /
-                                                 self.params.initial_variance_divisor) ** 2
+                                               self.params.initial_variance_divisor) ** 2
         initial_nsamps = int(max(self.params.base_nsamps * (self.params.gamma ** -1), 2 * self.params.n_elites))
         self.traj_samples = iCEM_generate_samples(initial_nsamps,
                                                   self.params.planning_horizon,
@@ -205,8 +205,12 @@ class MPC(Algorithm):
         return start_obs + delta_obs
 
     def process_prev_output(self):
-        next_obs = self.get_next_obs(self.exe_path.x[-1], self.exe_path.y[-1])
-        reward = self.params.reward_function(self.exe_path.x[-1], next_obs)
+        if self.params.reward_function is not None:
+            next_obs = self.get_next_obs(self.exe_path.x[-1], self.exe_path.y[-1])
+            reward = self.params.reward_function(self.exe_path.x[-1], next_obs)
+        else:
+            next_obs = self.get_next_obs(self.exe_path.x[-1], self.exe_path.y[-1][1:]
+            reward = self.exe_path.y[-1][0]
         if not self.shift_done:
             # do all the shift stuff
             self.shifted_states[self.current_traj_idx].append(next_obs)

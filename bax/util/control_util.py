@@ -29,6 +29,19 @@ def get_f_mpc(env):
     return f
 
 
+def get_f_mpc_reward(env):
+    obs_dim = len(env.observation_space.low)
+    def f(x):
+        x = np.array(x)
+        obs = x[:obs_dim]
+        action = x[obs_dim:]
+        env.reset(obs)
+        next_obs, reward, done, info = env.step(action)
+        delta_obs = next_obs - obs
+        return np.insert(delta_obs, 0, reward)
+    return f
+
+
 def CEM(start_obs,
         action_dim,
         dynamics_unroller,
