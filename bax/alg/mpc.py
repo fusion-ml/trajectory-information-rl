@@ -16,8 +16,9 @@ from ..util.domain_util import project_to_domain
 
 class MPC(Algorithm):
     """
-    An algorithm for model-predictive control. Here, the queries are concatenated states and actions and the output of the query is the next state.
-    We need the reward function in our algorithm as well as a start state.
+    An algorithm for model-predictive control. Here, the queries are concatenated states
+    and actions and the output of the query is the next state.  We need the reward
+    function in our algorithm as well as a start state.
     """
 
     def set_params(self, params):
@@ -317,9 +318,7 @@ class MPC(Algorithm):
         return exe_path_crop
 
     def execute_mpc(self, obs, f):
-        '''
-        run MPC on a state, returns the optimal action
-        '''
+        """Run MPC on a state, returns the optimal action."""
         old_horizon = self.params.env_horizon
         old_start_obs = self.params.start_obs
         self.params.env_horizon = 1
