@@ -31,7 +31,7 @@ class MPC(Algorithm):
         self.params.env = params.env
         self.params.discount_factor = getattr(params, 'discount_factor', 0.99)
         # reward function is currently required, needs to take (state x action) x next_obs -> R
-        self.params.reward_function = getattr(params.reward_function, None)
+        self.params.reward_function = getattr(params, 'reward_function', None)
         self.terminal_function = self.params.terminal_function = getattr(params, "terminal_function", None)
         self.params.env_horizon = params.env.horizon
         self.params.action_dim = params.env.action_space.low.size
@@ -209,7 +209,7 @@ class MPC(Algorithm):
             next_obs = self.get_next_obs(self.exe_path.x[-1], self.exe_path.y[-1])
             reward = self.params.reward_function(self.exe_path.x[-1], next_obs)
         else:
-            next_obs = self.get_next_obs(self.exe_path.x[-1], self.exe_path.y[-1][1:]
+            next_obs = self.get_next_obs(self.exe_path.x[-1], self.exe_path.y[-1][1:])
             reward = self.exe_path.y[-1][0]
         if not self.shift_done:
             # do all the shift stuff

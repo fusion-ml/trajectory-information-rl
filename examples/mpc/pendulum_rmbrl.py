@@ -114,11 +114,6 @@ gp_params = {'ls': 0.85, 'alpha': 1.0, 'sigma': 1e-2, 'n_dimx': obs_dim + action
 multi_gp_params = {'n_dimy': obs_dim, 'gp_params': gp_params}
 gp_model_class = MultiGpfsGp
 
-# Set acqfunction
-acqfn_params = {'n_path': 15, 'crop': True}
-acqfn_class = MultiBaxAcqFunction
-n_rand_acqopt = 500
-
 # Compute true path
 true_algo = algo_class(algo_params)
 full_path, output = true_algo.run_algorithm_on_f(f)
@@ -161,12 +156,6 @@ for i in range(args.n_iter):
     # Set model
     model = gp_model_class(multi_gp_params, data)
 
-    # Set and optimize acquisition function
-    acqfn = acqfn_class(acqfn_params, model, algo)
-    x_test = unif_random_sample_domain(domain, n=n_rand_acqopt)
-    acqopt = AcqOptimizer({"x_batch": x_test})
-    x_next = acqopt.optimize(acqfn)
-
     # Plot
     fig, ax = plt.subplots(1, 1, figsize=(5, 5))
 
@@ -178,11 +167,6 @@ for i in range(args.n_iter):
 
     # Plot true path and posterior path samples
     plot_path_2d(true_path, ax, 'true')
-    for path in acqfn.exe_path_list:
-        plot_path_2d(path, ax, 'samp')
-
-    # Plot x_next
-    ax.scatter(x_next[0], x_next[1], color='deeppink', s=120, zorder=100)
 
     # Plot settings
     ax.set(
@@ -197,31 +181,30 @@ for i in range(args.n_iter):
     print(f'Length of data.x: {len(data.x)}')
     print(f'Length of data.y: {len(data.y)}')
 
-    save_figure = False
-    if i % args.eval_frequency == 0 or i + 1 == args.n_iter:
-        with Timer("Evaluate the current MPC policy"):
-            # execute the best we can
-            n_postmean_f_samp = 100
-            model.initialize_function_sample_list(n_postmean_f_samp)
-            policy = partial(algo.execute_mpc, f=model.call_function_sample_list_mean)
-            real_returns = []
-            for j in range(args.num_eval_trials):
-                real_obs, real_actions, real_rewards = evaluate_policy(env, policy, start_obs=start_obs)
-                real_return = compute_return(real_rewards, 1)
-                real_returns.append(real_return)
-                real_path_mpc = Namespace()
-                real_path_mpc.x = real_obs
-                plot_path_2d(real_path_mpc, ax, 'postmean')
-            real_returns = np.array(real_returns)
-            print(f"Return on executed MPC: {np.mean(real_returns)}, std: {np.std(real_returns)}")
-            dumper.add('Eval Returns', real_returns)
-            dumper.add('Eval ndata', len(data.x))
+    with Timer("Roll out the current MPC policy"):
+        # execute the best we can
+        n_postmean_f_samp = 100
+        model.initialize_function_sample_list(n_postmean_f_samp)
+        policy = partial(algo.execute_mpc, f=model.call_function_sample_list_mean)
+        real_returns = []
+        for j in range(args.num_eval_trials):
+            real_obs, real_actions, real_rewards = evaluate_policy(env, policy, start_obs=start_obs)
+            real_return = compute_return(real_rewards, 1)
+            real_returns.append(real_return)
+            real_path_mpc = Namespace()
+            real_path_mpc.x = real_obs
+            plot_path_2d(real_path_mpc, ax, 'postmean')
+        real_returns = np.array(real_returns)
+        print(f"Return on executed MPC: {np.mean(real_returns)}, std: {np.std(real_returns)}")
+        dumper.add('Eval Returns', real_returns)
+        dumper.add('Eval ndata', len(data.x))
 
-        save_figure = True
+    save_figure = True
     if save_figure: neatplot.save_figure(str(dumper.expdir / f'mpc_{i}'), 'pdf')
     dumper.save()
 
+    new_x = [np.concatenate((obs, action)) for obs, action in zip(real_obs, real_actions)]
+    new_y = [next_obs - obs for obs, next_obs in zip(real_obs, real_obs[1:])]
 
-    y_next = f(x_next)
-    data.x.append(x_next)
-    data.y.append(y_next)
+    data.x.extend(new_x)
+    data.y.extend(new_y)
