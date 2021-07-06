@@ -54,8 +54,8 @@ def plot_path_2d(path, ax=None, path_str="samp"):
     if ax is None:
         fig, ax = plt.subplots(1, 1, figsize=(5, 5))
 
-    x_plot = [xi[1] for xi in path.x]
-    y_plot = [xi[2] for xi in path.x]
+    x_plot = [xi[0] for xi in path.x]
+    y_plot = [xi[1] for xi in path.x]
 
     if path_str == "true":
         ax.plot(x_plot, y_plot, 'k--', linewidth=3)
@@ -119,6 +119,7 @@ true_algo = algo_class(algo_params)
 full_path, output = true_algo.run_algorithm_on_f(f)
 true_path = true_algo.get_exe_path_crop()
 
+
 # Plot
 fig, ax = plt.subplots(1, 1, figsize=(5, 5))
 
@@ -141,8 +142,8 @@ print(f"GT Execution: path_lengths.mean()={path_lengths.mean()} path_lengths.std
 ax.set(
     xlim=(domain[0][0], domain[0][1]),
     ylim=(domain[1][0], domain[1][1]),
-    xlabel='$x$',
-    ylabel='$\\theta$',
+    xlabel='$\\theta$',
+    ylabel='$\dot{\\theta}$',
 )
 
 save_figure = True
@@ -172,8 +173,8 @@ for i in range(args.n_iter):
     ax.set(
         xlim=(domain[0][0], domain[0][1]),
         ylim=(domain[1][0], domain[1][1]),
-        xlabel='$x$',
-        ylabel='$\\theta$',
+        xlabel='$\\theta$',
+        ylabel='$\\dot{\\theta}$',
     )
 
 
@@ -192,7 +193,7 @@ for i in range(args.n_iter):
             real_return = compute_return(real_rewards, 1)
             real_returns.append(real_return)
             real_path_mpc = Namespace()
-            real_path_mpc.x = real_obs
+            real_path_mpc.x = np.concatenate([np.array(real_rewards)[:, None], real_obs[:-1]], axis=1)
             plot_path_2d(real_path_mpc, ax, 'postmean')
         real_returns = np.array(real_returns)
         print(f"Return on executed MPC: {np.mean(real_returns)}, std: {np.std(real_returns)}")

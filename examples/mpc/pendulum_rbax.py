@@ -54,8 +54,8 @@ def plot_path_2d(path, ax=None, path_str="samp"):
     if ax is None:
         fig, ax = plt.subplots(1, 1, figsize=(5, 5))
 
-    x_plot = [xi[1] for xi in path.x]
-    y_plot = [xi[2] for xi in path.x]
+    x_plot = [xi[0] for xi in path.x]
+    y_plot = [xi[1] for xi in path.x]
 
     if path_str == "true":
         ax.plot(x_plot, y_plot, 'k--', linewidth=3)
@@ -210,7 +210,7 @@ for i in range(args.n_iter):
                 real_return = compute_return(real_rewards, 1)
                 real_returns.append(real_return)
                 real_path_mpc = Namespace()
-                real_path_mpc.x = real_obs
+                real_path_mpc.x = np.concatenate([np.array(real_rewards)[:, None], real_obs[:-1]], axis=1)
                 plot_path_2d(real_path_mpc, ax, 'postmean')
             real_returns = np.array(real_returns)
             print(f"Return on executed MPC: {np.mean(real_returns)}, std: {np.std(real_returns)}")
