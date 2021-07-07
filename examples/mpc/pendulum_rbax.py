@@ -30,6 +30,7 @@ def parse_arguments():
     parser.add_argument('--num_eval_trials', type=int, default=1)
     parser.add_argument('--eval_frequency', type=int, default=25)
     parser.add_argument('-ni', '--n_iter', type=int, default=200)
+    parser.add_argument('-s', '--seed', type=int, default=11)
     return parser.parse_args()
 
 args = parse_arguments()
@@ -42,7 +43,7 @@ neatplot.update_rc('text.usetex', False)
 
 
 # Set random seed
-seed = 11
+seed = args.seed
 np.random.seed(seed)
 tf.random.set_seed(seed)
 

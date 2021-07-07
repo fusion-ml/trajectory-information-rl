@@ -17,7 +17,7 @@ from bax.acq.acqoptimize import AcqOptimizer
 from bax.alg.mpc import MPC
 from bax.util.misc_util import dict_to_namespace, Dumper
 from bax.util.envs.pendulum import PendulumEnv, pendulum_reward
-from bax.util.control_util import get_f_mpc, compute_return, evaluate_policy
+from bax.util.control_util import get_f_mpc, get_f_mpc_reward, compute_return, evaluate_policy
 from bax.util.domain_util import unif_random_sample_domain, project_to_domain
 from bax.util.timing import Timer
 import neatplot
@@ -30,10 +30,12 @@ def parse_arguments():
     parser.add_argument('--num_eval_trials', type=int, default=1)
     parser.add_argument('--eval_frequency', type=int, default=25)
     parser.add_argument('-ni', '--n_iter', type=int, default=200)
+    parser.add_argument('-s', '--seed', type=int, default=11)
+    parser.add_argument('-lr', '--learn_reward', action='store_true')
     return parser.parse_args()
 
 args = parse_arguments()
-dumper = Dumper(args.name, args.overwrite)
+dumper = Dumper(args.name, args, args.overwrite)
 
 # Set plot settings
 neatplot.set_style()
@@ -42,7 +44,7 @@ neatplot.update_rc('text.usetex', False)
 
 
 # Set random seed
-seed = 11
+seed = args.seed
 np.random.seed(seed)
 tf.random.set_seed(seed)
 
@@ -77,7 +79,7 @@ obs_dim = env.observation_space.low.size
 action_dim = env.action_space.low.size
 
 plan_env = PendulumEnv(seed=seed)
-f = get_f_mpc(plan_env)
+f = get_f_mpc(plan_env) if not args.learn_reward else get_f_mpc_reward(plan_env)
 start_obs = env.reset()
 
 # Set domain
@@ -90,7 +92,7 @@ algo_class = MPC
 algo_params = dict(
         start_obs=start_obs,
         env=plan_env,
-        reward_function=pendulum_reward,
+        reward_function=pendulum_reward if not args.learn_reward else None,
         project_to_domain=True,
         base_nsamps=10,
         planning_horizon=20,

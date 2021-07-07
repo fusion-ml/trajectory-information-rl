@@ -5,6 +5,7 @@ Miscellaneous utilities.
 from argparse import Namespace
 from pathlib import Path
 import os
+import json
 import shutil
 import pickle
 from collections import defaultdict
@@ -62,7 +63,7 @@ class suppress_stdout_stderr:
 
 
 class Dumper:
-    def __init__(self, experiment_name, overwrite=False):
+    def __init__(self, experiment_name, args, overwrite=False):
         cwd = Path.cwd()
         while cwd.name != 'bayesian-active-control':
             cwd = cwd.parent
@@ -73,6 +74,10 @@ class Dumper:
         self.expdir.mkdir(parents=True)
         self.info = defaultdict(list)
         self.info_path = self.expdir / 'info.pkl'
+        args = vars(args)
+        args_path = self.expdir / 'args.json'
+        with args_path.open('w') as f:
+            json.dump(args, f, indent=4)
 
     def add(self, name, val):
         self.info[name].append(val)
