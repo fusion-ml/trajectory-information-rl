@@ -3,7 +3,6 @@ Evolution strategies as algorithms for BAX.
 """
 
 from argparse import Namespace
-import copy
 import numpy as np
 from math import ceil
 
@@ -54,9 +53,6 @@ class MPC(Algorithm):
         self.traj_rewards = None
         self.current_traj_idx = None
         self.current_t = None
-        self.shifted_actions = []
-        self.shifted_states = []
-        self.shifted_rewards = []
         self.planned_states = []
         self.planned_actions = []
         self.planned_rewards = []
@@ -92,6 +88,7 @@ class MPC(Algorithm):
                                                   self.params.action_lower_bound,
                                                   self.params.action_upper_bound)
         self.traj_samples = list(self.traj_samples)
+        self.traj_samples += samples_to_pass
         self.current_traj_idx = 0
         # this one is for CEM
         self.current_t_plan = 0
@@ -106,10 +103,6 @@ class MPC(Algorithm):
         self.saved_states = []
         self.saved_actions = []
         self.saved_rewards = []
-        self.shifted_actions = samples_to_pass
-        self.shift_done = len(self.shifted_actions) == 0
-        self.shifted_states = []
-        self.shifted_rewards = []
         self.traj_states = [[] for _ in range(initial_nsamps)]
         self.traj_rewards = [[] for _ in range(initial_nsamps)]
         self.best_return = -np.inf
@@ -126,16 +119,13 @@ class MPC(Algorithm):
             self.process_prev_output()
         # at this point the *_done should be correct
         if self.samples_done and self.iter_num + 1 == self.params.num_iters:
-            self.save_planned_actions()
+            shift_actions = self.save_planned_actions()
             if self.current_t + 1 >= self.params.env_horizon:
                 # done planning
                 return None
-            self.reset_CEM()
+            self.reset_CEM(shift_actions)
         elif self.samples_done:
             self.resample_CEM()
-        if not self.shift_done:
-            # do all the shifted ones first
-            query = self.get_shift_x()
         elif not self.samples_done:
             query = self.get_sample_x()
 
@@ -143,15 +133,6 @@ class MPC(Algorithm):
         if self.params.project_to_domain:
             query = project_to_domain(query, self.params.domain)
 
-        return query
-
-    def get_shift_x(self):
-        if len(self.shifted_states[self.current_traj_idx]) > 0:
-            obs = self.shifted_states[self.current_traj_idx][-1]
-        else:
-            obs = self.current_obs
-        action = self.shifted_actions[self.current_traj_idx][self.current_t_plan]
-        query = np.concatenate([obs, action])
         return query
 
     def get_sample_x(self):
@@ -193,9 +174,6 @@ class MPC(Algorithm):
         self.traj_samples = list(samples)
         self.traj_states = [[] for _ in range(len(self.traj_samples))]
         self.traj_rewards = [[] for _ in range(len(self.traj_samples))]
-        self.shifted_states = []
-        self.shifted_actions = []
-        self.shifted_rewards = []
         self.current_traj_idx = 0
         self.samples_done = False
 
@@ -211,19 +189,6 @@ class MPC(Algorithm):
         else:
             next_obs = self.get_next_obs(self.exe_path.x[-1], self.exe_path.y[-1][1:])
             reward = self.exe_path.y[-1][0]
-        if not self.shift_done:
-            # do all the shift stuff
-            self.shifted_states[self.current_traj_idx].append(next_obs)
-            self.shifted_rewards[self.current_traj_idx].append(reward)
-            self.current_t_plan += 1
-            if self.current_t_plan == self.params.planning_horizon:
-                self.current_t_plan = 0
-                self.current_traj_idx += 1
-            if self.current_traj_idx == len(self.shifted_states):
-                self.current_traj_idx = 0
-                self.current_t_plan = 0
-                self.shift_done = True
-            return
         # otherwise do the stuff for the standard CEM
         self.traj_states[self.current_traj_idx].append(next_obs)
         self.traj_rewards[self.current_traj_idx].append(reward)
@@ -253,9 +218,9 @@ class MPC(Algorithm):
         # since we don't have the start state in this list, we have to subtract 1 here
         # this should be where the current plan leaves us
         self.current_obs = best_states[self.params.actions_per_plan - 1]
-        self.shift_samples(all_returns, all_states, all_actions, all_rewards)
+        return self.shift_samples(all_returns, all_states, all_actions, all_rewards)
 
-    def reset_CEM(self):
+    def reset_CEM(self, shift_actions=[]):
         self.mean = np.concatenate([self.mean[self.params.actions_per_plan:],
                                     np.zeros((self.params.actions_per_plan, self.params.action_dim))])
         self.var = np.ones_like(self.mean) * ((self.params.action_upper_bound - self.params.action_lower_bound) /
@@ -269,9 +234,9 @@ class MPC(Algorithm):
                                                   self.var,
                                                   self.params.action_lower_bound,
                                                   self.params.action_upper_bound)
-        self.traj_samples = list(self.traj_samples)
-        self.traj_states = [[] for _ in range(initial_nsamps)]
-        self.traj_rewards = [[] for _ in range(initial_nsamps)]
+        self.traj_samples = list(self.traj_samples) + shift_actions
+        self.traj_states = [[] for _ in self.traj_samples]
+        self.traj_rewards = [[] for _ in self.traj_samples]
         self.saved_actions = []
         self.saved_states = []
         self.saved_rewards = []
@@ -285,16 +250,12 @@ class MPC(Algorithm):
     def shift_samples(self, all_returns, all_states, all_actions, all_rewards):
         n_keep = ceil(self.params.xi * self.params.n_elites)
         keep_indices = np.argsort(all_returns)[-n_keep:]
-        self.shifted_states = []
-        self.shifted_actions = []
-        self.shifted_rewards = []
+        shifted_actions = []
         for idx in keep_indices:
             new_actions = np.array([self.params.env.action_space.sample() for _ in range(self.params.actions_per_plan)])
-            self.shifted_actions.append(np.concatenate([all_actions[idx][self.params.actions_per_plan:], new_actions]))
-            self.shifted_rewards.append([])
-            self.shifted_states.append([])
+            shifted_actions.append(np.concatenate([all_actions[idx][self.params.actions_per_plan:], new_actions]))
         self.current_t_plan = 0
-        self.shift_done = False
+        return shifted_actions
 
     def get_output(self):
         """Given an execution path, return algorithm output."""
@@ -350,8 +311,6 @@ def test_MPC_algorithm():
     from util.envs.continuous_cartpole import ContinuousCartPoleEnv, continuous_cartpole_reward
     from util.control_util import ResettableEnv, get_f_mpc
     env = ContinuousCartPoleEnv()
-    obs_dim = env.observation_space.low.size
-    action_dim = env.action_space.low.size
     plan_env = ResettableEnv(ContinuousCartPoleEnv())
     f = get_f_mpc(plan_env)
     start_obs = env.reset()
@@ -377,7 +336,6 @@ def test_MPC_algorithm():
             break
     real_return = compute_return(rewards, 1.)
     print(f"based on the env it gets {real_return} return")
-
 
 
 if __name__ == '__main__':
