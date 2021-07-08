@@ -126,8 +126,7 @@ class MPC(Algorithm):
             self.reset_CEM(shift_actions)
         elif self.samples_done:
             self.resample_CEM()
-        elif not self.samples_done:
-            query = self.get_sample_x()
+        query = self.get_sample_x()
 
         # Optionally, project to domain
         if self.params.project_to_domain:
@@ -147,9 +146,9 @@ class MPC(Algorithm):
     def resample_CEM(self):
         self.iter_num += 1
         nsamps = int(max(self.params.base_nsamps * (self.params.gamma ** -self.iter_num), 2 * self.params.n_elites))
-        all_rewards = self.traj_rewards + self.shifted_rewards + self.saved_rewards
-        all_states = self.traj_states + self.shifted_states + self.saved_states
-        all_actions = self.traj_samples + self.shifted_actions + self.saved_actions
+        all_rewards = self.traj_rewards + self.saved_rewards
+        all_states = self.traj_states + self.saved_states
+        all_actions = self.traj_samples + self.saved_actions
         all_returns = [compute_return(rewards, self.params.discount_factor) for rewards in all_rewards]
         best_idx = np.argmax(all_returns)
         best_current_return = all_returns[best_idx]
@@ -202,9 +201,9 @@ class MPC(Algorithm):
     def save_planned_actions(self):
         # after CEM is complete for the current timestep, "execute" the best actions
         # and adjust the time and current state accordingly
-        all_rewards = self.traj_rewards + self.shifted_rewards + self.saved_rewards + [self.best_rewards]
-        all_states = self.traj_states + self.shifted_states + self.saved_states + [self.best_obs]
-        all_actions = self.traj_samples + self.shifted_actions + self.saved_actions + [self.best_actions]
+        all_rewards = self.traj_rewards + self.saved_rewards + [self.best_rewards]
+        all_states = self.traj_states + self.saved_states + [self.best_obs]
+        all_actions = self.traj_samples + self.saved_actions + [self.best_actions]
         all_returns = [compute_return(rewards, self.params.discount_factor) for rewards in all_rewards]
         best_sample_idx = np.argmax(all_returns)
         best_actions = all_actions[best_sample_idx]
@@ -250,12 +249,12 @@ class MPC(Algorithm):
     def shift_samples(self, all_returns, all_states, all_actions, all_rewards):
         n_keep = ceil(self.params.xi * self.params.n_elites)
         keep_indices = np.argsort(all_returns)[-n_keep:]
-        shifted_actions = []
+        self.shifted_actions = []
         for idx in keep_indices:
             new_actions = np.array([self.params.env.action_space.sample() for _ in range(self.params.actions_per_plan)])
-            shifted_actions.append(np.concatenate([all_actions[idx][self.params.actions_per_plan:], new_actions]))
+            self.shifted_actions.append(np.concatenate([all_actions[idx][self.params.actions_per_plan:], new_actions]))
         self.current_t_plan = 0
-        return shifted_actions
+        return self.shifted_actions
 
     def get_output(self):
         """Given an execution path, return algorithm output."""
