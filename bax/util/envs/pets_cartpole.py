@@ -37,6 +37,19 @@ class PETSCartpoleEnv(mujoco_env.MujocoEnv, utils.EzPickle):
         self.set_state(qpos, qvel)
         return self._get_obs()
 
+    def reset(self, obs=None):
+        if obs is None:
+            return super().reset()
+        else:
+            out = super().reset()
+            qpos = obs[:len(self.init_qpos)]
+            qvel = obs[len(self.init_qvel):]
+            self.set_state(qpos, qvel)
+            new_obs = self._get_obs()
+            assert np.allclose(new_obs, obs)
+            return new_obs
+
+
     def _get_obs(self):
         return np.concatenate([self.sim.data.qpos, self.sim.data.qvel]).ravel()
 

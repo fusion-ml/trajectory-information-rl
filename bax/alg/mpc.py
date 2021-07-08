@@ -31,7 +31,7 @@ class MPC(Algorithm):
         self.params.env = params.env
         self.params.discount_factor = getattr(params, 'discount_factor', 0.99)
         # reward function is currently required, needs to take (state x action) x next_obs -> R
-        self.params.reward_function = params.reward_function
+        self.params.reward_function = getattr(params, 'reward_function', None)
         self.terminal_function = self.params.terminal_function = getattr(params, "terminal_function", None)
         self.params.env_horizon = params.env.horizon
         self.params.action_dim = params.env.action_space.low.size
@@ -75,14 +75,14 @@ class MPC(Algorithm):
         self.best_rewards = None
         self.is_test = False
 
-    def initialize(self):
+    def initialize(self, samples_to_pass=[]):
         """Initialize algorithm, reset execution path."""
         super().initialize()
 
         # set up initial CEM distribution
         self.mean = np.zeros((self.params.planning_horizon, self.params.action_dim))
         self.var = np.ones_like(self.mean) * ((self.params.action_upper_bound - self.params.action_lower_bound) /
-                                                 self.params.initial_variance_divisor) ** 2
+                                               self.params.initial_variance_divisor) ** 2
         initial_nsamps = int(max(self.params.base_nsamps * (self.params.gamma ** -1), 2 * self.params.n_elites))
         self.traj_samples = iCEM_generate_samples(initial_nsamps,
                                                   self.params.planning_horizon,
@@ -99,7 +99,6 @@ class MPC(Algorithm):
         self.current_t = 0
         self.current_obs = self.params.start_obs
         self.iter_num = 0
-        self.shift_done = True
         self.samples_done = False
         self.planned_states = [self.params.start_obs]
         self.planned_actions = []
@@ -107,7 +106,8 @@ class MPC(Algorithm):
         self.saved_states = []
         self.saved_actions = []
         self.saved_rewards = []
-        self.shifted_actions = []
+        self.shifted_actions = samples_to_pass
+        self.shift_done = len(self.shifted_actions) == 0
         self.shifted_states = []
         self.shifted_rewards = []
         self.traj_states = [[] for _ in range(initial_nsamps)]
@@ -205,8 +205,12 @@ class MPC(Algorithm):
         return start_obs + delta_obs
 
     def process_prev_output(self):
-        next_obs = self.get_next_obs(self.exe_path.x[-1], self.exe_path.y[-1])
-        reward = self.params.reward_function(self.exe_path.x[-1], next_obs)
+        if self.params.reward_function is not None:
+            next_obs = self.get_next_obs(self.exe_path.x[-1], self.exe_path.y[-1])
+            reward = self.params.reward_function(self.exe_path.x[-1], next_obs)
+        else:
+            next_obs = self.get_next_obs(self.exe_path.x[-1], self.exe_path.y[-1][1:])
+            reward = self.exe_path.y[-1][0]
         if not self.shift_done:
             # do all the shift stuff
             self.shifted_states[self.current_traj_idx].append(next_obs)
@@ -317,13 +321,15 @@ class MPC(Algorithm):
                 break
         return exe_path_crop
 
-    def execute_mpc(self, obs, f):
+    def execute_mpc(self, obs, f, samples_to_pass=[], return_samps=False):
         """Run MPC on a state, returns the optimal action."""
         old_horizon = self.params.env_horizon
         old_start_obs = self.params.start_obs
+        old_app = self.params.actions_per_plan
+        self.params.actions_per_plan = 1
         self.params.env_horizon = 1
         self.params.start_obs = obs
-        self.initialize()
+        self.initialize(samples_to_pass=samples_to_pass)
         # this doesn't do anything rn but maybe will in future (it did in debugging too)
         self.is_test = True
         exe_path, output = self.run_algorithm_on_f(f)
@@ -331,7 +337,13 @@ class MPC(Algorithm):
         action = output[1][0]
         self.params.env_horizon = old_horizon
         self.params.start_obs = old_start_obs
-        return action
+        self.params.actions_per_plan = old_app
+        if not return_samps:
+            return action
+        else:
+            # get the samples of good actions you'd want for the next iteration
+            samples = self.shifted_actions
+            return action, samples
 
 
 def test_MPC_algorithm():

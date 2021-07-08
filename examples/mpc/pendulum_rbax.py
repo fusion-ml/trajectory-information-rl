@@ -16,8 +16,8 @@ from bax.acq.acquisition import MultiBaxAcqFunction
 from bax.acq.acqoptimize import AcqOptimizer
 from bax.alg.mpc import MPC
 from bax.util.misc_util import dict_to_namespace, Dumper
-from bax.util.envs.pendulum import PendulumEnv, pendulum_reward
-from bax.util.control_util import get_f_mpc, get_f_mpc_reward, compute_return, evaluate_policy
+from bax.util.envs.pendulum import PendulumEnv
+from bax.util.control_util import get_f_mpc_reward, compute_return, evaluate_policy
 from bax.util.domain_util import unif_random_sample_domain, project_to_domain
 from bax.util.timing import Timer
 import neatplot
@@ -27,16 +27,14 @@ def parse_arguments():
     parser = argparse.ArgumentParser()
     parser.add_argument('name', help="The name of the experiment and output directory.")
     parser.add_argument('-ow', dest='overwrite', action='store_true')
-    parser.add_argument('-net', '--num_eval_trials', type=int, default=1)
+    parser.add_argument('--num_eval_trials', type=int, default=1)
     parser.add_argument('--eval_frequency', type=int, default=25)
-    parser.add_argument('-app', '--actions_per_plan', type=int, default=6)
     parser.add_argument('-ni', '--n_iter', type=int, default=200)
     parser.add_argument('-s', '--seed', type=int, default=11)
-    parser.add_argument('-lr', '--learn_reward', action='store_true')
     return parser.parse_args()
 
 args = parse_arguments()
-dumper = Dumper(args.name, args, args.overwrite)
+dumper = Dumper(args.name, args.overwrite)
 
 # Set plot settings
 neatplot.set_style()
@@ -80,7 +78,7 @@ obs_dim = env.observation_space.low.size
 action_dim = env.action_space.low.size
 
 plan_env = PendulumEnv(seed=seed)
-f = get_f_mpc(plan_env) if not args.learn_reward else get_f_mpc_reward(plan_env)
+f = get_f_mpc_reward(plan_env)
 start_obs = env.reset()
 
 # Set domain
@@ -93,7 +91,6 @@ algo_class = MPC
 algo_params = dict(
         start_obs=start_obs,
         env=plan_env,
-        reward_function=pendulum_reward if not args.learn_reward else None,
         project_to_domain=True,
         base_nsamps=10,
         planning_horizon=20,
@@ -102,7 +99,7 @@ algo_params = dict(
         gamma=1.25,
         xi=0.3,
         num_iters=3,
-        actions_per_plan=args.actions_per_plan,
+        actions_per_plan=6,
         domain=domain,
 )
 algo = algo_class(algo_params)
@@ -210,11 +207,11 @@ for i in range(args.n_iter):
             policy = partial(algo.execute_mpc, f=model.call_function_sample_list_mean)
             real_returns = []
             for j in range(args.num_eval_trials):
-                real_obs, real_actions, real_rewards = evaluate_policy(env, policy, start_obs=start_obs, mpc_pass=True)
+                real_obs, real_actions, real_rewards = evaluate_policy(env, policy, start_obs=start_obs)
                 real_return = compute_return(real_rewards, 1)
                 real_returns.append(real_return)
                 real_path_mpc = Namespace()
-                real_path_mpc.x = real_obs
+                real_path_mpc.x = np.concatenate([np.array(real_rewards)[:, None], real_obs[:-1]], axis=1)
                 plot_path_2d(real_path_mpc, ax, 'postmean')
             real_returns = np.array(real_returns)
             print(f"Return on executed MPC: {np.mean(real_returns)}, std: {np.std(real_returns)}")

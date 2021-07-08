@@ -29,6 +29,19 @@ def get_f_mpc(env):
     return f
 
 
+def get_f_mpc_reward(env):
+    obs_dim = len(env.observation_space.low)
+    def f(x):
+        x = np.array(x)
+        obs = x[:obs_dim]
+        action = x[obs_dim:]
+        env.reset(obs)
+        next_obs, reward, done, info = env.step(action)
+        delta_obs = next_obs - obs
+        return np.insert(delta_obs, 0, reward)
+    return f
+
+
 def CEM(start_obs,
         action_dim,
         dynamics_unroller,
@@ -269,14 +282,18 @@ def rollout_icem_continuous_cartpole(env, unroller):
                 return sum(rewards)
     return sum(rewards)
 
-def evaluate_policy(env, policy, start_obs=None):
+def evaluate_policy(env, policy, start_obs=None, mpc_pass=False):
     obs = env.reset(start_obs)
     observations = [obs]
     actions = []
     rewards = []
     done = False
+    samples_to_pass = []
     while not done:
-        action = policy(obs)
+        if not mpc_pass:
+            action = policy(obs)
+        else:
+            action, samples_to_pass = policy(obs, samples_to_pass=samples_to_pass, return_samps=True)
         obs, rew, done, info = env.step(action)
         observations.append(obs)
         actions.append(action)
