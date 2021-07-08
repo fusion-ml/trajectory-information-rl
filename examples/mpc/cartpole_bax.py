@@ -16,7 +16,7 @@ from bax.acq.acquisition import MultiBaxAcqFunction
 from bax.acq.acqoptimize import AcqOptimizer
 from bax.alg.mpc import MPC
 from bax.util.misc_util import dict_to_namespace, Dumper
-from bax.util.envs.pendulum import PendulumEnv, pendulum_reward
+from bax.util.envs.pets_cartpole import PETSCartpoleEnv
 from bax.util.control_util import get_f_mpc, get_f_mpc_reward, compute_return, evaluate_policy
 from bax.util.domain_util import unif_random_sample_domain, project_to_domain
 from bax.util.timing import Timer
@@ -75,11 +75,14 @@ def plot_path_2d(path, ax=None, path_str="samp"):
 # Start Script
 # -------------
 # Set black-box function
-env = PendulumEnv(seed=seed)
+env = PETSCartpoleEnv()
+env.seed(seed)
 obs_dim = env.observation_space.low.size
 action_dim = env.action_space.low.size
 
-plan_env = PendulumEnv(seed=seed)
+plan_env = PETSCartpoleEnv()
+plan_env.seed(seed)
+assert args.learn_reward
 f = get_f_mpc(plan_env) if not args.learn_reward else get_f_mpc_reward(plan_env)
 start_obs = env.reset()
 
@@ -87,6 +90,7 @@ start_obs = env.reset()
 low = np.concatenate([env.observation_space.low, env.action_space.low])
 high = np.concatenate([env.observation_space.high, env.action_space.high])
 domain = [elt for elt in zip(low, high)]
+print(domain)
 
 # Set algorithm
 algo_class = MPC
@@ -95,13 +99,13 @@ algo_params = dict(
         env=plan_env,
         reward_function=pendulum_reward if not args.learn_reward else None,
         project_to_domain=True,
-        base_nsamps=10,
-        planning_horizon=20,
-        n_elites=3,
+        base_nsamps=400,
+        planning_horizon=25,
+        n_elites=40,
         beta=3,
         gamma=1.25,
         xi=0.3,
-        num_iters=3,
+        num_iters=5,
         actions_per_plan=args.actions_per_plan,
         domain=domain,
 )
@@ -109,19 +113,6 @@ algo = algo_class(algo_params)
 
 # Set data
 data = Namespace()
-n_init_data = 1
-data.x = unif_random_sample_domain(domain, n_init_data)
-data.y = [f(xi) for xi in data.x]
-
-# Set model
-gp_params = {'ls': 0.85, 'alpha': 1.0, 'sigma': 1e-2, 'n_dimx': obs_dim + action_dim}
-multi_gp_params = {'n_dimy': obs_dim, 'gp_params': gp_params}
-gp_model_class = MultiGpfsGp
-
-# Set acqfunction
-acqfn_params = {'n_path': 15, 'crop': True}
-acqfn_class = MultiBaxAcqFunction
-n_rand_acqopt = 500
 
 # Compute true path
 true_algo = algo_class(algo_params)
@@ -135,7 +126,7 @@ fig, ax = plt.subplots(1, 1, figsize=(5, 5))
 # Compute and plot true path (on true function) multiple times
 returns = []
 path_lengths = []
-for _ in trange(10):
+for _ in trange(args.num_eval_trials):
     full_path, output = true_algo.run_algorithm_on_f(f)
     tp = true_algo.get_exe_path_crop()
     path_lengths.append(len(full_path.x))
@@ -143,8 +134,25 @@ for _ in trange(10):
     returns.append(compute_return(output[2], 1))
 returns = np.array(returns)
 path_lengths = np.array(path_lengths)
+print(f"max vals seen: {full_path.x.max(axis=0)}")
+print(f"min vals seen: {full_path.x.min(axis=0)}")
 print(f"GT Results: returns.mean()={returns.mean()} returns.std()={returns.std()}")
 print(f"GT Execution: path_lengths.mean()={path_lengths.mean()} path_lengths.std()={path_lengths.std()}")
+exit()
+
+n_init_data = 1
+data.x = unif_random_sample_domain(domain, n_init_data)
+data.y = [f(xi) for xi in data.x]
+
+# Set model
+gp_params = {'ls': 0.85, 'alpha': 1.0, 'sigma': 1e-2, 'n_dimx': obs_dim + action_dim}
+multi_gp_params = {'n_dimy': obs_dim, 'gp_params': gp_params}
+gp_model_class = MultiGpfsGp
+
+# Set acqfunction
+acqfn_params = {'n_path': 15, 'crop': True}
+acqfn_class = MultiBaxAcqFunction
+n_rand_acqopt = 500
 
 # Plot settings
 ax.set(
