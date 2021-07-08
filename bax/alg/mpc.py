@@ -75,7 +75,7 @@ class MPC(Algorithm):
         self.best_rewards = None
         self.is_test = False
 
-    def initialize(self):
+    def initialize(self, samples_to_pass=[]):
         """Initialize algorithm, reset execution path."""
         super().initialize()
 
@@ -99,7 +99,6 @@ class MPC(Algorithm):
         self.current_t = 0
         self.current_obs = self.params.start_obs
         self.iter_num = 0
-        self.shift_done = True
         self.samples_done = False
         self.planned_states = [self.params.start_obs]
         self.planned_actions = []
@@ -107,7 +106,8 @@ class MPC(Algorithm):
         self.saved_states = []
         self.saved_actions = []
         self.saved_rewards = []
-        self.shifted_actions = []
+        self.shifted_actions = samples_to_pass
+        self.shift_done = len(self.shifted_actions) == 0
         self.shifted_states = []
         self.shifted_rewards = []
         self.traj_states = [[] for _ in range(initial_nsamps)]
@@ -321,13 +321,15 @@ class MPC(Algorithm):
                 break
         return exe_path_crop
 
-    def execute_mpc(self, obs, f):
+    def execute_mpc(self, obs, f, samples_to_pass=[], return_samps=False):
         """Run MPC on a state, returns the optimal action."""
         old_horizon = self.params.env_horizon
         old_start_obs = self.params.start_obs
+        old_app = self.params.actions_per_plan
+        self.params.actions_per_plan = 1
         self.params.env_horizon = 1
         self.params.start_obs = obs
-        self.initialize()
+        self.initialize(samples_to_pass=samples_to_pass)
         # this doesn't do anything rn but maybe will in future (it did in debugging too)
         self.is_test = True
         exe_path, output = self.run_algorithm_on_f(f)
@@ -335,7 +337,13 @@ class MPC(Algorithm):
         action = output[1][0]
         self.params.env_horizon = old_horizon
         self.params.start_obs = old_start_obs
-        return action
+        self.params.actions_per_plan = old_app
+        if not return_samps:
+            return action
+        else:
+            # get the samples of good actions you'd want for the next iteration
+            samples = self.shifted_actions
+            return action, samples
 
 
 def test_MPC_algorithm():

@@ -210,7 +210,7 @@ for i in range(args.n_iter):
             policy = partial(algo.execute_mpc, f=model.call_function_sample_list_mean)
             real_returns = []
             for j in range(args.num_eval_trials):
-                real_obs, real_actions, real_rewards = evaluate_policy(env, policy, start_obs=start_obs)
+                real_obs, real_actions, real_rewards = evaluate_policy(env, policy, start_obs=start_obs, mpc_pass=True)
                 real_return = compute_return(real_rewards, 1)
                 real_returns.append(real_return)
                 real_path_mpc = Namespace()
