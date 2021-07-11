@@ -59,6 +59,7 @@ class MPC(Algorithm):
         self.saved_states = []
         self.saved_actions = []
         self.saved_rewards = []
+        self.old_exe_paths = []
         self.mean = None
         self.var = None
         self.iter_num = None
@@ -289,6 +290,8 @@ class MPC(Algorithm):
         self.params.actions_per_plan = 1
         self.params.env_horizon = 1
         self.params.start_obs = obs
+        if len(self.exe_path.x) > 0:
+            self.old_exe_paths.append(self.exe_path)
         self.initialize(samples_to_pass=samples_to_pass)
         # this doesn't do anything rn but maybe will in future (it did in debugging too)
         self.is_test = True

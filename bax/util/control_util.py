@@ -42,6 +42,14 @@ def get_f_mpc_reward(env):
     return f
 
 
+def rollout_mse(path, f):
+    mses = []
+    for x, y in zip(path.x, path.y):
+        mses.append(f(x) - y) ** 2)
+    return np.mean(mses)
+
+
+
 def CEM(start_obs,
         action_dim,
         dynamics_unroller,

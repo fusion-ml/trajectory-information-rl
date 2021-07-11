@@ -6,7 +6,6 @@ from argparse import Namespace
 import argparse
 import numpy as np
 import matplotlib.pyplot as plt
-from matplotlib.patches import Rectangle
 from tqdm import trange
 from functools import partial
 import tensorflow as tf
@@ -15,10 +14,10 @@ from bax.models.gpfs_gp import MultiGpfsGp
 from bax.acq.acquisition import MultiBaxAcqFunction
 from bax.acq.acqoptimize import AcqOptimizer
 from bax.alg.mpc import MPC
-from bax.util.misc_util import dict_to_namespace, Dumper
+from bax.util.misc_util import Dumper
 from bax.util.envs.pendulum import PendulumEnv, pendulum_reward
-from bax.util.control_util import get_f_mpc, get_f_mpc_reward, compute_return, evaluate_policy
-from bax.util.domain_util import unif_random_sample_domain, project_to_domain
+from bax.util.control_util import get_f_mpc, get_f_mpc_reward, compute_return, evaluate_policy, rollout_mse
+from bax.util.domain_util import unif_random_sample_domain
 from bax.util.timing import Timer
 import neatplot
 
@@ -35,6 +34,7 @@ def parse_arguments():
     parser.add_argument('-lr', '--learn_reward', action='store_true')
     parser.add_argument('-nms', '--num_mean_samples', type=int, default=100)
     return parser.parse_args()
+
 
 args = parse_arguments()
 dumper = Dumper(args.name, args, args.overwrite)
@@ -179,7 +179,7 @@ for i in range(args.n_iter):
     x_obs = [xi[0] for xi in data.x]
     y_obs = [xi[1] for xi in data.x]
     ax.scatter(x_obs, y_obs, color='grey', s=5, alpha=0.1)  # small grey dots
-    #ax.scatter(x_obs, y_obs, color='k', s=120)             # big black dots
+    # ax.scatter(x_obs, y_obs, color='k', s=120)             # big black dots
 
     # Plot true path and posterior path samples
     plot_path_2d(true_path, ax, 'true')
@@ -197,7 +197,6 @@ for i in range(args.n_iter):
         ylabel='$\\theta$',
     )
 
-
     # Query function, update data
     print(f'Length of data.x: {len(data.x)}')
     print(f'Length of data.y: {len(data.y)}')
@@ -208,6 +207,8 @@ for i in range(args.n_iter):
             # execute the best we can
             n_postmean_f_samp = args.num_mean_samples
             model.initialize_function_sample_list(n_postmean_f_samp)
+            # this is required to delete the current execution path
+            algo.initialize()
             policy = partial(algo.execute_mpc, f=model.call_function_sample_list_mean)
             real_returns = []
             for j in range(args.num_eval_trials):
@@ -218,14 +219,18 @@ for i in range(args.n_iter):
                 real_path_mpc.x = real_obs
                 plot_path_2d(real_path_mpc, ax, 'postmean')
             real_returns = np.array(real_returns)
+            old_exe_paths = algo.old_exe_paths
+            algo.old_exe_paths = []
             print(f"Return on executed MPC: {np.mean(real_returns)}, std: {np.std(real_returns)}")
             dumper.add('Eval Returns', real_returns)
             dumper.add('Eval ndata', len(data.x))
+            mse = np.mean([rollout_mse(path, f) for path in old_exe_paths])
+            print(f"Model MSE during test time rollout: {mse}")
+            dumper.add('Model MSE', mse)
 
         save_figure = True
     if save_figure: neatplot.save_figure(str(dumper.expdir / f'mpc_{i}'), 'pdf')
     dumper.save()
-
 
     y_next = f(x_next)
     data.x.append(x_next)
