@@ -17,7 +17,7 @@ class PETSCartpoleEnv(mujoco_env.MujocoEnv, utils.EzPickle):
         dir_path = os.path.dirname(os.path.realpath(__file__))
         mujoco_env.MujocoEnv.__init__(self, '%s/assets/cartpole.xml' % dir_path, 2)
         self.horizon = 200
-        low = np.array([-3, -5, -6, -20, -4])
+        low = np.array([-3, -5, -6, -20]).astype(np.float32)
         self.observation_space = spaces.Box(low=low, high=-low)
 
     def step(self, a):
