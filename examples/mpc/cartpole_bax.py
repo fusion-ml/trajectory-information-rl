@@ -83,7 +83,7 @@ action_dim = env.action_space.low.size
 plan_env = PETSCartpoleEnv()
 plan_env.seed(seed)
 assert args.learn_reward
-f = get_f_mpc(plan_env) if not args.learn_reward else get_f_mpc_reward(plan_env)
+f = get_f_mpc(plan_env) # if not args.learn_reward else get_f_mpc_reward(plan_env)
 start_obs = env.reset()
 
 # Set domain
@@ -122,22 +122,20 @@ true_path = true_algo.get_exe_path_crop()
 # Plot
 fig, ax = plt.subplots(1, 1, figsize=(5, 5))
 
+policy = partial(algo.execute_mpc, f=f)
 
 # Compute and plot true path (on true function) multiple times
 returns = []
 path_lengths = []
 for _ in trange(args.num_eval_trials):
-    full_path, output = true_algo.run_algorithm_on_f(f)
-    tp = true_algo.get_exe_path_crop()
-    path_lengths.append(len(full_path.x))
-    plot_path_2d(tp, ax, 'true')
-    returns.append(compute_return(output[2], 1))
+    real_obs, real_actions, real_rewards = evaluate_policy(env, policy)
+    returns.append(compute_return(real_rewards, 1))
 returns = np.array(returns)
 path_lengths = np.array(path_lengths)
-print(f"max vals seen: {full_path.x.max(axis=0)}")
-print(f"min vals seen: {full_path.x.min(axis=0)}")
 print(f"GT Results: returns.mean()={returns.mean()} returns.std()={returns.std()}")
 print(f"GT Execution: path_lengths.mean()={path_lengths.mean()} path_lengths.std()={path_lengths.std()}")
+print(f"max vals seen: {np.max(full_path.x, axis=0)}")
+print(f"min vals seen: {np.min(full_path.x, axis=0)}")
 exit()
 
 n_init_data = 1

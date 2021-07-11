@@ -33,6 +33,7 @@ def parse_arguments():
     parser.add_argument('-ni', '--n_iter', type=int, default=200)
     parser.add_argument('-s', '--seed', type=int, default=11)
     parser.add_argument('-lr', '--learn_reward', action='store_true')
+    parser.add_argument('-nms', '--num_mean_samples', type=int, default=100)
     return parser.parse_args()
 
 args = parse_arguments()
@@ -205,7 +206,7 @@ for i in range(args.n_iter):
     if i % args.eval_frequency == 0 or i + 1 == args.n_iter:
         with Timer("Evaluate the current MPC policy"):
             # execute the best we can
-            n_postmean_f_samp = 100
+            n_postmean_f_samp = args.num_mean_samples
             model.initialize_function_sample_list(n_postmean_f_samp)
             policy = partial(algo.execute_mpc, f=model.call_function_sample_list_mean)
             real_returns = []

@@ -5,7 +5,7 @@ from __future__ import absolute_import
 import os
 
 import numpy as np
-from gym import utils
+from gym import utils, spaces
 from gym.envs.mujoco import mujoco_env
 
 
@@ -17,6 +17,8 @@ class PETSCartpoleEnv(mujoco_env.MujocoEnv, utils.EzPickle):
         dir_path = os.path.dirname(os.path.realpath(__file__))
         mujoco_env.MujocoEnv.__init__(self, '%s/assets/cartpole.xml' % dir_path, 2)
         self.horizon = 200
+        low = np.array([-3, -5, -6, -20, -4])
+        self.observation_space = spaces.Box(low=low, high=-low)
 
     def step(self, a):
         self.do_simulation(a, self.frame_skip)
