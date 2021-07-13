@@ -33,6 +33,7 @@ def parse_arguments():
     parser.add_argument('-s', '--seed', type=int, default=11)
     parser.add_argument('-lr', '--learn_reward', action='store_true')
     parser.add_argument('-nms', '--num_mean_samples', type=int, default=100)
+    parser.add_argument('-epm', '--exact_postmean', action='store_true', help='Use the exact posterior mean at test time instead of sampling with -nms')
     return parser.parse_args()
 
 
@@ -205,11 +206,19 @@ for i in range(args.n_iter):
     if i % args.eval_frequency == 0 or i + 1 == args.n_iter:
         with Timer("Evaluate the current MPC policy"):
             # execute the best we can
-            n_postmean_f_samp = args.num_mean_samples
-            model.initialize_function_sample_list(n_postmean_f_samp)
             # this is required to delete the current execution path
             algo.initialize()
-            policy = partial(algo.execute_mpc, f=model.call_function_sample_list_mean)
+            # TODO: get this to work on the mean
+            if args.exact_postmean:
+                def postmean_fn(x):
+                    mu_list, std_list = model.get_post_mu_cov([x], full_cov=False)
+                    mu_tup_for_x = list(zip(*mu_list))[0]
+                    return mu_tup_for_x
+            else:
+                n_postmean_f_samp = args.num_mean_samples
+                model.initialize_function_sample_list(n_postmean_f_samp)
+                postmean_fn = model.call_function_sample_list_mean
+            policy = partial(algo.execute_mpc, f=postmean_fn)
             real_returns = []
             for j in range(args.num_eval_trials):
                 real_obs, real_actions, real_rewards = evaluate_policy(env, policy, start_obs=start_obs, mpc_pass=True)
