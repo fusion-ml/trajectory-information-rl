@@ -17,7 +17,7 @@ from bax.acq.acqoptimize import AcqOptimizer
 from bax.alg.mpc import MPC
 from bax.util.misc_util import dict_to_namespace, Dumper
 from bax.util.envs.pendulum import PendulumEnv, pendulum_reward
-from bax.util.control_util import get_f_mpc, compute_return, evaluate_policy
+from bax.util.control_util import get_f_mpc, compute_return, evaluate_policy, rollout_mse
 from bax.util.domain_util import unif_random_sample_domain, project_to_domain
 from bax.util.timing import Timer
 import neatplot
@@ -33,7 +33,7 @@ def parse_arguments():
     return parser.parse_args()
 
 args = parse_arguments()
-dumper = Dumper(args.name, args.overwrite)
+dumper = Dumper(args.name, args, args.overwrite)
 
 # Set plot settings
 neatplot.set_style()
@@ -186,6 +186,7 @@ for i in range(args.n_iter):
         # execute the best we can
         n_postmean_f_samp = 100
         model.initialize_function_sample_list(n_postmean_f_samp)
+        algo.initialize()
         policy = partial(algo.execute_mpc, f=model.call_function_sample_list_mean)
         real_returns = []
         for j in range(args.num_eval_trials):
@@ -196,9 +197,14 @@ for i in range(args.n_iter):
             real_path_mpc.x = real_obs
             plot_path_2d(real_path_mpc, ax, 'postmean')
         real_returns = np.array(real_returns)
+        old_exe_paths = algo.old_exe_paths
+        algo.old_exe_paths = []
         print(f"Return on executed MPC: {np.mean(real_returns)}, std: {np.std(real_returns)}")
         dumper.add('Eval Returns', real_returns)
         dumper.add('Eval ndata', len(data.x))
+        mse = np.mean([rollout_mse(path, f) for path in old_exe_paths])
+        print(f"Model MSE during test time rollout: {mse}")
+        dumper.add('Model MSE', mse)
 
     save_figure = True
     if save_figure: neatplot.save_figure(str(dumper.expdir / f'mpc_{i}'), 'pdf')

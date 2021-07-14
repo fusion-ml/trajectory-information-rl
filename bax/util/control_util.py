@@ -45,7 +45,7 @@ def get_f_mpc_reward(env):
 def rollout_mse(path, f):
     mses = []
     for x, y in zip(path.x, path.y):
-        mses.append(f(x) - y) ** 2)
+        mses.append(np.sum((f(x) - y) ** 2))
     return np.mean(mses)
 
 

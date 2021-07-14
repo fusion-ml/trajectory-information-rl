@@ -83,7 +83,7 @@ action_dim = env.action_space.low.size
 plan_env = PETSCartpoleEnv()
 plan_env.seed(seed)
 assert args.learn_reward
-f = get_f_mpc(plan_env) # if not args.learn_reward else get_f_mpc_reward(plan_env)
+f = get_f_mpc_reward(plan_env) # if not args.learn_reward else get_f_mpc_reward(plan_env)
 start_obs = env.reset()
 
 # Set domain
