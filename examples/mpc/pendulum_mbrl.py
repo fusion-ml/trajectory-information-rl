@@ -30,6 +30,8 @@ def parse_arguments():
     parser.add_argument('--num_eval_trials', type=int, default=1)
     parser.add_argument('--eval_frequency', type=int, default=25)
     parser.add_argument('-ni', '--n_iter', type=int, default=200)
+    parser.add_argument('-nms', '--num_mean_samples', type=int, default=100)
+    parser.add_argument('-epm', '--exact_postmean', action='store_true', help='Use the exact posterior mean at test time instead of sampling with -nms')
     return parser.parse_args()
 
 args = parse_arguments()
@@ -184,10 +186,17 @@ for i in range(args.n_iter):
 
     with Timer("Roll out the current MPC policy"):
         # execute the best we can
-        n_postmean_f_samp = 100
-        model.initialize_function_sample_list(n_postmean_f_samp)
+        if args.exact_postmean:
+            def postmean_fn(x):
+                mu_list, std_list = model.get_post_mu_cov([x], full_cov=False)
+                mu_tup_for_x = list(zip(*mu_list))[0]
+                return mu_tup_for_x
+        else:
+            n_postmean_f_samp = args.num_mean_samples
+            model.initialize_function_sample_list(n_postmean_f_samp)
+            postmean_fn = model.call_function_sample_list_mean
         algo.initialize()
-        policy = partial(algo.execute_mpc, f=model.call_function_sample_list_mean)
+        policy = partial(algo.execute_mpc, f=postmean_fn)
         real_returns = []
         for j in range(args.num_eval_trials):
             real_obs, real_actions, real_rewards = evaluate_policy(env, policy, start_obs=start_obs)

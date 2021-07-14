@@ -5,15 +5,15 @@ from bax.util.envs.pets_cartpole import PETSCartpoleEnv
 
 # register each environment we wanna use
 register(
-    id='BACPendulum',
+    id='bacpendulum-v0',
     entry_point=PendulumEnv,
     )
 
 register(
-    id='goddard',
+    id='goddard-v0',
     entry_point=GoddardEnv,
     )
 register(
-    id='PETSCartpole',
+    id='petscartpole-v0',
     entry_point=PETSCartpoleEnv,
     )
