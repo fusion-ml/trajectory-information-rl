@@ -34,6 +34,7 @@ def parse_arguments():
     parser.add_argument('-ni', '--n_iter', type=int, default=200)
     parser.add_argument('-s', '--seed', type=int, default=11)
     parser.add_argument('-lr', '--learn_reward', action='store_true')
+    parser.add_argument('--mbrl', action='store_true')
     return parser.parse_args()
 
 
@@ -131,37 +132,37 @@ def main(args):
 
     for i in range(args.n_iter):
         print('---' * 5 + f' Start iteration i={i} ' + '---' * 5)
+        print(f'Length of data.x: {len(data.x)}')
+        print(f'Length of data.y: {len(data.y)}')
         ax = None
 
         # Set model
         model = gp_model_class(multi_gp_params, data)
 
-        # Set and optimize acquisition function
-        acqfn = acqfn_class(acqfn_params, model, algo)
-        x_test = unif_random_sample_domain(domain, n=n_rand_acqopt)
-        acqopt = AcqOptimizer({"x_batch": x_test})
-        x_next = acqopt.optimize(acqfn)
+        if not args.mbrl:
+            # Set and optimize acquisition function
+            acqfn = acqfn_class(acqfn_params, model, algo)
+            x_test = unif_random_sample_domain(domain, n=n_rand_acqopt)
+            acqopt = AcqOptimizer({"x_batch": x_test})
+            x_next = acqopt.optimize(acqfn)
 
-        # Plot true path and posterior path samples
-        ax = plot_fn(true_path, ax, domain, 'true')
-        # Plot observations
-        x_obs = [xi[0] for xi in data.x]
-        y_obs = [xi[1] for xi in data.x]
-        ax.scatter(x_obs, y_obs, color='grey', s=5, alpha=0.1)  # small grey dots
-        # ax.scatter(x_obs, y_obs, color='k', s=120)             # big black dots
+            # Plot true path and posterior path samples
+            ax = plot_fn(true_path, ax, domain, 'true')
+            # Plot observations
+            x_obs = [xi[0] for xi in data.x]
+            y_obs = [xi[1] for xi in data.x]
+            ax.scatter(x_obs, y_obs, color='grey', s=5, alpha=0.1)  # small grey dots
+            # ax.scatter(x_obs, y_obs, color='k', s=120)             # big black dots
 
-        for path in acqfn.exe_path_list:
-            ax = plot_fn(path, ax, domain, 'samp')
+            for path in acqfn.exe_path_list:
+                ax = plot_fn(path, ax, domain, 'samp')
 
-        # Plot x_next
-        ax.scatter(x_next[0], x_next[1], color='deeppink', s=120, zorder=100)
+            # Plot x_next
+            ax.scatter(x_next[0], x_next[1], color='deeppink', s=120, zorder=100)
 
-        # Query function, update data
-        print(f'Length of data.x: {len(data.x)}')
-        print(f'Length of data.y: {len(data.y)}')
 
         save_figure = False
-        if i % args.eval_frequency == 0 or i + 1 == args.n_iter:
+        if i % args.eval_frequency == 0 or i + 1 == args.n_iter or args.mbrl:
             with Timer("Evaluate the current MPC policy"):
                 # execute the best we can
                 # this is required to delete the current execution path
@@ -195,9 +196,17 @@ def main(args):
         if save_figure: neatplot.save_figure(str(dumper.expdir / f'mpc_{i}'), 'pdf')
         dumper.save()
 
-        y_next = f(x_next)
-        data.x.append(x_next)
-        data.y.append(y_next)
+        # Query function, update data
+        if args.mbrl:
+            new_x = [np.concatenate((obs, action)) for obs, action in zip(real_obs, real_actions)]
+            new_y = [f(x) for x in new_x]
+
+            data.x.extend(new_x)
+            data.y.extend(new_y)
+        else:
+            y_next = f(x_next)
+            data.x.append(x_next)
+            data.y.append(y_next)
 
 
 if __name__ == '__main__':

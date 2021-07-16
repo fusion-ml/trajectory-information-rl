@@ -9,6 +9,7 @@ import json
 import shutil
 import pickle
 from collections import defaultdict
+from pprint import pprint
 
 
 def dict_to_namespace(params):
@@ -75,6 +76,8 @@ class Dumper:
         self.info = defaultdict(list)
         self.info_path = self.expdir / 'info.pkl'
         args = vars(args)
+        print('Run with the following args:')
+        pprint(args)
         args_path = self.expdir / 'args.json'
         with args_path.open('w') as f:
             json.dump(args, f, indent=4)
