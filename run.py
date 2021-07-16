@@ -34,7 +34,6 @@ def parse_arguments():
     parser.add_argument('-ni', '--n_iter', type=int, default=200)
     parser.add_argument('-s', '--seed', type=int, default=11)
     parser.add_argument('-lr', '--learn_reward', action='store_true')
-    parser.add_argument('-nms', '--num_mean_samples', type=int, default=100)
     return parser.parse_args()
 
 
@@ -122,7 +121,7 @@ def main(args):
         full_path, output = true_algo.run_algorithm_on_f(f)
         tp = true_algo.get_exe_path_crop()
         path_lengths.append(len(full_path.x))
-        plot_fn(tp, ax, domain, 'true')
+        ax = plot_fn(tp, ax, domain, 'true')
         returns.append(compute_return(output[2], 1))
     returns = np.array(returns)
     path_lengths = np.array(path_lengths)
@@ -144,7 +143,7 @@ def main(args):
         x_next = acqopt.optimize(acqfn)
 
         # Plot true path and posterior path samples
-        plot_fn(true_path, ax, domain, 'true')
+        ax = plot_fn(true_path, ax, domain, 'true')
         # Plot observations
         x_obs = [xi[0] for xi in data.x]
         y_obs = [xi[1] for xi in data.x]
@@ -152,7 +151,7 @@ def main(args):
         # ax.scatter(x_obs, y_obs, color='k', s=120)             # big black dots
 
         for path in acqfn.exe_path_list:
-            plot_fn(path, ax, domain, 'samp')
+            ax = plot_fn(path, ax, domain, 'samp')
 
         # Plot x_next
         ax.scatter(x_next[0], x_next[1], color='deeppink', s=120, zorder=100)
@@ -181,7 +180,7 @@ def main(args):
                     real_returns.append(real_return)
                     real_path_mpc = Namespace()
                     real_path_mpc.x = real_obs
-                    plot_fn(real_path_mpc, ax, domain, 'postmean')
+                    ax = plot_fn(real_path_mpc, ax, domain, 'postmean')
                 real_returns = np.array(real_returns)
                 old_exe_paths = algo.old_exe_paths
                 algo.old_exe_paths = []
