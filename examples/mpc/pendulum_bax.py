@@ -238,7 +238,7 @@ for i in range(args.n_iter):
             dumper.add('Model MSE', mse)
 
         save_figure = True
-    if save_figure: neatplot.save_figure(str(dumper.expdir / f'mpc_{i}'), 'pdf')
+    if save_figure: neatplot.save_figure(str(dumper.expdir / f'mpc_{i}'), 'png')
     dumper.save()
 
     y_next = f(x_next)
