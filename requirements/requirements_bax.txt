@@ -10,3 +10,4 @@ jedi==0.17.2
 gym==0.18.3
 colorednoise==1.1.1
 tqdm==4.55.0
+hydra-core==1.1.0
