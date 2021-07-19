@@ -116,7 +116,7 @@ def main(config):
     path_lengths = np.array(path_lengths)
     logging.info(f"GT Results: returns.mean()={returns.mean()} returns.std()={returns.std()}")
     logging.info(f"GT Execution: path_lengths.mean()={path_lengths.mean()} path_lengths.std()={path_lengths.std()}")
-    neatplot.save_figure(str(dumper.expdir / 'mpc_gt'), 'pdf')
+    neatplot.save_figure(str(dumper.expdir / 'mpc_gt'), 'png')
 
     for i in range(config.num_iters):
         logging.info('---' * 5 + f' Start iteration i={i} ' + '---' * 5)
@@ -181,7 +181,7 @@ def main(config):
 
             save_figure = True
         if save_figure:
-            neatplot.save_figure(str(dumper.expdir / f'mpc_{i}'), 'pdf')
+            neatplot.save_figure(str(dumper.expdir / f'mpc_{i}'), 'png')
         dumper.save()
 
         # Query function, update data
