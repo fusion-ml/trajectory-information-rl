@@ -24,23 +24,6 @@ from bax.viz import plotters
 import neatplot
 
 
-'''
-def parse_arguments():
-    parser = argparse.ArgumentParser()
-    parser.add_argument('name', help="The name of the experiment and output directory.")
-    parser.add_argument('--env', help="The name of the environment to control", default="bacpendulum-v0")
-    parser.add_argument('-ow', dest='overwrite', action='store_true')
-    parser.add_argument('-net', '--num_eval_trials', type=int, default=1)
-    parser.add_argument('--eval_frequency', type=int, default=25)
-    parser.add_argument('-app', '--actions_per_plan', type=int, default=6)
-    parser.add_argument('-ni', '--n_iter', type=int, default=200)
-    parser.add_argument('-s', '--seed', type=int, default=11)
-    parser.add_argument('-lr', '--learn_reward', action='store_true')
-    parser.add_argument('--mbrl', action='store_true')
-    return parser.parse_args()
-'''
-
-
 @hydra.main(config_path='cfg', config_name='config')
 def main(config):
     dumper = Dumper(config.name)
