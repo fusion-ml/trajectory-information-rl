@@ -1,0 +1,14 @@
+defaults:
+  - env: pendulum
+  - alg: bac
+name: ???
+num_eval_trials: 3
+eval_frequency: 25
+num_iters: ${alg.num_iters}
+seed: 11
+mpc: ${env.mpc}
+hydra:
+  job:
+    name: ${name}
+  run:
+    

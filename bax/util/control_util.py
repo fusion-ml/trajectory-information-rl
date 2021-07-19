@@ -1,5 +1,6 @@
 import numpy as np
 import gym
+import logging
 try:
     from gym.envs.mujoco.mujoco_env import MujocoEnv
     mj_here = True
@@ -330,8 +331,8 @@ def test_continuous_cartpole():
 
     returns = np.array(returns)
     query_counts = np.array(query_counts)
-    print(f"{algo} gets {returns.mean():.1f} mean return with stderr {returns.std() / np.sqrt(neps):.1f}")
-    print(f"{algo} uses {query_counts.mean():.1f} queries per trial with stderr {query_counts.std() / np.sqrt(neps):.1f}")  # NOQA
+    logging.info(f"{algo} gets {returns.mean():.1f} mean return with stderr {returns.std() / np.sqrt(neps):.1f}")
+    logging.info(f"{algo} uses {query_counts.mean():.1f} queries per trial with stderr {query_counts.std() / np.sqrt(neps):.1f}")  # NOQA
 
 
 if __name__ == '__main__':

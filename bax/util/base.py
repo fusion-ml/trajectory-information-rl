@@ -4,6 +4,7 @@ Base classes.
 
 from argparse import Namespace
 import copy
+import logging
 
 from .misc_util import dict_to_namespace
 
@@ -37,7 +38,7 @@ class Base:
 
     def print_init(self):
         """Print a description string when object created."""
-        print('*[INFO] Initialized ' + str(self))
+        logging.info('* Initialized ' + str(self))
 
     def set_print_params(self):
         """Set self.print_params."""

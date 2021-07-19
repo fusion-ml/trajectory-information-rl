@@ -5,11 +5,9 @@ Miscellaneous utilities.
 from argparse import Namespace
 from pathlib import Path
 import os
-import json
-import shutil
+import logging
 import pickle
 from collections import defaultdict
-from pprint import pprint
 
 
 def dict_to_namespace(params):
@@ -64,23 +62,24 @@ class suppress_stdout_stderr:
 
 
 class Dumper:
-    def __init__(self, experiment_name, args, overwrite=False):
+    def __init__(self, experiment_name):
         cwd = Path.cwd()
-        while cwd.name != 'bayesian-active-control':
-            cwd = cwd.parent
+        # while cwd.name != 'bayesian-active-control':
+            # cwd = cwd.parent
         # this should be the root of the repo
-        self.expdir = cwd / 'experiments' / experiment_name
-        if self.expdir.exists() and overwrite:
-            shutil.rmtree(self.expdir)
-        self.expdir.mkdir(parents=True)
+        self.expdir = cwd
+        logging.info(f'Dumper dumping to {cwd}')
+        # if self.expdir.exists() and overwrite:
+            # shutil.rmtree(self.expdir)
+        # self.expdir.mkdir(parents=True)
         self.info = defaultdict(list)
         self.info_path = self.expdir / 'info.pkl'
-        args = vars(args)
-        print('Run with the following args:')
-        pprint(args)
-        args_path = self.expdir / 'args.json'
-        with args_path.open('w') as f:
-            json.dump(args, f, indent=4)
+        # args = vars(args)
+        # print('Run with the following args:')
+        # pprint(args)
+        # args_path = self.expdir / 'args.json'
+        # with args_path.open('w') as f:
+            # json.dump(args, f, indent=4)
 
     def add(self, name, val):
         self.info[name].append(val)
