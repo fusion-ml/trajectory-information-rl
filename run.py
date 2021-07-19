@@ -38,6 +38,8 @@ def main(config):
     np.random.seed(seed)
     tf.random.set_seed(seed)
 
+    assert (not config.fixed_start_obs) or config.num_samples_mc == 1, f"Need to have a fixed start obs ({config.fixed_start_obs}) or only 1 mc sample ({config.num_samples_mc})"  # NOQA
+
     # -------------
     # Start Script
     # -------------
@@ -50,7 +52,7 @@ def main(config):
     plan_env = gym.make(config.env.name)
     plan_env.seed(seed)
     f = get_f_mpc(plan_env) if not config.alg.learn_reward else get_f_mpc_reward(plan_env)
-    start_obs = env.reset()
+    start_obs = env.reset() if config.fixed_start_obs else None
 
     # Set domain
     low = np.concatenate([env.observation_space.low, env.action_space.low])
@@ -130,7 +132,7 @@ def main(config):
             # Set and optimize acquisition function
             acqfn = acqfn_class(acqfn_params, model, algo)
             x_test = unif_random_sample_domain(domain, n=n_rand_acqopt)
-            acqopt = AcqOptimizer({"x_batch": x_test})
+            acqopt = AcqOptimizer({"x_batch": x_test, "num_samples_mc": config.num_samples_mc})
             x_next = acqopt.optimize(acqfn)
 
             # Plot true path and posterior path samples

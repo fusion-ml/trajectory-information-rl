@@ -2,7 +2,6 @@
 Code for optimizing acquisition functions.
 """
 
-from argparse import Namespace
 import copy
 import numpy as np
 
@@ -23,8 +22,9 @@ class AcqOptimizer(Base):
 
         self.params.name = getattr(params, "name", "AcqOptimizer")
         self.params.opt_str = getattr(params, "opt_str", "batch")
-        default_x_batch = [[x] for x in np.linspace(0.0, 40.0, 500)]
-        self.params.x_batch = getattr(params, "x_batch", default_x_batch)
+        # default_x_batch = [[x] for x in np.linspace(0.0, 40.0, 500)]
+        # self.params.x_batch = getattr(params, "x_batch", default_x_batch)
+        self.params.num_samples_mc = getattr(params, "num_samples_mc", 1)
         self.params.remove_x_dups = getattr(params, "remove_x_dups", False)
 
     def optimize(self, acqfunction):
@@ -39,14 +39,21 @@ class AcqOptimizer(Base):
 
         # Set self.acqfunction
         self.set_acqfunction(acqfunction)
+        x_batch = copy.deepcopy(self.params.x_batch)
 
-        # Initialize acquisition function
-        self.acqfunction.initialize()
+        # Optionally remove data.x (in acqfunction) duplicates
+        if self.params.remove_x_dups:
+            x_batch = self.remove_x_dups(x_batch)
+        if self.params.ops_str != "batch":
+            raise NotImplementedError("Viraj broke the extensibility here to add Monte Carlo. Please bother him")
 
-        # Optimize acquisition function
-        if self.params.opt_str == "batch":
-            acq_opt = self.optimize_batch()
-
+        acq_lists = []
+        for i in range(self.params.num_samples_mc):
+            # Initialize acquisition function
+            self.acqfunction.initialize()
+            acq_lists.append(self.acqfunction(x_batch))
+        acq_mc = np.mean(acq_lists, axis=0)
+        acq_opt = x_batch[np.argmax(acq_mc)]
         return acq_opt
 
     def set_acqfunction(self, acqfunction):

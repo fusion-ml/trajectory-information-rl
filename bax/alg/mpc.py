@@ -79,7 +79,7 @@ class MPC(Algorithm):
         # set up initial CEM distribution
         self.mean = np.zeros((self.params.planning_horizon, self.params.action_dim))
         self.var = np.ones_like(self.mean) * ((self.params.action_upper_bound - self.params.action_lower_bound) /
-                                               self.params.initial_variance_divisor) ** 2
+                                              self.params.initial_variance_divisor) ** 2
         initial_nsamps = int(max(self.params.base_nsamps * (self.params.gamma ** -1), 2 * self.params.n_elites))
         self.traj_samples = iCEM_generate_samples(initial_nsamps,
                                                   self.params.planning_horizon,
@@ -95,10 +95,10 @@ class MPC(Algorithm):
         self.current_t_plan = 0
         # this one is for the actual agent
         self.current_t = 0
-        self.current_obs = self.params.start_obs
+        self.current_obs = self.params.start_obs if self.params.start_obs else self.params.env.reset()
         self.iter_num = 0
         self.samples_done = False
-        self.planned_states = [self.params.start_obs]
+        self.planned_states = [self.current_obs]
         self.planned_actions = []
         self.planned_rewards = []
         self.saved_states = []
@@ -224,7 +224,7 @@ class MPC(Algorithm):
         self.mean = np.concatenate([self.mean[self.params.actions_per_plan:],
                                     np.zeros((self.params.actions_per_plan, self.params.action_dim))])
         self.var = np.ones_like(self.mean) * ((self.params.action_upper_bound - self.params.action_lower_bound) /
-                                                 self.params.initial_variance_divisor) ** 2
+                                              self.params.initial_variance_divisor) ** 2
         self.iter_num = 0
         initial_nsamps = int(max(self.params.base_nsamps * (self.params.gamma ** -1), 2 * self.params.n_elites))
         self.traj_samples = iCEM_generate_samples(initial_nsamps,
