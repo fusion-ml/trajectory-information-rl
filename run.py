@@ -10,6 +10,7 @@ from tqdm import trange
 from functools import partial
 import tensorflow as tf
 import hydra
+from matplotlib import pyplot as plt
 
 from bax.models.gpfs_gp import MultiGpfsGp
 from bax.acq.acquisition import MultiBaxAcqFunction
@@ -22,23 +23,6 @@ from bax.util.domain_util import unif_random_sample_domain
 from bax.util.timing import Timer
 from bax.viz import plotters
 import neatplot
-
-
-'''
-def parse_arguments():
-    parser = argparse.ArgumentParser()
-    parser.add_argument('name', help="The name of the experiment and output directory.")
-    parser.add_argument('--env', help="The name of the environment to control", default="bacpendulum-v0")
-    parser.add_argument('-ow', dest='overwrite', action='store_true')
-    parser.add_argument('-net', '--num_eval_trials', type=int, default=1)
-    parser.add_argument('--eval_frequency', type=int, default=25)
-    parser.add_argument('-app', '--actions_per_plan', type=int, default=6)
-    parser.add_argument('-ni', '--n_iter', type=int, default=200)
-    parser.add_argument('-s', '--seed', type=int, default=11)
-    parser.add_argument('-lr', '--learn_reward', action='store_true')
-    parser.add_argument('--mbrl', action='store_true')
-    return parser.parse_args()
-'''
 
 
 @hydra.main(config_path='cfg', config_name='config')
@@ -59,7 +43,7 @@ def main(config):
     # Start Script
     # -------------
     # Set black-box function
-    env = gym.make(config.env)
+    env = gym.make(config.env.name)
     env.seed(seed)
     obs_dim = env.observation_space.low.size
     action_dim = env.action_space.low.size
@@ -100,7 +84,7 @@ def main(config):
     data.y = [f(xi) for xi in data.x]
 
     # Set model
-    gp_params = {'ls': config.env.gp.ls, 'alpha': config.env.alpha, 'sigma': config.env.sigma, 'n_dimx': obs_dim +
+    gp_params = {'ls': config.env.gp.ls, 'alpha': config.env.gp.alpha, 'sigma': config.env.gp.sigma, 'n_dimx': obs_dim +
                  action_dim}
     multi_gp_params = {'n_dimy': obs_dim, 'gp_params': gp_params}
     gp_model_class = MultiGpfsGp
@@ -143,7 +127,7 @@ def main(config):
         # Set model
         model = gp_model_class(multi_gp_params, data)
 
-        if not config.alg.mbrl:
+        if config.alg.use_acquisition:
             # Set and optimize acquisition function
             acqfn = acqfn_class(acqfn_params, model, algo)
             x_test = unif_random_sample_domain(domain, n=n_rand_acqopt)
@@ -165,7 +149,7 @@ def main(config):
             ax.scatter(x_next[0], x_next[1], color='deeppink', s=120, zorder=100)
 
         save_figure = False
-        if i % config.eval_frequency == 0 or i + 1 == config.num_iters or config.alg.mbrl:
+        if i % config.eval_frequency == 0 or i + 1 == config.num_iters or config.alg.rollout_all:
             with Timer("Evaluate the current MPC policy"):
                 # execute the best we can
                 # this is required to delete the current execution path
@@ -201,7 +185,7 @@ def main(config):
         dumper.save()
 
         # Query function, update data
-        if config.alg.mbrl:
+        if config.alg.use_rollout_data:
             new_x = [np.concatenate((obs, action)) for obs, action in zip(real_obs, real_actions)]
             new_y = [f(x) for x in new_x]
 
@@ -211,6 +195,7 @@ def main(config):
             y_next = f(x_next)
             data.x.append(x_next)
             data.y.append(y_next)
+        plt.close('all')
 
 
 if __name__ == '__main__':

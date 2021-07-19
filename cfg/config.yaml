@@ -11,4 +11,4 @@ hydra:
   job:
     name: ${name}
   run:
-    
+      dir: experiments/${name}_${now:%Y-%m-%d}/${now:%H-%M-%S}
