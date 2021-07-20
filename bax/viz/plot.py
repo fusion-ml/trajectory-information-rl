@@ -9,8 +9,8 @@ def plot_pendulum(path, ax=None, domain=None, path_str="samp"):
         ax.set(
             xlim=(domain[0][0], domain[0][1]),
             ylim=(domain[1][0], domain[1][1]),
-            xlabel='$x$',
-            ylabel='$\\theta$',
+            xlabel='$\\theta$',
+            ylabel='$\\dot{\\theta}$',
         )
 
 
