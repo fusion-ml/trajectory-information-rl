@@ -108,13 +108,14 @@ def main(config):
     # Compute and plot true path (on true function) multiple times
     returns = []
     path_lengths = []
-    for _ in trange(10):
+    for _ in trange(5):
         full_path, output = true_algo.run_algorithm_on_f(f)
         tp = true_algo.get_exe_path_crop()
         path_lengths.append(len(full_path.x))
         ax = plot_fn(tp, ax, domain, 'true')
         returns.append(compute_return(output[2], 1))
     returns = np.array(returns)
+    dumper.add('GT Returns', returns)
     path_lengths = np.array(path_lengths)
     logging.info(f"GT Results: returns.mean()={returns.mean()} returns.std()={returns.std()}")
     logging.info(f"GT Execution: path_lengths.mean()={path_lengths.mean()} path_lengths.std()={path_lengths.std()}")
