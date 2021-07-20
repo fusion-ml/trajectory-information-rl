@@ -7,6 +7,7 @@ import copy
 import numpy as np
 
 from .gp.gp_utils import kern_exp_quad, sample_mvn, gp_post
+from .gp.gp_utils import solve_lower_triangular, solve_upper_triangular, get_cholesky_decomp
 from ..util.base import Base
 from ..util.misc_util import dict_to_namespace
 
@@ -51,6 +52,17 @@ class SimpleGp(Base):
         else:
             data = dict_to_namespace(data)
             self.data = copy.deepcopy(data)
+
+            x_train = self.data.x
+            y_train = self.data.y
+            kernel = self.params.kernel
+            ls = self.params.ls
+            alpha = self.params.alpha
+            sigma = self.params.sigma
+
+            k11_nonoise = kernel(x_train, x_train, ls, alpha)
+            self.lmat = get_cholesky_decomp(k11_nonoise, sigma, 'try_first')
+            self.smat = solve_upper_triangular(self.lmat.T, solve_lower_triangular(self.lmat, y_train))
 
     def get_prior_mu_cov(self, x_list, full_cov=True):
         """
@@ -109,8 +121,15 @@ class SimpleGp(Base):
             If full_cov is True, return the covariance matrix as a numpy ndarray
             (len(x_list) x len(x_list)).
         """
-        mu, cov = self.gp_post_wrapper(x_list, self.data, full_cov)
-        return mu, cov
+        k21 = self.params.kernel(x_list, self.data.x, self.params.ls, self.params.alpha)
+        mu2 = k21.dot(self.smat)
+
+        k22 = self.params.kernel(x_list, x_list, self.params.ls, self.params.alpha)
+        vmat = solve_lower_triangular(self.lmat, k21.T)
+        k2 = k22 - vmat.T.dot(vmat)
+        if full_cov is False:
+            k2 = np.sqrt(np.diag(k2))
+        return mu2, k2
 
     def gp_post_wrapper(self, x_list, data, full_cov=True):
         """Wrapper for gp_post given a list of x and data Namespace."""

@@ -1,3 +1,4 @@
+name: "bacpendulum-v0"
 gp:
   ls: 0.85
   alpha: 1.0

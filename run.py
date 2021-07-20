@@ -10,6 +10,7 @@ from tqdm import trange
 from functools import partial
 import tensorflow as tf
 import hydra
+from matplotlib import pyplot as plt
 
 from bax.models.gpfs_gp import MultiGpfsGp
 from bax.acq.acquisition import MultiBaxAcqFunction
@@ -44,7 +45,7 @@ def main(config):
     # Start Script
     # -------------
     # Set black-box function
-    env = gym.make(config.env)
+    env = gym.make(config.env.name)
     env.seed(seed)
     obs_dim = env.observation_space.low.size
     action_dim = env.action_space.low.size
@@ -85,7 +86,7 @@ def main(config):
     data.y = [f(xi) for xi in data.x]
 
     # Set model
-    gp_params = {'ls': config.env.gp.ls, 'alpha': config.env.alpha, 'sigma': config.env.sigma, 'n_dimx': obs_dim +
+    gp_params = {'ls': config.env.gp.ls, 'alpha': config.env.gp.alpha, 'sigma': config.env.gp.sigma, 'n_dimx': obs_dim +
                  action_dim}
     multi_gp_params = {'n_dimy': obs_dim, 'gp_params': gp_params}
     gp_model_class = MultiGpfsGp
@@ -117,7 +118,7 @@ def main(config):
     path_lengths = np.array(path_lengths)
     logging.info(f"GT Results: returns.mean()={returns.mean()} returns.std()={returns.std()}")
     logging.info(f"GT Execution: path_lengths.mean()={path_lengths.mean()} path_lengths.std()={path_lengths.std()}")
-    neatplot.save_figure(str(dumper.expdir / 'mpc_gt'), 'pdf')
+    neatplot.save_figure(str(dumper.expdir / 'mpc_gt'), 'png')
 
     for i in range(config.num_iters):
         logging.info('---' * 5 + f' Start iteration i={i} ' + '---' * 5)
@@ -128,7 +129,7 @@ def main(config):
         # Set model
         model = gp_model_class(multi_gp_params, data)
 
-        if not config.alg.mbrl:
+        if config.alg.use_acquisition:
             # Set and optimize acquisition function
             acqfn = acqfn_class(acqfn_params, model, algo)
             x_test = unif_random_sample_domain(domain, n=n_rand_acqopt)
@@ -150,7 +151,7 @@ def main(config):
             ax.scatter(x_next[0], x_next[1], color='deeppink', s=120, zorder=100)
 
         save_figure = False
-        if i % config.eval_frequency == 0 or i + 1 == config.num_iters or config.alg.mbrl:
+        if i % config.eval_frequency == 0 or i + 1 == config.num_iters or config.alg.rollout_all:
             with Timer("Evaluate the current MPC policy"):
                 # execute the best we can
                 # this is required to delete the current execution path
@@ -182,11 +183,11 @@ def main(config):
 
             save_figure = True
         if save_figure:
-            neatplot.save_figure(str(dumper.expdir / f'mpc_{i}'), 'pdf')
+            neatplot.save_figure(str(dumper.expdir / f'mpc_{i}'), 'png')
         dumper.save()
 
         # Query function, update data
-        if config.alg.mbrl:
+        if config.alg.use_rollout_data:
             new_x = [np.concatenate((obs, action)) for obs, action in zip(real_obs, real_actions)]
             new_y = [f(x) for x in new_x]
 
@@ -196,6 +197,7 @@ def main(config):
             y_next = f(x_next)
             data.x.append(x_next)
             data.y.append(y_next)
+        plt.close('all')
 
 
 if __name__ == '__main__':

@@ -1,7 +1,7 @@
 defaults:
   - env: pendulum
   - alg: bac
-name: default
+name: "default"
 num_eval_trials: 3
 eval_frequency: 25
 num_iters: ${alg.num_iters}
@@ -13,4 +13,4 @@ hydra:
   job:
     name: ${name}
   run:
-    
+      dir: experiments/${name}_${now:%Y-%m-%d}/${now:%H-%M-%S}
