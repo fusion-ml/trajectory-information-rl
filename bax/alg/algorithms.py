@@ -551,11 +551,16 @@ class AlgorithmSet:
         functions given an x_list of n_f inputs. Return the lists of execution paths and
         outputs.
         """
+        self.algo.initialize()
         algo_list = [self.algo.get_copy() for _ in range(n_f)]
 
+        '''
+        Viraj note: we want to initialize before copying so they have the same state at start time
+                    this is useful for selecting a random start state and having it be the same across many parallel execution paths
         # Initialize each algo in list
         for algo in algo_list:
             algo.initialize()
+        '''
 
         # Step through algorithms
         x_list = [algo.get_next_x() for algo in algo_list]

@@ -4,6 +4,7 @@ Code for optimizing acquisition functions.
 
 import copy
 import numpy as np
+import logging
 
 from .acquisition import BaxAcqFunction
 from ..util.base import Base
@@ -24,6 +25,7 @@ class AcqOptimizer(Base):
         self.params.opt_str = getattr(params, "opt_str", "batch")
         # default_x_batch = [[x] for x in np.linspace(0.0, 40.0, 500)]
         # self.params.x_batch = getattr(params, "x_batch", default_x_batch)
+        self.params.x_batch = params.x_batch
         self.params.num_samples_mc = getattr(params, "num_samples_mc", 1)
         self.params.remove_x_dups = getattr(params, "remove_x_dups", False)
 
@@ -44,7 +46,7 @@ class AcqOptimizer(Base):
         # Optionally remove data.x (in acqfunction) duplicates
         if self.params.remove_x_dups:
             x_batch = self.remove_x_dups(x_batch)
-        if self.params.ops_str != "batch":
+        if self.params.opt_str != "batch":
             raise NotImplementedError("Viraj broke the extensibility here to add Monte Carlo. Please bother him")
 
         acq_lists = []
@@ -53,8 +55,11 @@ class AcqOptimizer(Base):
             self.acqfunction.initialize()
             acq_lists.append(self.acqfunction(x_batch))
         acq_mc = np.mean(acq_lists, axis=0)
-        acq_opt = x_batch[np.argmax(acq_mc)]
-        return acq_opt
+        acq_max_idx = np.argmax(acq_mc)
+        acq_opt = x_batch[acq_max_idx]
+        acq_val = acq_mc[acq_max_idx]
+        logging.info(f'Acq val: {acq_val:.3f}')
+        return acq_opt, acq_val
 
     def set_acqfunction(self, acqfunction):
         """Set self.acqfunction, the acquisition function."""

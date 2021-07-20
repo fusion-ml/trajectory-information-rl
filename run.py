@@ -134,7 +134,8 @@ def main(config):
             acqfn = acqfn_class(acqfn_params, model, algo)
             x_test = unif_random_sample_domain(domain, n=n_rand_acqopt)
             acqopt = AcqOptimizer({"x_batch": x_test, "num_samples_mc": config.num_samples_mc})
-            x_next = acqopt.optimize(acqfn)
+            x_next, acq_val = acqopt.optimize(acqfn)
+            dumper.add('Acquisition Function Value', acq_val)
 
             # Plot true path and posterior path samples
             ax = plot_fn(true_path, ax, domain, 'true')
