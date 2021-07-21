@@ -128,6 +128,34 @@ class GpfsGp(SimpleGp):
 
         return x_list_new
 
+    def call_batch_function_sample_list(self, x_batch_list):
+        """
+        Call a set of posterior function samples on respective x_batch (a list of
+        inputs) in x_batch_list.
+        """
+
+        # Replace Nones in x_list with first non-None value
+        x_batch_list = self.replace_x_batch_list_none(x_batch_list)
+
+        #### TODO - CODE BELOW IS OLD AND NEEDS TO BE UPDATED
+        # Set fsl_xvars as x_list, call fsl, return y_list
+        self.fsl_xvars.assign(x_list)
+        y_tf = self.call_fsl_on_xvars(self.params.model, self.fsl_xvars)
+        y_list = list(y_tf.numpy().reshape(-1))
+        return y_list
+
+    def replace_x_batch_list_none(self, x_batch_list):
+        #### TODO - CODE BELOW IS OLD AND NEEDS TO BE UPDATED
+        """Replace any Nones in x_list with first non-None value and return x_list."""
+
+        # Set new_val as first non-None element of x_list
+        new_val = next(x for x in x_list if x is not None)
+
+        # Replace all Nones in x_list with new_val
+        x_list_new = [new_val if x is None else x for x in x_list]
+
+        return x_list_new
+
 
 class MultiGpfsGp(Base):
     """
