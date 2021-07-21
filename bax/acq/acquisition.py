@@ -166,8 +166,13 @@ class AlgoAcqFunction(AcqFunction):
             self.model.initialize_function_sample_list(self.params.n_path)
 
             # Run algorithm on function sample list
-            f_list = self.model.call_function_sample_list
-            algoset = AlgorithmSet(self.algorithm)
+            if getattr(self.algorithm.params, "is_batch", False):
+                f_list = self.model.call_batch_function_sample_list
+                algoset = BatchAlgorithmSet(self.algorithm)
+            else:
+                f_list = self.model.call_function_sample_list
+                algoset = AlgorithmSet(self.algorithm)
+
             exe_path_full_list, output_list = algoset.run_algorithm_on_f_list(
                 f_list, self.params.n_path
             )

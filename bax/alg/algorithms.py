@@ -551,18 +551,15 @@ class AlgorithmSet:
         functions given an x_list of n_f inputs. Return the lists of execution paths and
         outputs.
         """
-        algo_list = [self.algo.get_copy() for _ in range(n_f)]
-
-        # Initialize each algo in list
-        for algo in algo_list:
-            algo.initialize()
+        # Set self.algo_list
+        self.set_algo_list(n_f)
 
         # Step through algorithms
-        x_list = [algo.get_next_x() for algo in algo_list]
+        x_list = [algo.get_next_x() for algo in self.algo_list]
         while any(x is not None for x in x_list):
             y_list = f_list(x_list)
             x_list_new = []
-            for algo, x, y in zip(algo_list, x_list, y_list):
+            for algo, x, y in zip(self.algo_list, x_list, y_list):
                 if x is not None:
                     algo.exe_path.x.append(x)
                     algo.exe_path.y.append(y)
@@ -572,12 +569,23 @@ class AlgorithmSet:
                 x_list_new.append(x_next)
             x_list = x_list_new
 
-        # Store algo_list
-        self.algo_list = algo_list
+        # Return lists of exe_paths and outputs for each algo in self.algo_list
+        return self.get_exe_path_and_output_lists()
 
-        # Collect exe_path_list and output_list
-        exe_path_list = [algo.exe_path for algo in algo_list]
-        output_list = [algo.get_output() for algo in algo_list]
+    def set_algo_list(self, n_f):
+        """Set self.algo_list of n_f Algorithm copies, and initialize each."""
+        self.algo_list = [self.algo.get_copy() for _ in range(n_f)]
+
+        # Initialize each algo in list
+        for algo in self.algo_list:
+            algo.initialize()
+
+    def get_exe_path_and_output_lists(self):
+        """
+        Return list of exe_paths and list of outputs for each algo in self.algo_list.
+        """
+        exe_path_list = [algo.exe_path for algo in self.algo_list]
+        output_list = [algo.get_output() for algo in self.algo_list]
         return exe_path_list, output_list
 
     def get_exe_path_list_crop(self):
@@ -599,3 +607,92 @@ class AlgorithmSet:
         del exe_path.x[final_idx:]
         del exe_path.y[final_idx:]
         return exe_path
+
+
+class BatchAlgorithm(Algorithm):
+    """Base class for an algorithm that can take batches of steps in parallel."""
+
+    def set_params(self, params):
+        """Set self.params, the parameters for the algorithm."""
+        super().set_params(params)
+        params = dict_to_namespace(params)
+        self.params.name = getattr(params, "name", "BatchAlgorithm")
+        self.params.name = getattr(params, "is_batch", True)
+
+    def run_algorithm_on_f(self, f_batch):
+        """
+        Run the algorithm by querying function f_batch, taking a batch of steps at a
+        time. Input f_batch is a function that accepts a list of inputs and returns a
+        list of outputs. Return the execution path and output.
+        """
+        self.initialize()
+
+        # Step through algorithm
+        x_batch = self.take_batch_of_steps(f_batch)
+        while not None in x_batch:
+            x_batch = self.take_batch_of_steps(f_batch)
+
+        # Return execution path and output
+        return self.exe_path, self.get_output()
+
+    def take_batch_of_steps(self, f_batch):
+        """
+        Take a batch of steps of the algorithm, where we assume that all steps in the
+        batch can be taken in parallel.
+        """
+        x_batch = self.get_next_x_batch()
+
+        if not None in x_batch:
+            y_batch = f_batch(x_batch)
+            self.exe_path.x.extend(x_batch)
+            self.exe_path.y.extend(y_batch)
+
+        return x
+
+    def get_next_x_batch(self):
+        """
+        Given the current execution path, return the next x_batch (list of inputs) in
+        the execution path. If the algorithm is complete, return a list containing None.
+        """
+
+        # Default behavior: return a list of uniform random values, 10 times
+        batch_size = 3
+        if len(self.exe_path.x) < 10 * batch_size:
+            next_x_batch = list(np.random.uniform(size=batch_size))
+        else
+            next_x_batch = [None]
+
+        return next_x_batch
+
+
+class BatchAlgorithmSet(AlgorithmSet):
+    """Wrapper that duplicates and manages a set of BatchAlgorithms."""
+
+    def run_algorithm_on_f_list(self, f_batch_list, n_f):
+        """
+        Run the algorithm by sequentially querying f_batch_list, which calls a list of
+        n_f batch functions on x_batch_list, a list of n_f input batches. Return the
+        lists of execution paths and outputs.
+        """
+        # Set self.algo_list
+        self.set_algo_list(n_f)
+
+        # Step through algorithms
+        x_batch_list = [algo.get_next_x_batch() for algo in self.algo_list]
+        while any([not None in x_batch for x_batch in x_batch_list]):
+            y_batch_list = f_batch_list(x_batch_list)
+            x_batch_list_new = []
+            for algo, x_batch, y_batch in zip(
+                self.algo_list, x_batch_list, y_batch_list
+            ):
+                if not None in x_batch:
+                    algo.exe_path.x.extend(x_batch)
+                    algo.exe_path.y.extend(y_batch)
+                    x_batch_next = algo.get_next_x_batch()
+                else:
+                    x_batch_next = [None]
+                x_batch_list_new.append(x_batch_next)
+            x_batch_list = x_batch_list_new
+
+        # Return lists of exe_paths and outputs for each algo in self.algo_list
+        return self.get_exe_path_and_output_lists()
