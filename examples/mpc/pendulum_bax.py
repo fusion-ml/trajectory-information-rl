@@ -113,7 +113,7 @@ algo = algo_class(algo_params)
 data = Namespace()
 n_init_data = 1
 data.x = unif_random_sample_domain(domain, n_init_data)
-data.y = [f(xi) for xi in data.x]
+data.y = f(data.x)
 
 # Set model
 gp_params = {'ls': 0.85, 'alpha': 1.0, 'sigma': 1e-2, 'n_dimx': obs_dim + action_dim}

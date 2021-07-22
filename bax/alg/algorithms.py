@@ -629,7 +629,7 @@ class BatchAlgorithm(Algorithm):
 
         # Step through algorithm
         x_batch = self.take_batch_of_steps(f_batch)
-        while not None in x_batch:
+        while len(x_batch) > 0:
             x_batch = self.take_batch_of_steps(f_batch)
 
         # Return execution path and output
@@ -642,12 +642,12 @@ class BatchAlgorithm(Algorithm):
         """
         x_batch = self.get_next_x_batch()
 
-        if not None in x_batch:
+        if len(x_batch) > 0:
             y_batch = f_batch(x_batch)
             self.exe_path.x.extend(x_batch)
             self.exe_path.y.extend(y_batch)
 
-        return x
+        return x_batch
 
     def get_next_x_batch(self):
         """

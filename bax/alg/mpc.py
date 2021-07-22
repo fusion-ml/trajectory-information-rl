@@ -121,7 +121,7 @@ class MPC(BatchAlgorithm):
             shift_actions = self.save_planned_actions()
             if self.current_t + 1 >= self.params.env_horizon:
                 # done planning
-                return [None]
+                return []
             self.reset_CEM(shift_actions)
         elif self.samples_done:
             self.resample_CEM()
@@ -194,6 +194,7 @@ class MPC(BatchAlgorithm):
         self.current_t_plan += 1
         if self.current_t_plan == self.params.planning_horizon:
             self.samples_done = True
+            self.current_t_plan = 0
 
     def save_planned_actions(self):
         # after CEM is complete for the current timestep, "execute" the best actions
