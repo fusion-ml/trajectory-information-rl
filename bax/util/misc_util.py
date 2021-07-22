@@ -87,3 +87,13 @@ class Dumper:
     def save(self):
         with self.info_path.open('wb') as f:
             pickle.dump(self.info, f)
+
+
+def batch_function(f):
+    # naively batch a function by calling it on each element separately and making a list of those
+    def batched_f(x_list):
+        y_list = []
+        for x in x_list:
+            y_list.append(f(x))
+        return y_list
+    return batched_f
