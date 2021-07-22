@@ -17,7 +17,7 @@ from bax.acq.acqoptimize import AcqOptimizer
 from bax.alg.mpc import MPC
 from bax.util.misc_util import dict_to_namespace, Dumper
 from bax.util.envs.pendulum import PendulumEnv, pendulum_reward
-from bax.util.control_util import get_f_mpc, compute_return, evaluate_policy, rollout_mse
+from bax.util.control_util import get_f_batch_mpc, compute_return, evaluate_policy, rollout_mse
 from bax.util.domain_util import unif_random_sample_domain, project_to_domain
 from bax.util.timing import Timer
 import neatplot
@@ -79,7 +79,7 @@ obs_dim = env.observation_space.low.size
 action_dim = env.action_space.low.size
 
 plan_env = PendulumEnv(seed=seed)
-f = get_f_mpc(plan_env)
+f = get_f_batch_mpc(plan_env)
 start_obs = env.reset()
 
 # Set domain
@@ -94,7 +94,7 @@ algo_params = dict(
         env=plan_env,
         reward_function=pendulum_reward,
         project_to_domain=True,
-        base_nsamps=10,
+        base_nsamps=25,
         planning_horizon=20,
         n_elites=3,
         beta=3,
@@ -110,7 +110,7 @@ algo = algo_class(algo_params)
 data = Namespace()
 n_init_data = 1
 data.x = unif_random_sample_domain(domain, n_init_data)
-data.y = [f(xi) for xi in data.x]
+data.y = f(data.x)
 
 # Set model
 gp_params = {'ls': 0.85, 'alpha': 1.0, 'sigma': 1e-2, 'n_dimx': obs_dim + action_dim}
@@ -188,8 +188,8 @@ for i in range(args.n_iter):
         # execute the best we can
         if args.exact_postmean:
             def postmean_fn(x):
-                mu_list, std_list = model.get_post_mu_cov([x], full_cov=False)
-                mu_tup_for_x = list(zip(*mu_list))[0]
+                mu_list, std_list = model.get_post_mu_cov(x, full_cov=False)
+                mu_tup_for_x = list(zip(*mu_list))
                 return mu_tup_for_x
         else:
             n_postmean_f_samp = args.num_mean_samples

@@ -54,9 +54,9 @@ def get_f_batch_mpc_reward(env):
 
 def rollout_mse(path, f):
     mses = []
-    for x, y in zip(path.x, path.y):
-        mses.append(np.sum((f(x) - y) ** 2))
-    return np.mean(mses)
+    y_hat = np.array(path.y)
+    y = np.array(f(path.x))
+    return np.mean(np.sum(np.square(y_hat - y), axis=1))
 
 
 
