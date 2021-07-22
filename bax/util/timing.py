@@ -4,7 +4,6 @@ Timing utilities.
 
 import time
 import datetime
-import logging
 
 
 class Timer(object):
@@ -23,7 +22,7 @@ class Timer(object):
         message = 'Elapsed: %.2f seconds' % (time.time() - self.tstart)
         if self.name:
             message = '*[TIME] [%s] ' % self.name + message
-        logging.info(message)
+        print(message)
         if self.filename:
             with open(self.filename,'a') as file:
                 print(str(datetime.datetime.now())+": ",message,file=file)
