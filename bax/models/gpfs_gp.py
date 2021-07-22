@@ -87,7 +87,7 @@ class GpfsGp(SimpleGp):
     @tf.function
     def call_fsl_on_xvars(self, model, xvars, sample_axis=0):
         """Call fsl on fsl_xvars."""
-        fvals =  model.predict_f_samples(Xnew=xvars, sample_axis=sample_axis)
+        fvals = model.predict_f_samples(Xnew=xvars, sample_axis=sample_axis)
         return fvals
 
     def call_function_sample_list(self, x_list):
@@ -201,7 +201,15 @@ class MultiGpfsGp(Base):
 
     def get_post_mu_cov(self, x_list, full_cov=False):
         """See SimpleGp. Returns a list of mu, and a list of cov/std."""
-        mu_list, cov_list = self.gp_post_wrapper(x_list, self.data, full_cov)
+        mu_list = []
+        cov_list = []
+
+        for gpfsgp in self.gpfsgp_list:
+            # Call usual 1d gpfsgp gp_post_wrapper
+            mu, cov = gpfsgp.get_post_mu_cov(x_list, full_cov)
+            mu_list.append(mu)
+            cov_list.append(cov)
+
         return mu_list, cov_list
 
     def gp_post_wrapper(self, x_list, data, full_cov=True):
