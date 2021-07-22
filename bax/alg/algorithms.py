@@ -659,7 +659,7 @@ class BatchAlgorithm(Algorithm):
         batch_size = 3
         if len(self.exe_path.x) < 10 * batch_size:
             next_x_batch = list(np.random.uniform(size=batch_size))
-        else
+        else:
             next_x_batch = [None]
 
         return next_x_batch
