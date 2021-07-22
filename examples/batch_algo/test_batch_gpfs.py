@@ -44,16 +44,10 @@ fsl_xvars = tf.Variable(Xinit)
 def call_model_predict_on_xvars(pred_model, xvars):
     """Call fsl on xvars."""
     fvals = pred_model.predict_f_samples(Xnew=xvars, sample_axis=0)
-    #fvals = pred_model.predict_f_samples(Xnew=xvars, sample_axis=1)
     return fvals
 
-# x_list is list of input points (vectors)
-#x_list = [[0.1, 0.1], [1.5, 1.5], [5.0, 5.0]]
-
+# x_list of inputs pts: [[sample_1: pt_1, pt_2, ...], [sample_2: pt_1, pt_2, ...], ...]
 x_list = [[[0.1, 0.1], [0.1, 0.1]], [[10.0, 10.0], [9.8, 9.8]], [[10.0, 10.0], [9.8, 9.8]]]
-#x_list = [[0.1, 0.1], [10.0, 10.0], [10.0, 10.0]]
-#x_list = [[0.1, 0.1], [9.8, 9.8], [10.0, 10.0]]
-#x_list = [[0.1, 0.1], [9.4, 9.4], [10.0, 10.0]]
 
 fsl_xvars.assign(x_list)
 
@@ -62,7 +56,3 @@ y_tf = call_model_predict_on_xvars(model, fsl_xvars)
 y_npy = y_tf.numpy()
 print("Final y_npy:")
 print(y_npy)
-
-#y_list = list(y_tf.numpy().reshape(-1))
-#y_list = list(y_tf.numpy())
-#print(f"Final y_list = {y_list}")
