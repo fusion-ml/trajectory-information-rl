@@ -6,7 +6,7 @@ from argparse import Namespace
 import copy
 import numpy as np
 
-from .gp.gp_utils import kern_exp_quad, sample_mvn, gp_post
+from .gp.gp_utils import kern_exp_quad, sample_mvn
 from .gp.gp_utils import solve_lower_triangular, solve_upper_triangular, get_cholesky_decomp
 from ..util.base import Base
 from ..util.misc_util import dict_to_namespace
@@ -121,7 +121,15 @@ class SimpleGp(Base):
             If full_cov is True, return the covariance matrix as a numpy ndarray
             (len(x_list) x len(x_list)).
         """
-        k21 = self.params.kernel(x_list, self.data.x, self.params.ls, self.params.alpha)
+        mu, cov = self.gp_post_wrapper(x_list, self.data, full_cov)
+        return mu, cov
+
+    def gp_post_wrapper(self, x_list, data, full_cov=True):
+        """Wrapper for gp_post given a list of x and data Namespace."""
+        if len(data.x) == 0:
+            return self.get_prior_mu_cov(x_list, full_cov)
+
+        k21 = self.params.kernel(x_list, data.x, self.params.ls, self.params.alpha)
         mu2 = k21.dot(self.smat)
 
         k22 = self.params.kernel(x_list, x_list, self.params.ls, self.params.alpha)
@@ -129,27 +137,9 @@ class SimpleGp(Base):
         k2 = k22 - vmat.T.dot(vmat)
         if full_cov is False:
             k2 = np.sqrt(np.diag(k2))
-        return mu2, k2
-
-    def gp_post_wrapper(self, x_list, data, full_cov=True):
-        """Wrapper for gp_post given a list of x and data Namespace."""
-        if len(data.x) == 0:
-            return self.get_prior_mu_cov(x_list, full_cov)
-
-        # If data is not empty:
-        mu, cov = gp_post(
-            data.x,
-            data.y,
-            x_list,
-            self.params.ls,
-            self.params.alpha,
-            self.params.sigma,
-            self.params.kernel,
-            full_cov=full_cov,
-        )
 
         # Return mean and cov matrix (or std-dev array if full_cov=False)
-        return mu, cov
+        return mu2, k2
 
     def get_post_mu_cov_single(self, x):
         """Get GP posterior for an input x. Return posterior mean and std for x."""
