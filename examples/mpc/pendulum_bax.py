@@ -16,7 +16,7 @@ from bax.acq.acqoptimize import AcqOptimizer
 from bax.alg.mpc import MPC
 from bax.util.misc_util import Dumper
 from bax.util.envs.pendulum import PendulumEnv, pendulum_reward
-from bax.util.control_util import get_f_mpc, get_f_mpc_reward, compute_return, evaluate_policy, rollout_mse
+from bax.util.control_util import get_f_batch_mpc, get_f_batch_mpc_reward, compute_return, evaluate_policy, rollout_mse
 from bax.util.domain_util import unif_random_sample_domain
 from bax.util.timing import Timer
 import neatplot
@@ -82,7 +82,7 @@ obs_dim = env.observation_space.low.size
 action_dim = env.action_space.low.size
 
 plan_env = PendulumEnv(seed=seed)
-f = get_f_mpc(plan_env) if not args.learn_reward else get_f_mpc_reward(plan_env)
+f = get_f_batch_mpc(plan_env) if not args.learn_reward else get_f_batch_mpc_reward(plan_env)
 start_obs = env.reset()
 
 # Set domain
@@ -210,8 +210,8 @@ for i in range(args.n_iter):
             algo.initialize()
             # TODO: get this to work on the mean
             if args.exact_postmean:
-                def postmean_fn(x):
-                    mu_list, std_list = model.get_post_mu_cov([x], full_cov=False)
+                def postmean_fn(x_list):
+                    mu_list, std_list = model.get_post_mu_cov([x_list], full_cov=False)
                     mu_tup_for_x = list(zip(*mu_list))[0]
                     return mu_tup_for_x
             else:

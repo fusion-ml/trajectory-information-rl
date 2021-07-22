@@ -1,4 +1,5 @@
 import numpy as np
+from .misc_util import batch_function
 import gym
 import logging
 try:
@@ -30,6 +31,10 @@ def get_f_mpc(env):
     return f
 
 
+def get_f_batch_mpc(env):
+    return batch_function(get_f_mpc(env))
+
+
 def get_f_mpc_reward(env):
     obs_dim = len(env.observation_space.low)
     def f(x):
@@ -41,6 +46,10 @@ def get_f_mpc_reward(env):
         delta_obs = next_obs - obs
         return np.insert(delta_obs, 0, reward)
     return f
+
+
+def get_f_batch_mpc_reward(env):
+    return batch_function(get_f_mpc_reward(env))
 
 
 def rollout_mse(path, f):
