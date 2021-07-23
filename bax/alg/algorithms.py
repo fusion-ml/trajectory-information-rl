@@ -652,7 +652,7 @@ class BatchAlgorithm(Algorithm):
     def get_next_x_batch(self):
         """
         Given the current execution path, return the next x_batch (list of inputs) in
-        the execution path. If the algorithm is complete, return a list containing None.
+        the execution path. If the algorithm is complete, return empty list.
         """
 
         # Default behavior: return a list of uniform random values, 10 times
@@ -660,7 +660,7 @@ class BatchAlgorithm(Algorithm):
         if len(self.exe_path.x) < 10 * batch_size:
             next_x_batch = list(np.random.uniform(size=batch_size))
         else:
-            next_x_batch = [None]
+            next_x_batch = []
 
         return next_x_batch
 
@@ -679,18 +679,18 @@ class BatchAlgorithmSet(AlgorithmSet):
 
         # Step through algorithms
         x_batch_list = [algo.get_next_x_batch() for algo in self.algo_list]
-        while any([not None in x_batch for x_batch in x_batch_list]):
+        while any([len(x_batch) > 0 for x_batch in x_batch_list]):
             y_batch_list = f_batch_list(x_batch_list)
             x_batch_list_new = []
             for algo, x_batch, y_batch in zip(
                 self.algo_list, x_batch_list, y_batch_list
             ):
-                if not None in x_batch:
+                if len(x_batch) > 0:
                     algo.exe_path.x.extend(x_batch)
                     algo.exe_path.y.extend(y_batch)
                     x_batch_next = algo.get_next_x_batch()
                 else:
-                    x_batch_next = [None]
+                    x_batch_next = []
                 x_batch_list_new.append(x_batch_next)
             x_batch_list = x_batch_list_new
 
