@@ -263,12 +263,6 @@ class BatchGpfsGp(GpfsGp):
         Initialize set.fsl_xvars, a tf.Variable of correct size, given batch size
         n_batch.
         """
-        #Xinit = tf.random.uniform(
-            #[self.n_fsamp, n_batch, self.params.n_dimx],
-            #minval=0.0,
-            #maxval=0.1,
-            #dtype=floatx()
-        #)
         Xinit = tf.zeros([self.n_fsamp, n_batch, self.params.n_dimx], dtype=floatx())
         Xvars = tf.Variable(Xinit)
         self.fsl_xvars = Xvars
@@ -349,14 +343,11 @@ class BatchMultiGpfsGp(MultiGpfsGp):
             gpfsgp.call_function_sample_list(x_batch_list) for gpfsgp in self.gpfsgp_list
         ]
 
-        # y_batch_multi_list:
-        # a list, where each element is: a list of batches (one per output dim)
-        #y_batch_multi_list = [list(x) for x in zip(*y_batch_list_list)]
-
-        # Instead want:
-        # a list, where each element is: a list of multi-output-y (one per n_batch)
+        # We define y_batch_multi_list to be a list, where each element is: a list of
+        # multi-output-y (one per n_batch)
         y_batch_multi_list = [list(zip(*ybl)) for ybl in zip(*y_batch_list_list)] # ugly
-        # convert from list of lists of tuples to all lists
+
+        # Convert from list of lists of tuples to all lists
         y_batch_multi_list = [[list(tup) for tup in li] for li in y_batch_multi_list]
 
         return y_batch_multi_list
