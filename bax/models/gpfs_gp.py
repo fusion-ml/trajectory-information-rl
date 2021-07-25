@@ -128,34 +128,6 @@ class GpfsGp(SimpleGp):
 
         return x_list_new
 
-    def call_batch_function_sample_list(self, x_batch_list):
-        """
-        Call a set of posterior function samples on respective x_batch (a list of
-        inputs) in x_batch_list.
-        """
-
-        # Replace Nones in x_list with first non-None value
-        x_batch_list = self.replace_x_batch_list_none(x_batch_list)
-
-        #### TODO - CODE BELOW IS OLD AND NEEDS TO BE UPDATED
-        # Set fsl_xvars as x_list, call fsl, return y_list
-        self.fsl_xvars.assign(x_list)
-        y_tf = self.call_fsl_on_xvars(self.params.model, self.fsl_xvars)
-        y_list = list(y_tf.numpy().reshape(-1))
-        return y_list
-
-    def replace_x_batch_list_none(self, x_batch_list):
-        #### TODO - CODE BELOW IS OLD AND NEEDS TO BE UPDATED
-        """Replace any Nones in x_list with first non-None value and return x_list."""
-
-        # Set new_val as first non-None element of x_list
-        new_val = next(x for x in x_list if x is not None)
-
-        # Replace all Nones in x_list with new_val
-        x_list_new = [new_val if x is None else x for x in x_list]
-
-        return x_list_new
-
 
 class MultiGpfsGp(Base):
     """
@@ -263,3 +235,132 @@ class MultiGpfsGp(Base):
             data_list.append(Namespace(x=data.x, y=[yi[j] for yi in data.y]))
 
         return data_list
+
+
+class BatchGpfsGp(GpfsGp):
+    """
+    GPFlowSampling GP model tailored to batch algorithms with BAX.
+    """
+
+    def set_params(self, params):
+        """Set self.params, the parameters for this model."""
+        super().set_params(params)
+        params = dict_to_namespace(params)
+
+        # Set self.params
+        self.params.name = getattr(params, 'name', 'BatchGpfsGp')
+
+    def initialize_function_sample_list(self, n_fsamp=1):
+        """Initialize a list of n_fsamp function samples."""
+        n_bases = self.params.n_bases
+        paths = self.params.model.generate_paths(num_samples=n_fsamp, num_bases=n_bases)
+        _ = self.params.model.set_paths(paths)
+        self.n_fsamp = n_fsamp
+
+    def initialize_fsl_xvars(self, n_batch):
+        """
+        Initialize set.fsl_xvars, a tf.Variable of correct size, given batch size
+        n_batch.
+        """
+        #Xinit = tf.random.uniform(
+            #[self.n_fsamp, n_batch, self.params.n_dimx],
+            #minval=0.0,
+            #maxval=0.1,
+            #dtype=floatx()
+        #)
+        Xinit = tf.zeros([self.n_fsamp, n_batch, self.params.n_dimx], dtype=floatx())
+        Xvars = tf.Variable(Xinit)
+        self.fsl_xvars = Xvars
+
+    def call_function_sample_list(self, x_batch_list):
+        """
+        Call a set of posterior function samples on respective x_batch (a list of
+        inputs) in x_batch_list.
+        """
+
+        # Replace empty x_batch and convert all x_batch to max batch size
+        x_batch_list_new, max_n_batch = self.reformat_x_batch_list(x_batch_list)
+
+        # Init fsl_xvars, set fsl_xvars as x_batch_list_new
+        self.initialize_fsl_xvars(max_n_batch)
+        self.fsl_xvars.assign(x_batch_list_new)
+
+        # Call fsl on fsl_xvars, return y_list
+        y_tf = self.call_fsl_on_xvars(self.params.model, self.fsl_xvars)
+
+        # Return list of y_batch lists, each cropped to same size as original x_batch
+        y_batch_list = []
+        for yarr, x_batch in zip(y_tf.numpy(), x_batch_list):
+            y_batch = list(yarr.reshape(-1))[:len(x_batch)]
+            y_batch_list.append(y_batch)
+
+        return y_batch_list
+
+    def reformat_x_batch_list(self, x_batch_list):
+        """Make all batches the same size and replace all empty lists."""
+
+        # Find first non-empty list and use first entry as dummy value
+        dum_val = next(x_batch for x_batch in x_batch_list if len(x_batch) > 0)[0]
+        max_n_batch = max(len(x_batch) for x_batch in x_batch_list)
+
+        # duplicate and reformat each x_batch in x_batch_list, add to x_batch_list_new
+        x_batch_list_new = []
+        for x_batch in x_batch_list:
+            x_batch_dup = [*x_batch]
+            x_batch_dup.extend([dum_val] * (max_n_batch - len(x_batch_dup)))
+            x_batch_list_new.append(x_batch_dup)
+
+        return x_batch_list_new, max_n_batch
+
+
+class BatchMultiGpfsGp(MultiGpfsGp):
+    """
+    Batch version of MultiGpfsGp model, which is tailored to batch algorithms with BAX.
+    To do this, this class duplicates the model in BatchGpfsGp multiple times.
+    """
+
+    def set_params(self, params):
+        """Set self.params, the parameters for this model."""
+        super().set_params(params)
+        params = dict_to_namespace(params)
+
+        self.params.name = getattr(params, 'name', 'MultiBatchGpfsGp')
+
+    def set_gpfsgp_list(self):
+        """Set self.gpfsgp_list by instantiating a list of BatchGpfsGp objects."""
+        data_list = self.get_data_list(self.data)
+
+        # NOTE: BatchGpfsGp verbose set to False (though MultiGpfsGp may be verbose)
+        self.gpfsgp_list = [
+            BatchGpfsGp(self.params.gp_params, dat, False) for dat in data_list
+        ]
+
+    def call_function_sample_list(self, x_batch_list):
+        """
+        Call a set of posterior function samples on respective x in x_list, for each GP
+        in self.gpfsgp_list.
+        """
+        y_batch_list_list = [
+            gpfsgp.call_function_sample_list(x_batch_list) for gpfsgp in self.gpfsgp_list
+        ]
+
+        # y_batch_multi_list:
+        # a list, where each element is: a list of batches (one per output dim)
+        #y_batch_multi_list = [list(x) for x in zip(*y_batch_list_list)]
+
+        # Instead want:
+        # a list, where each element is: a list of multi-output-y (one per n_batch)
+        y_batch_multi_list = [list(zip(*ybl)) for ybl in zip(*y_batch_list_list)] # ugly
+        # convert from list of lists of tuples to all lists
+        y_batch_multi_list = [[list(tup) for tup in li] for li in y_batch_multi_list]
+
+        return y_batch_multi_list
+
+    def call_function_sample_list_mean(self, x):
+        """
+        Call a set of posterior function samples on an input x and return mean of
+        outputs, for each GP in self.gpfsgp_list.
+        """
+        # TODO: possibly implement for BatchMultiGpfsGp for sample approximation of
+        # posterior mean
+        pass
