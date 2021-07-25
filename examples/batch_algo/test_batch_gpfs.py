@@ -56,3 +56,6 @@ y_tf = call_model_predict_on_xvars(model, fsl_xvars)
 y_npy = y_tf.numpy()
 print("Final y_npy:")
 print(y_npy)
+
+print("Final list(y_npy):")
+print([list(y.reshape(-1)) for y in y_npy])
