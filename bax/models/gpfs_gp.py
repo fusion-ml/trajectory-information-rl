@@ -98,6 +98,7 @@ class GpfsGp(SimpleGp):
 
         # Set fsl_xvars as x_list, call fsl, return y_list
         self.fsl_xvars.assign(x_list)
+
         y_tf = self.call_fsl_on_xvars(self.params.model, self.fsl_xvars)
         y_list = list(y_tf.numpy().reshape(-1))
         return y_list
@@ -281,8 +282,12 @@ class BatchGpfsGp(GpfsGp):
         # Replace empty x_batch and convert all x_batch to max batch size
         x_batch_list_new, max_n_batch = self.reformat_x_batch_list(x_batch_list)
 
-        # Init fsl_xvars, set fsl_xvars as x_batch_list_new
-        self.initialize_fsl_xvars(max_n_batch)
+        # Only re-initialize fsl_xvars if max_n_batch is larger than self.max_n_batch
+        if max_n_batch > getattr(self, "max_n_batch", 0):
+            self.max_n_batch = max_n_batch
+            self.initialize_fsl_xvars(max_n_batch)
+
+        # Set fsl_xvars as x_batch_list_new
         self.fsl_xvars.assign(x_batch_list_new)
 
         # Call fsl on fsl_xvars, return y_list

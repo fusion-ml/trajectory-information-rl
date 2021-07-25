@@ -617,7 +617,7 @@ class BatchAlgorithm(Algorithm):
         super().set_params(params)
         params = dict_to_namespace(params)
         self.params.name = getattr(params, "name", "BatchAlgorithm")
-        self.params.name = getattr(params, "is_batch", True)
+        self.params.is_batch = getattr(params, "is_batch", True)
 
     def run_algorithm_on_f(self, f_batch):
         """

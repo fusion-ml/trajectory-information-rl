@@ -11,7 +11,7 @@ from ..util.base import Base
 from ..util.misc_util import dict_to_namespace
 from ..util.timing import Timer
 from ..models.function import FunctionSample
-from ..alg.algorithms import AlgorithmSet
+from ..alg.algorithms import AlgorithmSet, BatchAlgorithmSet
 
 
 class AcqFunction(Base):
