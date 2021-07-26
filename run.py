@@ -12,13 +12,13 @@ import tensorflow as tf
 import hydra
 from matplotlib import pyplot as plt
 
-from bax.models.gpfs_gp import MultiGpfsGp
+from bax.models.gpfs_gp import BatchMultiGpfsGp
 from bax.acq.acquisition import MultiBaxAcqFunction
 from bax.acq.acqoptimize import AcqOptimizer
 from bax.alg.mpc import MPC
 from bax.util.misc_util import Dumper
 from bax.util import envs
-from bax.util.control_util import get_f_mpc, get_f_mpc_reward, compute_return, evaluate_policy, rollout_mse
+from bax.util.control_util import get_f_batch_mpc, get_f_batch_mpc_reward, compute_return, evaluate_policy, rollout_mse
 from bax.util.domain_util import unif_random_sample_domain
 from bax.util.timing import Timer
 from bax.viz import plotters
@@ -52,7 +52,7 @@ def main(config):
 
     plan_env = gym.make(config.env.name)
     plan_env.seed(seed)
-    f = get_f_mpc(plan_env) if not config.alg.learn_reward else get_f_mpc_reward(plan_env)
+    f = get_f_batch_mpc(plan_env) if not config.alg.learn_reward else get_f_batch_mpc_reward(plan_env)
     start_obs = env.reset() if config.fixed_start_obs else None
 
     # Set domain
@@ -83,13 +83,13 @@ def main(config):
     data = Namespace()
     n_init_data = 1
     data.x = unif_random_sample_domain(domain, n_init_data)
-    data.y = [f(xi) for xi in data.x]
+    data.y = f(data.x)
 
     # Set model
     gp_params = {'ls': config.env.gp.ls, 'alpha': config.env.gp.alpha, 'sigma': config.env.gp.sigma, 'n_dimx': obs_dim +
                  action_dim}
     multi_gp_params = {'n_dimy': obs_dim, 'gp_params': gp_params}
-    gp_model_class = MultiGpfsGp
+    gp_model_class = BatchMultiGpfsGp
 
     # Set acqfunction
     acqfn_params = {'n_path': 15, 'crop': True}
@@ -160,8 +160,8 @@ def main(config):
                 algo.initialize()
 
                 def postmean_fn(x):
-                    mu_list, std_list = model.get_post_mu_cov([x], full_cov=False)
-                    mu_tup_for_x = list(zip(*mu_list))[0]
+                    mu_list, std_list = model.get_post_mu_cov(x, full_cov=False)
+                    mu_tup_for_x = list(zip(*mu_list))
                     return mu_tup_for_x
                 policy = partial(algo.execute_mpc, f=postmean_fn)
                 real_returns = []
@@ -191,12 +191,12 @@ def main(config):
         # Query function, update data
         if config.alg.use_rollout_data:
             new_x = [np.concatenate((obs, action)) for obs, action in zip(real_obs, real_actions)]
-            new_y = [f(x) for x in new_x]
+            new_y = f(new_x)
 
             data.x.extend(new_x)
             data.y.extend(new_y)
         else:
-            y_next = f(x_next)
+            y_next = f([x_next])[0]
             data.x.append(x_next)
             data.y.append(y_next)
         plt.close('all')

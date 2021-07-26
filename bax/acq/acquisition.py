@@ -11,7 +11,7 @@ from ..util.base import Base
 from ..util.misc_util import dict_to_namespace
 from ..util.timing import Timer
 from ..models.function import FunctionSample
-from ..alg.algorithms import AlgorithmSet
+from ..alg.algorithms import AlgorithmSet, BatchAlgorithmSet
 
 
 class AcqFunction(Base):
@@ -165,9 +165,13 @@ class AlgoAcqFunction(AcqFunction):
             # Initialize model fsl
             self.model.initialize_function_sample_list(self.params.n_path)
 
+            if getattr(self.algorithm.params, "is_batch", False):
+                algoset = BatchAlgorithmSet(self.algorithm)
+            else:
+                algoset = AlgorithmSet(self.algorithm)
+
             # Run algorithm on function sample list
             f_list = self.model.call_function_sample_list
-            algoset = AlgorithmSet(self.algorithm)
             exe_path_full_list, output_list = algoset.run_algorithm_on_f_list(
                 f_list, self.params.n_path
             )

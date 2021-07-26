@@ -20,6 +20,8 @@ def project_to_domain(x, domain):
     if isinstance(x, np.ndarray):
         assert len(x.shape) == 1
         x_is_list = False
+    else:
+        x_is_list = True
 
     # Project x to be within domain
     x_arr = np.array(x).reshape(-1)

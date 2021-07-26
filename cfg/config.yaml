@@ -3,7 +3,7 @@ defaults:
   - alg: bac
 name: "default"
 num_eval_trials: 3
-eval_frequency: 100
+eval_frequency: 50
 num_iters: ${alg.num_iters}
 seed: 11
 mpc: ${env.mpc}
