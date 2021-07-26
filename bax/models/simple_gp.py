@@ -129,13 +129,14 @@ class SimpleGp(Base):
         k2 = k22 - vmat.T.dot(vmat)
         if full_cov is False:
             k2 = np.sqrt(np.diag(k2))
+
+        # Return mean and cov matrix (or std-dev array if full_cov=False)
         return mu2, k2
 
     def gp_post_wrapper(self, x_list, data, full_cov=True):
         """Wrapper for gp_post given a list of x and data Namespace."""
         if len(data.x) == 0:
             return self.get_prior_mu_cov(x_list, full_cov)
-
         # If data is not empty:
         mu, cov = gp_post(
             data.x,
@@ -147,7 +148,6 @@ class SimpleGp(Base):
             self.params.kernel,
             full_cov=full_cov,
         )
-
         # Return mean and cov matrix (or std-dev array if full_cov=False)
         return mu, cov
 

@@ -7,13 +7,13 @@ import numpy as np
 from math import ceil
 
 
-from .algorithms import Algorithm
+from .algorithms import BatchAlgorithm
 from ..util.misc_util import dict_to_namespace
 from ..util.control_util import compute_return, iCEM_generate_samples
 from ..util.domain_util import project_to_domain
 
 
-class MPC(Algorithm):
+class MPC(BatchAlgorithm):
     """
     An algorithm for model-predictive control. Here, the queries are concatenated states
     and actions and the output of the query is the next state.  We need the reward
@@ -51,7 +51,6 @@ class MPC(Algorithm):
         self.traj_samples = None
         self.traj_states = None
         self.traj_rewards = None
-        self.current_traj_idx = None
         self.current_t = None
         self.planned_states = []
         self.planned_actions = []
@@ -79,7 +78,7 @@ class MPC(Algorithm):
         # set up initial CEM distribution
         self.mean = np.zeros((self.params.planning_horizon, self.params.action_dim))
         self.var = np.ones_like(self.mean) * ((self.params.action_upper_bound - self.params.action_lower_bound) /
-                                               self.params.initial_variance_divisor) ** 2
+                                              self.params.initial_variance_divisor) ** 2
         initial_nsamps = int(max(self.params.base_nsamps * (self.params.gamma ** -1), 2 * self.params.n_elites))
         self.traj_samples = iCEM_generate_samples(initial_nsamps,
                                                   self.params.planning_horizon,
@@ -90,7 +89,6 @@ class MPC(Algorithm):
                                                   self.params.action_upper_bound)
         self.traj_samples = list(self.traj_samples)
         self.traj_samples += samples_to_pass
-        self.current_traj_idx = 0
         # this one is for CEM
         self.current_t_plan = 0
         # this one is for the actual agent
@@ -111,7 +109,7 @@ class MPC(Algorithm):
         self.best_obs = None
         self.best_rewards = None
 
-    def get_next_x(self):
+    def get_next_x_batch(self):
         """
         Given the current execution path, return the next x in the execution path. If
         the algorithm is complete, return None.
@@ -123,26 +121,22 @@ class MPC(Algorithm):
             shift_actions = self.save_planned_actions()
             if self.current_t + 1 >= self.params.env_horizon:
                 # done planning
-                return None
+                return []
             self.reset_CEM(shift_actions)
         elif self.samples_done:
             self.resample_CEM()
-        query = self.get_sample_x()
+        return self.get_sample_x_batch()
 
-        # Optionally, project to domain
-        if self.params.project_to_domain:
-            query = project_to_domain(query, self.params.domain)
-
-        return query
-
-    def get_sample_x(self):
-        if len(self.traj_states[self.current_traj_idx]) > 0:
-            obs = self.traj_states[self.current_traj_idx][-1]
-        else:
-            obs = self.current_obs
-        action = self.traj_samples[self.current_traj_idx][self.current_t_plan]
-        query = np.concatenate([obs, action])
-        return query
+    def get_sample_x_batch(self):
+        batch = []
+        for i, sample in enumerate(self.traj_samples):
+            action = sample[self.current_t_plan]
+            obs = self.current_obs if self.current_t_plan == 0 else self.traj_states[i][-1]
+            query = np.concatenate([obs, action])
+            if self.params.project_to_domain:
+                query = project_to_domain(query, self.params.domain)
+            batch.append(query)
+        return batch
 
     def resample_CEM(self):
         self.iter_num += 1
@@ -174,7 +168,6 @@ class MPC(Algorithm):
         self.traj_samples = list(samples)
         self.traj_states = [[] for _ in range(len(self.traj_samples))]
         self.traj_rewards = [[] for _ in range(len(self.traj_samples))]
-        self.current_traj_idx = 0
         self.samples_done = False
 
     def get_next_obs(self, x, y):
@@ -183,21 +176,25 @@ class MPC(Algorithm):
         return start_obs + delta_obs
 
     def process_prev_output(self):
-        if self.params.reward_function is not None:
-            next_obs = self.get_next_obs(self.exe_path.x[-1], self.exe_path.y[-1])
-            reward = self.params.reward_function(self.exe_path.x[-1], next_obs)
-        else:
-            next_obs = self.get_next_obs(self.exe_path.x[-1], self.exe_path.y[-1][1:])
-            reward = self.exe_path.y[-1][0]
-        # otherwise do the stuff for the standard CEM
-        self.traj_states[self.current_traj_idx].append(next_obs)
-        self.traj_rewards[self.current_traj_idx].append(reward)
+        n_samps = len(self.traj_samples)
+        new_x = self.exe_path.x[-n_samps:]
+        new_y = self.exe_path.y[-n_samps:]
+        for i in range(n_samps):
+            x = new_x[i]
+            y = new_y[i]
+            if self.params.reward_function is not None:
+                next_obs = self.get_next_obs(x, y)
+                reward = self.params.reward_function(x, next_obs)
+            else:
+                next_obs = self.get_next_obs(x, y[1:])
+                reward = y[0]
+            # otherwise do the stuff for the standard CEM
+            self.traj_states[i].append(next_obs)
+            self.traj_rewards[i].append(reward)
         self.current_t_plan += 1
         if self.current_t_plan == self.params.planning_horizon:
-            self.current_t_plan = 0
-            self.current_traj_idx += 1
-        if self.current_traj_idx == len(self.traj_samples):
             self.samples_done = True
+            self.current_t_plan = 0
 
     def save_planned_actions(self):
         # after CEM is complete for the current timestep, "execute" the best actions
@@ -224,7 +221,7 @@ class MPC(Algorithm):
         self.mean = np.concatenate([self.mean[self.params.actions_per_plan:],
                                     np.zeros((self.params.actions_per_plan, self.params.action_dim))])
         self.var = np.ones_like(self.mean) * ((self.params.action_upper_bound - self.params.action_lower_bound) /
-                                                 self.params.initial_variance_divisor) ** 2
+                                              self.params.initial_variance_divisor) ** 2
         self.iter_num = 0
         initial_nsamps = int(max(self.params.base_nsamps * (self.params.gamma ** -1), 2 * self.params.n_elites))
         self.traj_samples = iCEM_generate_samples(initial_nsamps,
@@ -241,7 +238,6 @@ class MPC(Algorithm):
         self.saved_states = []
         self.saved_rewards = []
         self.samples_done = False
-        self.current_traj_idx = 0
         self.best_return = -np.inf
         self.best_actions = None
         self.best_obs = None
