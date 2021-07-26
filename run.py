@@ -81,7 +81,7 @@ def main(config):
     data = Namespace()
     n_init_data = 1
     data.x = unif_random_sample_domain(domain, n_init_data)
-    data.y = [f(xi) for xi in data.x]
+    data.y = f(data.x)
 
     # Set model
     gp_params = {'ls': config.env.gp.ls, 'alpha': config.env.gp.alpha, 'sigma': config.env.gp.sigma, 'n_dimx': obs_dim +
@@ -187,12 +187,12 @@ def main(config):
         # Query function, update data
         if config.alg.use_rollout_data:
             new_x = [np.concatenate((obs, action)) for obs, action in zip(real_obs, real_actions)]
-            new_y = [f(x) for x in new_x]
+            new_y = f(new_x)
 
             data.x.extend(new_x)
             data.y.extend(new_y)
         else:
-            y_next = f(x_next)
+            y_next = f([x_next])[0]
             data.x.append(x_next)
             data.y.append(y_next)
         plt.close('all')
