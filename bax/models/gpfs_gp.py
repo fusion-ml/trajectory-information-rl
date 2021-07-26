@@ -201,7 +201,12 @@ class MultiGpfsGp(Base):
 
     def get_post_mu_cov(self, x_list, full_cov=False):
         """See SimpleGp. Returns a list of mu, and a list of cov/std."""
-        mu_list, cov_list = self.gp_post_wrapper(x_list, self.data, full_cov)
+        mu_list, cov_list = [], []
+        for gpfsgp in self.gpfsgp_list:
+            mu, cov = gpfsgp.get_post_mu_cov(x_list, full_cov)
+            mu_list.append(mu)
+            cov_list.append(cov)
+
         return mu_list, cov_list
 
     def gp_post_wrapper(self, x_list, data, full_cov=True):
