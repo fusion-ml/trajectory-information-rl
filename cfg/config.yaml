@@ -7,6 +7,8 @@ eval_frequency: 50
 num_iters: ${alg.num_iters}
 seed: 11
 mpc: ${env.mpc}
+fixed_start_obs: True
+num_samples_mc: 1
 hydra:
   job:
     name: ${name}

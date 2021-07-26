@@ -5,6 +5,7 @@ Evolution strategies as algorithms for BAX.
 from argparse import Namespace
 import numpy as np
 from math import ceil
+import logging
 
 
 from .algorithms import BatchAlgorithm
@@ -93,10 +94,15 @@ class MPC(BatchAlgorithm):
         self.current_t_plan = 0
         # this one is for the actual agent
         self.current_t = 0
-        self.current_obs = self.params.start_obs
+        if self.params.start_obs is not None:
+            logging.debug('Copying given start obs')
+            self.current_obs = self.params.start_obs
+        else:
+            logging.debug('Sampling start obs from env')
+            self.current_obs = self.params.env.reset()
         self.iter_num = 0
         self.samples_done = False
-        self.planned_states = [self.params.start_obs]
+        self.planned_states = [self.current_obs]
         self.planned_actions = []
         self.planned_rewards = []
         self.saved_states = []

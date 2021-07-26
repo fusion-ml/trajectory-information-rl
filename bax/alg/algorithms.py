@@ -5,6 +5,8 @@ Algorithms for BAX.
 from argparse import Namespace
 import copy
 import numpy as np
+import random
+import time
 from abc import ABC, abstractmethod
 
 from ..util.base import Base
@@ -574,11 +576,16 @@ class AlgorithmSet:
 
     def set_algo_list(self, n_f):
         """Set self.algo_list of n_f Algorithm copies, and initialize each."""
+        self.algo.initialize()
         self.algo_list = [self.algo.get_copy() for _ in range(n_f)]
 
+        '''
+        Viraj note: we want to initialize before copying so they have the same state at start time
+                    this is useful for selecting a random start state and having it be the same across many parallel execution paths
         # Initialize each algo in list
-        for algo in self.algo_list:
+        for algo in algo_list:
             algo.initialize()
+        '''
 
     def get_exe_path_and_output_lists(self):
         """
@@ -600,7 +607,7 @@ class AlgorithmSet:
     def crop_exe_path_old(self, exe_path):
         """Return execution path without any Nones at end."""
         try:
-            final_idx = next(i for i, x in enumerate(exe_path.x) if x==None)
+            final_idx = next(i for i, x in enumerate(exe_path.x) if x is None)
         except StopIteration:
             final_idx = len(exe_path.x)
 

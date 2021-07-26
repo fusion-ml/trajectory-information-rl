@@ -39,6 +39,8 @@ def main(config):
     np.random.seed(seed)
     tf.random.set_seed(seed)
 
+    assert (not config.fixed_start_obs) or config.num_samples_mc == 1, f"Need to have a fixed start obs ({config.fixed_start_obs}) or only 1 mc sample ({config.num_samples_mc})"  # NOQA
+
     # -------------
     # Start Script
     # -------------
@@ -51,7 +53,7 @@ def main(config):
     plan_env = gym.make(config.env.name)
     plan_env.seed(seed)
     f = get_f_batch_mpc(plan_env) if not config.alg.learn_reward else get_f_batch_mpc_reward(plan_env)
-    start_obs = env.reset()
+    start_obs = env.reset() if config.fixed_start_obs else None
 
     # Set domain
     low = np.concatenate([env.observation_space.low, env.action_space.low])
@@ -106,13 +108,14 @@ def main(config):
     # Compute and plot true path (on true function) multiple times
     returns = []
     path_lengths = []
-    for _ in trange(10):
+    for _ in trange(5):
         full_path, output = true_algo.run_algorithm_on_f(f)
         tp = true_algo.get_exe_path_crop()
         path_lengths.append(len(full_path.x))
         ax = plot_fn(tp, ax, domain, 'true')
         returns.append(compute_return(output[2], 1))
     returns = np.array(returns)
+    dumper.add('GT Returns', returns)
     path_lengths = np.array(path_lengths)
     logging.info(f"GT Results: returns.mean()={returns.mean()} returns.std()={returns.std()}")
     logging.info(f"GT Execution: path_lengths.mean()={path_lengths.mean()} path_lengths.std()={path_lengths.std()}")
@@ -131,8 +134,9 @@ def main(config):
             # Set and optimize acquisition function
             acqfn = acqfn_class(acqfn_params, model, algo)
             x_test = unif_random_sample_domain(domain, n=n_rand_acqopt)
-            acqopt = AcqOptimizer({"x_batch": x_test})
-            x_next = acqopt.optimize(acqfn)
+            acqopt = AcqOptimizer({"x_batch": x_test, "num_samples_mc": config.num_samples_mc})
+            x_next, acq_val = acqopt.optimize(acqfn)
+            dumper.add('Acquisition Function Value', acq_val)
 
             # Plot true path and posterior path samples
             ax = plot_fn(true_path, ax, domain, 'true')
