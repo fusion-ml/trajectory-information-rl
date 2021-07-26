@@ -241,6 +241,6 @@ for i in range(args.n_iter):
     if save_figure: neatplot.save_figure(str(dumper.expdir / f'mpc_{i}'), 'png')
     dumper.save()
 
-    y_next = f(x_next)
+    y_next = f([x_next])[0]
     data.x.append(x_next)
     data.y.append(y_next)
