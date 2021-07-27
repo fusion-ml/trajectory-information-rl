@@ -11,7 +11,7 @@ class PendulumEnv(gym.Env):
         'video.frames_per_second': 30
     }
 
-    def __init__(self, g=10.0, seed=None):
+    def __init__(self, g=10.0, seed=None, tight_start=False):
 
         # Set gym env seed
         self.seed(seed)
@@ -25,6 +25,7 @@ class PendulumEnv(gym.Env):
         self.viewer = None
         self.horizon = 200
         self.t = None
+        self.tight_start = tight_start
 
         high = np.array([np.pi, self.max_speed], dtype=np.float32)
         self.action_space = spaces.Box(
@@ -66,7 +67,10 @@ class PendulumEnv(gym.Env):
         return self._get_obs(), -costs, done, {}
 
     def reset(self, obs=None):
-        high = np.array([np.pi, 1])
+        if self.tight_start:
+            high = np.array([0.1, 0.1])
+        else:
+            high = np.array([np.pi, 1])
         self.t = 0
         if obs is None:
             self.state = self.np_random.uniform(low=-high, high=high)

@@ -10,6 +10,12 @@ register(
     )
 
 register(
+    id='bacpendulum-tight-v0',
+    entry_point=PendulumEnv,
+    kwargs={'tight_start': True}
+    )
+
+register(
     id='goddard-v0',
     entry_point=GoddardEnv,
     )
