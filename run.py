@@ -81,7 +81,7 @@ def main(config):
 
     # Set data
     data = Namespace()
-    n_init_data = 1
+    n_init_data = config.n_init_data
     data.x = unif_random_sample_domain(domain, n_init_data)
     data.y = f(data.x)
 
