@@ -166,7 +166,9 @@ def main(config):
                     return mu_tup_for_x
                 policy = partial(algo.execute_mpc, f=postmean_fn)
                 real_returns = []
-                for j in range(config.num_eval_trials):
+                mses = []
+                pbar = trange(config.num_eval_trials)
+                for j in pbar:
                     real_obs, real_actions, real_rewards = evaluate_policy(env, policy, start_obs=start_obs,
                                                                            mpc_pass=True)
                     real_return = compute_return(real_rewards, 1)
@@ -174,13 +176,16 @@ def main(config):
                     real_path_mpc = Namespace()
                     real_path_mpc.x = real_obs
                     ax = plot_fn(real_path_mpc, ax, domain, 'postmean')
+                    mses.append(rollout_mse(algo.old_exe_paths[-1], f))
+                    stats = {"Mean Return": np.mean(real_returns), "Std Return:": np.std(real_returns),
+                             "Model MSE": np.mean(mses)}
+                    pbar.set_postfix(stats)
                 real_returns = np.array(real_returns)
-                old_exe_paths = algo.old_exe_paths
                 algo.old_exe_paths = []
                 logging.info(f"Return on executed MPC: {np.mean(real_returns)}, std: {np.std(real_returns)}")
                 dumper.add('Eval Returns', real_returns)
                 dumper.add('Eval ndata', len(data.x))
-                mse = np.mean([rollout_mse(path, f) for path in old_exe_paths])
+                mse = np.mean(mses)
                 logging.info(f"Model MSE during test time rollout: {mse}")
                 dumper.add('Model MSE', mse)
 
