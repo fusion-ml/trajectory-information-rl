@@ -81,7 +81,7 @@ def main(config):
 
     # Set data
     data = Namespace()
-    n_init_data = 1
+    n_init_data = config.n_init_data
     data.x = unif_random_sample_domain(domain, n_init_data)
     data.y = f(data.x)
 
@@ -182,11 +182,9 @@ def main(config):
                     pbar.set_postfix(stats)
                 real_returns = np.array(real_returns)
                 algo.old_exe_paths = []
-                logging.info(f"Return on executed MPC: {np.mean(real_returns)}, std: {np.std(real_returns)}")
                 dumper.add('Eval Returns', real_returns)
                 dumper.add('Eval ndata', len(data.x))
                 mse = np.mean(mses)
-                logging.info(f"Model MSE during test time rollout: {mse}")
                 dumper.add('Model MSE', mse)
 
             save_figure = True
