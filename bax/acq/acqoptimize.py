@@ -26,7 +26,6 @@ class AcqOptimizer(Base):
         # default_x_batch = [[x] for x in np.linspace(0.0, 40.0, 500)]
         # self.params.x_batch = getattr(params, "x_batch", default_x_batch)
         self.params.x_batch = params.x_batch
-        self.params.num_samples_mc = getattr(params, "num_samples_mc", 1)
         self.params.remove_x_dups = getattr(params, "remove_x_dups", False)
 
     def optimize(self, acqfunction):
@@ -41,23 +40,10 @@ class AcqOptimizer(Base):
 
         # Set self.acqfunction
         self.set_acqfunction(acqfunction)
-        x_batch = copy.deepcopy(self.params.x_batch)
+        self.acqfunction.initialize()
+        if self.params.opt_str == "batch":
+            acq_opt, acq_val = self.optimize_batch()
 
-        # Optionally remove data.x (in acqfunction) duplicates
-        if self.params.remove_x_dups:
-            x_batch = self.remove_x_dups(x_batch)
-        if self.params.opt_str != "batch":
-            raise NotImplementedError("Viraj broke the extensibility here to add Monte Carlo. Please bother him")
-
-        acq_lists = []
-        for i in range(self.params.num_samples_mc):
-            # Initialize acquisition function
-            self.acqfunction.initialize()
-            acq_lists.append(self.acqfunction(x_batch))
-        acq_mc = np.mean(acq_lists, axis=0)
-        acq_max_idx = np.argmax(acq_mc)
-        acq_opt = x_batch[acq_max_idx]
-        acq_val = acq_mc[acq_max_idx]
         logging.info(f'Acq val: {acq_val:.3f}')
         return acq_opt, acq_val
 
@@ -80,9 +66,11 @@ class AcqOptimizer(Base):
 
         # Optimize self.acqfunction over x_batch
         acq_list = self.acqfunction(x_batch)
-        acq_opt = x_batch[np.argmax(acq_list)]
+        acq_idx = np.argmax(acq_list)
+        acq_opt = x_batch[acq_idx]
+        acq_val = acq_list[acq_idx]
 
-        return acq_opt
+        return acq_opt, acq_val
 
     def remove_x_dups(self, x_batch):
         """Remove elements of x_batch that are also in data.x (in self.acqfunction)"""

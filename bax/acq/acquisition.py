@@ -685,3 +685,29 @@ class MultiBaxAcqFunction(AlgoAcqFunction):
         """Class is callable and returns acquisition function on x_list."""
         acq_list = self.get_acq_list_batch(x_list)
         return acq_list
+
+
+class MCAcqFunction(AcqFunction):
+    def __init__(self, wrapped_acq_function, params):
+        super().__init__(params, model=None, verbose=False)
+        self.num_samples_mc = params['num_samples_mc']
+        self.acq_function_copies = [copy.deepcopy(wrapped_acq_function) for _ in range(self.num_samples_mc)]
+
+    def set_params(self, params):
+        super().set_params(params)
+        params = dict_to_namespace(params)
+        self.params.name = 'MCAcqFunction'
+
+    def set_model(self, model):
+        # this acq function doesn't hold a model, just wraps other ones
+        pass
+
+    def initialize(self):
+        for fn in self.acq_function_copies:
+            fn.initialize()
+
+    def __call__(self, x_list):
+        lists = []
+        for fn in self.acq_function_copies:
+            lists.append(fn(x_list))
+        return list(np.mean(lists, axis=0))

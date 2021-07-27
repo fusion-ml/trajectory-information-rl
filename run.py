@@ -13,7 +13,7 @@ import hydra
 from matplotlib import pyplot as plt
 
 from bax.models.gpfs_gp import BatchMultiGpfsGp
-from bax.acq.acquisition import MultiBaxAcqFunction
+from bax.acq.acquisition import MultiBaxAcqFunction, MCAcqFunction
 from bax.acq.acqoptimize import AcqOptimizer
 from bax.alg.mpc import MPC
 from bax.util.misc_util import Dumper
@@ -132,9 +132,10 @@ def main(config):
 
         if config.alg.use_acquisition:
             # Set and optimize acquisition function
-            acqfn = acqfn_class(acqfn_params, model, algo)
+            acqfn_base = acqfn_class(acqfn_params, model, algo)
+            acqfn = MCAcqFunction(acqfn_base, {"num_samples_mc": config.num_samples_mc})
             x_test = unif_random_sample_domain(domain, n=n_rand_acqopt)
-            acqopt = AcqOptimizer({"x_batch": x_test, "num_samples_mc": config.num_samples_mc})
+            acqopt = AcqOptimizer({"x_batch": x_test})
             x_next, acq_val = acqopt.optimize(acqfn)
             dumper.add('Acquisition Function Value', acq_val)
 
