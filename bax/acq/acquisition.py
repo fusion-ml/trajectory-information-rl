@@ -692,6 +692,7 @@ class MCAcqFunction(AcqFunction):
         super().__init__(params, model=None, verbose=False)
         self.num_samples_mc = params['num_samples_mc']
         self.acq_function_copies = [copy.deepcopy(wrapped_acq_function) for _ in range(self.num_samples_mc)]
+        self.exe_path_list = []
 
     def set_params(self, params):
         super().set_params(params)
@@ -705,6 +706,7 @@ class MCAcqFunction(AcqFunction):
     def initialize(self):
         for fn in self.acq_function_copies:
             fn.initialize()
+            self.exe_path_list += fn.exe_path_list
 
     def __call__(self, x_list):
         lists = []

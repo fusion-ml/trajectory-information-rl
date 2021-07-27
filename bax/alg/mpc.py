@@ -98,7 +98,7 @@ class MPC(BatchAlgorithm):
             logging.debug('Copying given start obs')
             self.current_obs = self.params.start_obs
         else:
-            logging.info('Sampling start obs from env')
+            logging.debug('Sampling start obs from env')
             self.current_obs = self.params.env.reset()
         self.iter_num = 0
         self.samples_done = False
