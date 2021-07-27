@@ -4,7 +4,7 @@ gp:
   alpha: 1.0
   sigma: 0.01
 mpc:
-  nsamps: 10
+  nsamps: 25
   planning_horizon: 20
   n_elites: 3
   beta: 3
