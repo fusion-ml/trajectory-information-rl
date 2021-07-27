@@ -685,3 +685,46 @@ class MultiBaxAcqFunction(AlgoAcqFunction):
         """Class is callable and returns acquisition function on x_list."""
         acq_list = self.get_acq_list_batch(x_list)
         return acq_list
+
+
+class MCAcqFunction(AcqFunction):
+    """
+    Acquisition function which wraps, duplicates, and calls a stochastic acquisition
+    function multiple times, and then returns the mean.
+    """
+
+    def __init__(self, wrapped_acq_function, params):
+        """Initialize with wrapped_acq_function, an AcqFunction."""
+
+        super().__init__(params, model=None, verbose=False)
+        self.num_samples_mc = self.params.num_samples_mc
+        self.acq_function_copies = [
+            copy.deepcopy(wrapped_acq_function) for _ in range(self.num_samples_mc)
+        ]
+        self.exe_path_list = []
+
+    def set_params(self, params):
+        """Set self.params."""
+        super().set_params(params)
+        params = dict_to_namespace(params)
+
+        self.params.name = 'MCAcqFunction'
+        self.params.num_samples_mc = params.num_samples_mc
+
+    def set_model(self, model):
+        """This acq function doesn't hold a model, just wraps other ones."""
+        pass
+
+    def initialize(self):
+        """Initialize all acqfunction copies in self.acq_function_copies."""
+        self.exe_path_list = []
+        for fn in self.acq_function_copies:
+            fn.initialize()
+            self.exe_path_list += fn.exe_path_list
+
+    def __call__(self, x_list):
+        """Call and average all acqfunctions in self.acq_function_copies."""
+        lists = []
+        for fn in self.acq_function_copies:
+            lists.append(fn(x_list))
+        return list(np.mean(lists, axis=0))
