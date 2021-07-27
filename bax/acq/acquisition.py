@@ -704,6 +704,7 @@ class MCAcqFunction(AcqFunction):
         pass
 
     def initialize(self):
+        self.exe_path_list = []
         for fn in self.acq_function_copies:
             fn.initialize()
             self.exe_path_list += fn.exe_path_list
