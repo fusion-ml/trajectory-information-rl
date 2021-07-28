@@ -193,7 +193,7 @@ def main(config):
                 mse = np.mean(mses)
                 test_y_hat = postmean_fn(test_data.x)
                 random_mse = mean_squared_error(test_data.y, test_y_hat)
-                print("Random MSE: {random_mse:.3f}")
+                print(f"Random MSE: {random_mse:.3f}")
                 dumper.add('Model MSE', mse)
                 dumper.add('Model MSE (random test set)', random_mse)
 
