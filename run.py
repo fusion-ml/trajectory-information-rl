@@ -10,6 +10,7 @@ from tqdm import trange
 from functools import partial
 import tensorflow as tf
 import hydra
+from sklearn.metrics import mean_squared_error
 from matplotlib import pyplot as plt
 
 from bax.models.gpfs_gp import BatchMultiGpfsGp
@@ -84,6 +85,11 @@ def main(config):
     n_init_data = config.n_init_data
     data.x = unif_random_sample_domain(domain, n_init_data)
     data.y = f(data.x)
+
+    # Make a test set for model evalution separate from the controller
+    test_data = Namespace()
+    test_data.x = unif_random_sample_domain(domain, config.test_set_size)
+    test_data.y = f(test_data.x)
 
     # Set model
     gp_params = {'ls': config.env.gp.ls, 'alpha': config.env.gp.alpha, 'sigma': config.env.gp.sigma, 'n_dimx': obs_dim +
@@ -185,7 +191,11 @@ def main(config):
                 dumper.add('Eval Returns', real_returns)
                 dumper.add('Eval ndata', len(data.x))
                 mse = np.mean(mses)
+                test_y_hat = postmean_fn(test_data.x)
+                random_mse = mean_squared_error(test_data.y, test_y_hat)
+                print("Random MSE: {random_mse:.3f}")
                 dumper.add('Model MSE', mse)
+                dumper.add('Model MSE (random test set)', random_mse)
 
             save_figure = True
         if save_figure:

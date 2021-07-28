@@ -10,6 +10,7 @@ mpc: ${env.mpc}
 fixed_start_obs: True
 num_samples_mc: 1
 n_init_data: 1
+test_set_size: 1000
 hydra:
   job:
     name: ${name}
