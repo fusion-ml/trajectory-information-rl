@@ -67,13 +67,13 @@ class PendulumEnv(gym.Env):
         return self._get_obs(), -costs, done, {}
 
     def reset(self, obs=None):
-        if self.tight_start:
-            high = np.array([0.1, 0.1])
-        else:
-            high = np.array([np.pi, 1])
+        high = np.array([np.pi, 1])
         self.t = 0
         if obs is None:
-            self.state = self.np_random.uniform(low=-high, high=high)
+            if self.tight_start:
+                self.state = self.np_random.uniform(low=[1, 0.1], high=[1.2, 0.3])
+            else:
+                self.state = self.np_random.uniform(low=-high, high=high)
         else:
             self.state = obs
         self.last_u = None

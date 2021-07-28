@@ -25,5 +25,6 @@ register(
     )
 reward_functions = {
         'bacpendulum-v0': pendulum_reward,
+        'bacpendulum-tight-v0': pendulum_reward,
         'goddard-v0': goddard_reward,
         }
