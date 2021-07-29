@@ -84,8 +84,8 @@ def main(config):
 
     # Set data
     data = Namespace()
-    n_init_data = config.n_init_data
-    data.x = unif_random_sample_domain(domain, n_init_data)
+    num_init_data = config.num_init_data
+    data.x = unif_random_sample_domain(domain, num_init_data)
     data.y = f(data.x)
 
     # Make a test set for model evalution separate from the controller
@@ -108,7 +108,8 @@ def main(config):
     true_algo = algo_class(algo_params)
     full_path, output = true_algo.run_algorithm_on_f(f)
     true_path = true_algo.get_exe_path_crop()
-    test_points = random.sample(zip(true_algo.exe_path.x, true_algo.exe_path.y), config.test_set_size)
+    true_path_data = list(zip(true_algo.exe_path.x, true_algo.exe_path.y))
+    test_points = random.sample(true_path_data, config.test_set_size)
     test_mpc_data = Namespace()
     test_mpc_data.x = [tp[0] for tp in test_points]
     test_mpc_data.y = [tp[1] for tp in test_points]
