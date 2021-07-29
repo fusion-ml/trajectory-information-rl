@@ -56,6 +56,7 @@ def main(config):
     plan_env.seed(seed)
     f = get_f_batch_mpc(plan_env) if not config.alg.learn_reward else get_f_batch_mpc_reward(plan_env)
     start_obs = env.reset() if config.fixed_start_obs else None
+    logging.info(f"Start obs: {start_obs}")
 
     # Set domain
     low = np.concatenate([env.observation_space.low, env.action_space.low])
