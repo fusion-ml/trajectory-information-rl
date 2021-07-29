@@ -202,6 +202,7 @@ def main(config):
                 random_mse = mse(test_data.y, test_y_hat)
                 gt_mpc_y_hat = postmean_fn(test_mpc_data.x)
                 gt_mpc_mse = mse(test_mpc_data.y, gt_mpc_y_hat)
+                print(f"Current MPC MSE: {current_mpc_mse:.3f}")
                 print(f"Random MSE: {random_mse:.3f}")
                 print(f"GT MPC MSE: {gt_mpc_mse:.3f}")
                 dumper.add('Model MSE (current MPC)', current_mpc_mse)
