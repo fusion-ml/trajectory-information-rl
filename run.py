@@ -10,7 +10,7 @@ from tqdm import trange
 from functools import partial
 import tensorflow as tf
 import hydra
-from sklearn.metrics import mean_squared_error
+import random
 from matplotlib import pyplot as plt
 
 from bax.models.gpfs_gp import BatchMultiGpfsGp
@@ -19,7 +19,8 @@ from bax.acq.acqoptimize import AcqOptimizer
 from bax.alg.mpc import MPC
 from bax.util.misc_util import Dumper
 from bax.util import envs
-from bax.util.control_util import get_f_batch_mpc, get_f_batch_mpc_reward, compute_return, evaluate_policy, rollout_mse
+from bax.util.control_util import get_f_batch_mpc, get_f_batch_mpc_reward, compute_return, evaluate_policy
+from bax.util.control_util import rollout_mse, mse
 from bax.util.domain_util import unif_random_sample_domain
 from bax.util.timing import Timer
 from bax.viz import plotters
@@ -102,10 +103,14 @@ def main(config):
     acqfn_class = MultiBaxAcqFunction
     n_rand_acqopt = 500
 
-    # Compute true path
+    # Compute true path and associated test set
     true_algo = algo_class(algo_params)
     full_path, output = true_algo.run_algorithm_on_f(f)
     true_path = true_algo.get_exe_path_crop()
+    test_points = random.sample(zip(true_algo.exe_path.x, true_algo.exe_path.y), config.test_set_size)
+    test_mpc_data = Namespace()
+    test_mpc_data.x = [tp[0] for tp in test_points]
+    test_mpc_data.y = [tp[1] for tp in test_points]
 
     # set plot fn
     plot_fn = plotters[config.env.name]
@@ -190,12 +195,16 @@ def main(config):
                 algo.old_exe_paths = []
                 dumper.add('Eval Returns', real_returns)
                 dumper.add('Eval ndata', len(data.x))
-                mse = np.mean(mses)
+                current_mpc_mse = np.mean(mses)
                 test_y_hat = postmean_fn(test_data.x)
-                random_mse = mean_squared_error(test_data.y, test_y_hat)
+                random_mse = mse(test_data.y, test_y_hat)
+                gt_mpc_y_hat = postmean_fn(test_mpc_data.x)
+                gt_mpc_mse = mse(test_mpc_data.y, gt_mpc_y_hat)
                 print(f"Random MSE: {random_mse:.3f}")
-                dumper.add('Model MSE', mse)
+                print(f"GT MPC MSE: {gt_mpc_mse:.3f}")
+                dumper.add('Model MSE (current MPC)', current_mpc_mse)
                 dumper.add('Model MSE (random test set)', random_mse)
+                dumper.add('Model MSE (GT MPC)', gt_mpc_mse)
 
             save_figure = True
         if save_figure:
