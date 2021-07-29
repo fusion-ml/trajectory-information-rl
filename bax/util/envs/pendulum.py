@@ -71,7 +71,7 @@ class PendulumEnv(gym.Env):
         self.t = 0
         if obs is None:
             if self.tight_start:
-                self.state = self.np_random.uniform(low=[1, 0.1], high=[1.2, 0.3])
+                self.state = self.np_random.uniform(low=[-0.25, -0.9], high=[-0.05, -0.7])
             else:
                 self.state = self.np_random.uniform(low=-high, high=high)
         else:
