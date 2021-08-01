@@ -174,7 +174,7 @@ for i in range(n_iter):
         acqfn = EigfBaxAcqFunction(acqfn_params, model, algo)
 
     acqopt = AcqOptimizer({"x_batch": edge_locs, "remove_x_dups": True})
-    x_next = acqopt.optimize(acqfn)
+    x_next, x_next_val = acqopt.optimize(acqfn)
     x_next = np.array(x_next).reshape(-1)
 
     sampled_outputs = acqfn.output_list
