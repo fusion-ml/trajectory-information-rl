@@ -162,10 +162,12 @@ class MultiGpfsGp(Base):
     def set_gpfsgp_list(self):
         """Set self.gpfsgp_list by instantiating a list of GpfsGp objects."""
         data_list = self.get_data_list(self.data)
+        gp_params_list = self.get_gp_params_list()
 
-        # NOTE: GpfsGp verbose set to False (though MultiGpfsGp may be verbose)
+        # Each GpfsGp verbose set to same as self.params.verbose
+        verb = self.params.verbose
         self.gpfsgp_list = [
-            GpfsGp(self.params.gp_params, dat, False) for dat in data_list
+            GpfsGp(gpp, dat, verb) for gpp, dat in zip(gp_params_list, data_list)
         ]
 
     def initialize_function_sample_list(self, n_samp=1):
@@ -236,6 +238,24 @@ class MultiGpfsGp(Base):
             data_list.append(Namespace(x=data.x, y=[yi[j] for yi in data.y]))
 
         return data_list
+
+    def get_gp_params_list(self):
+        """
+        Return list of gp_params dicts (same length as self.data_list), by parsing
+        self.params.gp_params.
+        """
+        gp_params_list = [
+            copy.deepcopy(self.params.gp_params) for _ in range(self.params.n_dimy)
+        ]
+
+        hyps = ['ls', 'alpha', 'sigma']
+        for hyp in hyps:
+            if not isinstance(self.params.gp_params.get(hyp, 1), (float, int)):
+                # If hyp exists in dict, and is not (float, int), assume is list of hyp
+                for idx, gpp in enumerate(gp_params_list):
+                    gpp[hyp] = self.params.gp_params[hyp][idx]
+
+        return gp_params_list
 
 
 class BatchGpfsGp(GpfsGp):
@@ -330,10 +350,12 @@ class BatchMultiGpfsGp(MultiGpfsGp):
     def set_gpfsgp_list(self):
         """Set self.gpfsgp_list by instantiating a list of BatchGpfsGp objects."""
         data_list = self.get_data_list(self.data)
+        gp_params_list = self.get_gp_params_list()
 
-        # NOTE: BatchGpfsGp verbose set to False (though MultiGpfsGp may be verbose)
+        # Each BatchGpfsGp verbose set to same as self.params.verbose
+        verb = self.params.verbose
         self.gpfsgp_list = [
-            BatchGpfsGp(self.params.gp_params, dat, False) for dat in data_list
+            BatchGpfsGp(gpp, dat, verb) for gpp, dat in zip(gp_params_list, data_list)
         ]
 
     def call_function_sample_list(self, x_batch_list):
