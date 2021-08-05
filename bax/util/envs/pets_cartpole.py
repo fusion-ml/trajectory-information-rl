@@ -11,6 +11,8 @@ from gym.envs.mujoco import mujoco_env
 
 class PETSCartpoleEnv(mujoco_env.MujocoEnv, utils.EzPickle):
     PENDULUM_LENGTH = 0.6
+    OBSERVATION_DIM = 4
+    ACTION_DIM = 1
 
     def __init__(self):
         utils.EzPickle.__init__(self)
@@ -67,3 +69,37 @@ class PETSCartpoleEnv(mujoco_env.MujocoEnv, utils.EzPickle):
         v = self.viewer
         v.cam.trackbodyid = 0
         v.cam.distance = v.model.stat.extent
+
+
+def cartpole_reward(x, y):
+    '''
+    x is state, action concatentated
+    y is next_state  - state, (TODO: confirm)
+    '''
+    obs_dim = PETSCartpoleEnv.OBSERVATION_DIM
+    next_obs = y
+    action = x[obs_dim:]
+    cost_lscale = PETSCartpoleEnv.PENDULUM_LENGTH
+    reward = np.exp(
+        -np.sum(np.square(PETSCartpoleEnv._get_ee_pos(next_obs) - np.array([0.0, PETSCartpoleEnv.PENDULUM_LENGTH]))) / (cost_lscale ** 2)
+    )
+    reward -= 0.01 * np.sum(np.square(action))
+    return reward
+
+
+def test_cartpole():
+    env = PETSCartpoleEnv()
+    n_tests = 10
+    for _ in range(n_tests):
+        obs = env.reset()
+        action = env.action_space.sample()
+        next_obs, rew, done, info = env.step(action)
+        x = np.concatenate([obs, action])
+        other_rew = cartpole_reward(x, next_obs)
+        assert np.allclose(rew, other_rew)
+        new_obs = env.reset(obs)
+        assert np.allclose(new_obs, obs)
+    print("passed")
+
+if __name__ == '__main__':
+    test_cartpole()

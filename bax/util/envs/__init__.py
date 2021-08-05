@@ -1,7 +1,7 @@
 from gym.envs.registration import register
 from bax.util.envs.pendulum import PendulumEnv, pendulum_reward
 from bax.util.envs.goddard import GoddardEnv, goddard_reward
-from bax.util.envs.pets_cartpole import PETSCartpoleEnv
+from bax.util.envs.pets_cartpole import PETSCartpoleEnv, cartpole_reward
 
 # register each environment we wanna use
 register(
@@ -27,4 +27,5 @@ reward_functions = {
         'bacpendulum-v0': pendulum_reward,
         'bacpendulum-tight-v0': pendulum_reward,
         'goddard-v0': goddard_reward,
+        'petscartpole-v0': cartpole_reward,
         }
