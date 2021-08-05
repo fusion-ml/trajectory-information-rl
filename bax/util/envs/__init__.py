@@ -16,6 +16,12 @@ register(
     )
 
 register(
+    id='bacpendulum-medium-v0',
+    entry_point=PendulumEnv,
+    kwargs={'medium_start': True}
+    )
+
+register(
     id='goddard-v0',
     entry_point=GoddardEnv,
     )
@@ -26,6 +32,7 @@ register(
 reward_functions = {
         'bacpendulum-v0': pendulum_reward,
         'bacpendulum-tight-v0': pendulum_reward,
+        'bacpendulum-medium-v0': pendulum_reward,
         'goddard-v0': goddard_reward,
         'petscartpole-v0': cartpole_reward,
         }

@@ -120,7 +120,7 @@ def main(config):
     # Compute and plot true path (on true function) multiple times
     returns = []
     path_lengths = []
-    for _ in trange(5):
+    for _ in trange(config.num_eval_trials):
         full_path, output = true_algo.run_algorithm_on_f(f)
         tp = true_algo.get_exe_path_crop()
         path_lengths.append(len(full_path.x))
@@ -132,6 +132,7 @@ def main(config):
     logging.info(f"GT Results: returns.mean()={returns.mean()} returns.std()={returns.std()}")
     logging.info(f"GT Execution: path_lengths.mean()={path_lengths.mean()} path_lengths.std()={path_lengths.std()}")
     neatplot.save_figure(str(dumper.expdir / 'mpc_gt'), 'png')
+    breakpoint()
 
     for i in range(config.num_iters):
         logging.info('---' * 5 + f' Start iteration i={i} ' + '---' * 5)
