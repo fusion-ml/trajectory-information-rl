@@ -77,7 +77,7 @@ class PETSCartpoleEnv(mujoco_env.MujocoEnv, utils.EzPickle):
 def cartpole_reward(x, y):
     '''
     x is state, action concatentated
-    y is next_state  - state, (TODO: confirm)
+    y is next_state - state, (TODO: confirm)
     '''
     obs_dim = PETSCartpoleEnv.OBSERVATION_DIM
     next_obs = y
@@ -102,12 +102,12 @@ def test_cartpole():
         assert np.allclose(rew, other_rew)
         new_obs = env.reset(obs)
         assert np.allclose(new_obs, obs)
-    print("passed")
     done = False
     env.reset()
     while not done:
         action = env.action_space.sample()
         n, r, done, info = env.step(action)
+    print("passed")
 
 
 if __name__ == '__main__':

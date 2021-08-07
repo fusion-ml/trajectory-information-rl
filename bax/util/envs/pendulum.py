@@ -75,7 +75,7 @@ class PendulumEnv(gym.Env):
             if self.tight_start:
                 self.state = self.np_random.uniform(low=[-0.35, -0.9], high=[-0.05, -0.6])
             elif self.medium_start:
-                self.state = self.np_random.uniform(low=[-1, -1], high=[1, 1])
+                self.state = self.np_random.uniform(low=[-3, -1], high=[-1, 1])
             else:
                 self.state = self.np_random.uniform(low=-high, high=high)
         else:
@@ -123,8 +123,8 @@ def angle_normalize(x):
 
 
 def pendulum_reward(x, y):
-    th = x[0]
-    thdot = x[1]
-    u = x[2]
+    th = x[..., 0]
+    thdot = x[..., 1]
+    u = x[..., 2]
     costs = angle_normalize(th) ** 2 + .1 * thdot ** 2 + .001 * (u ** 2)
     return -costs
