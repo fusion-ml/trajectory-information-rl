@@ -11,6 +11,9 @@ import numpy as np
 
 logger = logging.getLogger(__name__)
 
+def angle_normalize(x):
+    return (((x+np.pi) % (2*np.pi)) - np.pi)
+
 class CartPoleSwingUpEnv(gym.Env):
     metadata = {
         'render.modes': ['human', 'rgb_array'],
@@ -37,9 +40,9 @@ class CartPoleSwingUpEnv(gym.Env):
         self.x_threshold = 2.4
 
         high = np.array([
-            20.,
-            20.,
-            40.,
+            10.,
+            10.,
+            3.14159,
             25.])
 
         self.action_space = spaces.Box(-1, 1, shape=(1,))
@@ -67,6 +70,7 @@ class CartPoleSwingUpEnv(gym.Env):
         thetadot_update = (-3*self.m_p_l*(theta_dot**2)*s*c + 6*self.total_m*self.g*s + 6*(action - self.b*x_dot)*c)/(4*self.l*self.total_m - 3*self.m_p_l*c**2)
         x = x + x_dot*self.dt
         theta = theta + theta_dot*self.dt
+        theta = angle_normalize(theta)
         x_dot = x_dot + xdot_update*self.dt
         theta_dot = theta_dot + thetadot_update*self.dt
 

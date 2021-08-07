@@ -65,7 +65,7 @@ def plot_pilco_cartpole(path, ax=None, domain=None, path_str="samp"):
         fig, ax = plt.subplots(1, 1, figsize=(5, 5))
         ax.set(
             xlim=(domain[0][0], domain[0][1]),
-            ylim=(domain[1][0], domain[1][1]),
+            ylim=(domain[2][0], domain[2][1]),
             xlabel='$x$',
             ylabel='$\\theta$',
         )
