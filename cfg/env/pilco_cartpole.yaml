@@ -1,0 +1,14 @@
+name: "pilcocartpole-v0"
+gp:
+  ls: 0.85
+  alpha: 1.0
+  sigma: 0.01
+mpc:
+  nsamps: 30
+  planning_horizon: 15
+  n_elites: 6
+  beta: 3
+  gamma: 1.25
+  xi: 0.3
+  num_iters: 5
+  actions_per_plan: 1
