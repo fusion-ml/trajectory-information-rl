@@ -171,6 +171,9 @@ def iCEM(start_obs,
 
 
 def compute_return(rewards, discount_factor):
+    rewards = np.array(rewards)
+    if rewards.ndim == 2:
+        rewards = rewards.T
     return np.polynomial.polynomial.polyval(discount_factor, rewards)
 
 

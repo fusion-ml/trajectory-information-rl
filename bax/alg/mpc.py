@@ -88,8 +88,8 @@ class MPC(BatchAlgorithm):
                                                   self.var,
                                                   self.params.action_lower_bound,
                                                   self.params.action_upper_bound)
-        self.traj_samples = list(self.traj_samples)
-        self.traj_samples += samples_to_pass
+        # self.traj_samples = list(self.traj_samples)
+        # self.traj_samples += samples_to_pass
         # this one is for CEM
         self.current_t_plan = 0
         # this one is for the actual agent
@@ -108,8 +108,8 @@ class MPC(BatchAlgorithm):
         self.saved_states = []
         self.saved_actions = []
         self.saved_rewards = []
-        self.traj_states = [[] for _ in range(initial_nsamps)]
-        self.traj_rewards = [[] for _ in range(initial_nsamps)]
+        self.traj_states = []
+        self.traj_rewards = []
         self.best_return = -np.inf
         self.best_actions = None
         self.best_obs = None
@@ -130,73 +130,78 @@ class MPC(BatchAlgorithm):
                 return []
             self.reset_CEM(shift_actions)
         elif self.samples_done:
-            self.resample_CEM()
+            self.resample_iCEM()
         return self.get_sample_x_batch()
 
     def get_sample_x_batch(self):
-        batch = []
-        for i, sample in enumerate(self.traj_samples):
-            action = sample[self.current_t_plan]
-            obs = self.current_obs if self.current_t_plan == 0 else self.traj_states[i][-1]
-            query = np.concatenate([obs, action])
-            if self.params.project_to_domain:
-                query = project_to_domain(query, self.params.domain)
-            batch.append(query)
+        actions = self.traj_samples[:, self.current_t_plan, :]
+        if self.current_t_plan == 0:
+            obs = np.tile(self.current_obs, (actions.shape[0], 1))
+        else:
+            obs = self.traj_states[-1]
+        queries = np.concatenate([obs, actions], axis=1)
+        if self.params.project_to_domain:
+            raise NotImplementedError()
+            queries = project_to_domain(queries, self.params.domain)
+        batch = list(queries)
         return batch
 
-    def resample_CEM(self):
+    def resample_iCEM(self):
         self.iter_num += 1
         nsamps = int(max(self.params.base_nsamps * (self.params.gamma ** -self.iter_num), 2 * self.params.n_elites))
-        all_rewards = self.traj_rewards + self.saved_rewards
-        all_states = self.traj_states + self.saved_states
-        all_actions = self.traj_samples + self.saved_actions
-        all_returns = [compute_return(rewards, self.params.discount_factor) for rewards in all_rewards]
+        if len(self.saved_rewards) > 0:
+            all_rewards = np.concatenate([np.array(self.traj_rewards).T, np.array(self.saved_rewards)], axis=0)
+            all_states = np.concatenate([np.array(self.traj_states).transpose((1, 0, 2)),  np.array(self.saved_states)], axis=0)
+            all_actions = np.concatenate([self.traj_samples, self.saved_actions], axis=0)
+        else:
+            all_rewards = np.array(self.traj_rewards).T
+            all_states = np.array(self.traj_states).transpose((1, 0, 2))
+            all_actions = self.traj_samples
+
+        all_returns = compute_return(all_rewards, self.params.discount_factor)
         best_idx = np.argmax(all_returns)
         best_current_return = all_returns[best_idx]
         if best_current_return > self.best_return:
             self.best_return = best_current_return
-            self.best_actions = all_actions[best_idx]
-            self.best_obs = all_states[best_idx]
-            self.best_rewards = all_rewards[best_idx]
+            self.best_actions = all_actions[best_idx, ...]
+            self.best_obs = all_states[best_idx, ...]
+            self.best_rewards = all_rewards[best_idx, ...]
         elite_idx = np.argsort(all_returns)[-self.params.n_elites:]
-        elites = np.array(all_actions)[elite_idx, :]
+        elites = all_actions[elite_idx, ...]
         mean = np.mean(elites, axis=0)
         var = np.var(elites, axis=0)
         samples = iCEM_generate_samples(nsamps, self.params.planning_horizon, self.params.beta, mean, var,
                                         self.params.action_lower_bound, self.params.action_upper_bound)
         n_save_elites = ceil(self.params.n_elites * self.params.xi)
         save_idx = elite_idx[-n_save_elites:]
-        self.saved_actions = [all_actions[idx] for idx in save_idx]
-        self.saved_states = [all_states[idx] for idx in save_idx]
-        self.saved_rewards = [all_rewards[idx] for idx in save_idx]
+        self.saved_actions = all_actions[save_idx, ...]
+        self.saved_states = all_states[save_idx, ...]
+        self.saved_rewards = all_rewards[save_idx, ...]
         if self.iter_num + 1 == self.params.num_iters:
             samples = np.concatenate([samples, mean[None, :]], axis=0)
-        self.traj_samples = list(samples)
-        self.traj_states = [[] for _ in range(len(self.traj_samples))]
-        self.traj_rewards = [[] for _ in range(len(self.traj_samples))]
+        self.traj_samples = samples
+        # self.traj_samples = list(samples)
+        self.traj_states = []
+        self.traj_rewards = []
         self.samples_done = False
-
-    def get_next_obs(self, x, y):
-        start_obs = x[:self.params.obs_dim]
-        delta_obs = y
-        return start_obs + delta_obs
 
     def process_prev_output(self):
         n_samps = len(self.traj_samples)
-        new_x = self.exe_path.x[-n_samps:]
-        new_y = self.exe_path.y[-n_samps:]
-        for i in range(n_samps):
-            x = new_x[i]
-            y = new_y[i]
-            if self.params.reward_function is not None:
-                next_obs = self.get_next_obs(x, y)
-                reward = self.params.reward_function(x, next_obs)
-            else:
-                next_obs = self.get_next_obs(x, y[1:])
-                reward = y[0]
-            # otherwise do the stuff for the standard CEM
-            self.traj_states[i].append(next_obs)
-            self.traj_rewards[i].append(reward)
+        new_x = np.array(self.exe_path.x[-n_samps:])
+        new_y = np.array(self.exe_path.y[-n_samps:])
+        if self.current_t_plan == 0:
+            obs = np.tile(self.current_obs, (n_samps, 1))
+        else:
+            obs = self.traj_states[-1]
+        delta = new_y if self.params.reward_function else new_y[:, 1:]
+        new_obs = obs + delta
+        self.traj_states.append(new_obs)
+        if self.params.reward_function:
+            # rewards = np.array([self.params.reward_function(new_x[i, :], new_obs[i, :]) for i in range(n_samps)])
+            rewards = self.params.reward_function(new_x, new_obs)
+        else:
+            rewards = new_y[:, 0]
+        self.traj_rewards.append(rewards)
         self.current_t_plan += 1
         if self.current_t_plan == self.params.planning_horizon:
             self.samples_done = True
@@ -205,22 +210,22 @@ class MPC(BatchAlgorithm):
     def save_planned_actions(self):
         # after CEM is complete for the current timestep, "execute" the best actions
         # and adjust the time and current state accordingly
-        all_rewards = self.traj_rewards + self.saved_rewards + [self.best_rewards]
-        all_states = self.traj_states + self.saved_states + [self.best_obs]
-        all_actions = self.traj_samples + self.saved_actions + [self.best_actions]
-        all_returns = [compute_return(rewards, self.params.discount_factor) for rewards in all_rewards]
+        all_rewards = np.concatenate([np.array(self.traj_rewards).T, np.array(self.saved_rewards), self.best_rewards[None, ...]], axis=0)
+        all_states = np.concatenate([np.array(self.traj_states).transpose((1, 0, 2)),  np.array(self.saved_states), self.best_obs[None, ...]], axis=0)
+        all_actions = np.concatenate([self.traj_samples, self.saved_actions, self.best_actions[None, ...]], axis=0)
+        all_returns = compute_return(all_rewards, self.params.discount_factor)
         best_sample_idx = np.argmax(all_returns)
-        best_actions = all_actions[best_sample_idx]
-        best_states = all_states[best_sample_idx]
-        best_rewards = all_rewards[best_sample_idx]
+        best_actions = all_actions[best_sample_idx, ...]
+        best_obs = all_states[best_sample_idx, ...]
+        best_rewards = all_rewards[best_sample_idx, ...]
         for t in range(self.params.actions_per_plan):
             self.planned_actions.append(best_actions[t])
-            self.planned_states.append(best_states[t])
+            self.planned_states.append(best_obs[t])
             self.planned_rewards.append(best_rewards[t])
         self.current_t += self.params.actions_per_plan
         # since we don't have the start state in this list, we have to subtract 1 here
         # this should be where the current plan leaves us
-        self.current_obs = best_states[self.params.actions_per_plan - 1]
+        self.current_obs = best_obs[self.params.actions_per_plan - 1, :]
         return self.shift_samples(all_returns, all_states, all_actions, all_rewards)
 
     def reset_CEM(self, shift_actions=[]):
@@ -237,9 +242,9 @@ class MPC(BatchAlgorithm):
                                                   self.var,
                                                   self.params.action_lower_bound,
                                                   self.params.action_upper_bound)
-        self.traj_samples = list(self.traj_samples) + shift_actions
-        self.traj_states = [[] for _ in self.traj_samples]
-        self.traj_rewards = [[] for _ in self.traj_samples]
+        self.traj_samples = np.concatenate([self.traj_samples, shift_actions], axis=0)
+        self.traj_states = []
+        self.traj_rewards = []
         self.saved_actions = []
         self.saved_states = []
         self.saved_rewards = []
@@ -252,10 +257,9 @@ class MPC(BatchAlgorithm):
     def shift_samples(self, all_returns, all_states, all_actions, all_rewards):
         n_keep = ceil(self.params.xi * self.params.n_elites)
         keep_indices = np.argsort(all_returns)[-n_keep:]
-        self.shifted_actions = []
-        for idx in keep_indices:
-            new_actions = np.array([self.params.env.action_space.sample() for _ in range(self.params.actions_per_plan)])
-            self.shifted_actions.append(np.concatenate([all_actions[idx][self.params.actions_per_plan:], new_actions]))
+        short_shifted_actions = all_actions[keep_indices, self.params.actions_per_plan:, :]
+        new_actions = np.array([[self.params.env.action_space.sample() for _ in range(self.params.actions_per_plan)] for i in range(n_keep)])
+        self.shifted_actions = np.concatenate([short_shifted_actions, new_actions], axis=1)
         self.current_t_plan = 0
         return self.shifted_actions
 
