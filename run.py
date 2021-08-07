@@ -69,7 +69,7 @@ def main(config):
             start_obs=start_obs,
             env=plan_env,
             reward_function=envs.reward_functions[config.env.name] if not config.alg.learn_reward else None,
-            project_to_domain=True,
+            project_to_domain=False,
             base_nsamps=config.mpc.nsamps,
             planning_horizon=config.mpc.planning_horizon,
             n_elites=config.mpc.n_elites,
@@ -99,9 +99,9 @@ def main(config):
     gp_model_class = BatchMultiGpfsGp
 
     # Set acqfunction
-    acqfn_params = {'n_path': 15, 'crop': True}
+    acqfn_params = {'n_path': config.n_paths, 'crop': True}
     acqfn_class = MultiBaxAcqFunction
-    n_rand_acqopt = 500
+    n_rand_acqopt = config.n_rand_acqopt
 
     # Compute true path and associated test set
     true_algo = algo_class(algo_params)
@@ -120,19 +120,21 @@ def main(config):
     # Compute and plot true path (on true function) multiple times
     returns = []
     path_lengths = []
-    for _ in trange(config.num_eval_trials):
+    pbar = trange(config.num_eval_trials)
+    for _ in pbar:
         full_path, output = true_algo.run_algorithm_on_f(f)
         tp = true_algo.get_exe_path_crop()
         path_lengths.append(len(full_path.x))
         ax = plot_fn(tp, ax, domain, 'true')
         returns.append(compute_return(output[2], 1))
+        stats = {"Mean Return": np.mean(returns), "Std Return:": np.std(returns)}
+        pbar.set_postfix(stats)
     returns = np.array(returns)
     dumper.add('GT Returns', returns)
     path_lengths = np.array(path_lengths)
     logging.info(f"GT Results: returns.mean()={returns.mean()} returns.std()={returns.std()}")
     logging.info(f"GT Execution: path_lengths.mean()={path_lengths.mean()} path_lengths.std()={path_lengths.std()}")
     neatplot.save_figure(str(dumper.expdir / 'mpc_gt'), 'png')
-    breakpoint()
 
     for i in range(config.num_iters):
         logging.info('---' * 5 + f' Start iteration i={i} ' + '---' * 5)
