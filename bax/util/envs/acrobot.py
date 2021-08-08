@@ -334,4 +334,5 @@ def rk4(derivs, y0, t, *args, **kwargs):
 
 def acrobot_reward(x, y):
     end_height = -np.cos(y[..., 0]) - np.cos(y[..., 1] + y[..., 0])
-    return end_height
+    cost = np.square(np.minimum(end_height - 1, 0))
+    return -cost
