@@ -29,7 +29,7 @@ class MPC(BatchAlgorithm):
         self.params.name = getattr(params, "name", "MPC")
         self.params.start_obs = params.start_obs
         self.params.env = params.env
-        self.params.discount_factor = getattr(params, 'discount_factor', 0.99)
+        self.params.discount_factor = getattr(params, 'discount_factor', 1.)
         # reward function is currently required, needs to take (state x action) x next_obs -> R
         self.params.reward_function = getattr(params, 'reward_function', None)
         self.terminal_function = self.params.terminal_function = getattr(params, "terminal_function", None)
