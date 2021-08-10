@@ -210,9 +210,14 @@ class MPC(BatchAlgorithm):
     def save_planned_actions(self):
         # after CEM is complete for the current timestep, "execute" the best actions
         # and adjust the time and current state accordingly
-        all_rewards = np.concatenate([np.array(self.traj_rewards).T, np.array(self.saved_rewards), self.best_rewards[None, ...]], axis=0)
-        all_states = np.concatenate([np.array(self.traj_states).transpose((1, 0, 2)),  np.array(self.saved_states), self.best_obs[None, ...]], axis=0)
-        all_actions = np.concatenate([self.traj_samples, self.saved_actions, self.best_actions[None, ...]], axis=0)
+        if self.best_rewards is not None:
+            all_rewards = np.concatenate([np.array(self.traj_rewards).T, np.array(self.saved_rewards), self.best_rewards[None, ...]], axis=0)
+            all_states = np.concatenate([np.array(self.traj_states).transpose((1, 0, 2)),  np.array(self.saved_states), self.best_obs[None, ...]], axis=0)
+            all_actions = np.concatenate([self.traj_samples, self.saved_actions, self.best_actions[None, ...]], axis=0)
+        else:
+            all_rewards = np.array(self.traj_rewards).T
+            all_states = np.array(self.traj_states).transpose((1, 0, 2))
+            all_actions = self.traj_samples
         all_returns = compute_return(all_rewards, self.params.discount_factor)
         best_sample_idx = np.argmax(all_returns)
         best_actions = all_actions[best_sample_idx, ...]
