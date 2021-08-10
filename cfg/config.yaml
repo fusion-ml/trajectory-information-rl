@@ -12,7 +12,7 @@ num_samples_mc: 1
 num_init_data: 1
 test_set_size: 1000
 n_paths: 15
-n_rand_acqopt: 500
+n_rand_acqopt: ${alg.n_rand_acqopt}
 hydra:
   job:
     name: ${name}
