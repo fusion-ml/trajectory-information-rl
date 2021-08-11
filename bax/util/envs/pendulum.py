@@ -11,9 +11,10 @@ class PendulumEnv(gym.Env):
         'video.frames_per_second': 30
     }
 
-    def __init__(self, g=10.0, seed=None, tight_start=False):
+    def __init__(self, g=10.0, seed=None, tight_start=False, medium_start=False):
 
         # Set gym env seed
+        assert not (tight_start and medium_start)
         self.seed(seed)
 
         self.max_speed = 8
@@ -26,6 +27,7 @@ class PendulumEnv(gym.Env):
         self.horizon = 200
         self.t = None
         self.tight_start = tight_start
+        self.medium_start = medium_start
 
         high = np.array([np.pi, self.max_speed], dtype=np.float32)
         self.action_space = spaces.Box(
@@ -72,6 +74,8 @@ class PendulumEnv(gym.Env):
         if obs is None:
             if self.tight_start:
                 self.state = self.np_random.uniform(low=[-0.35, -0.9], high=[-0.05, -0.6])
+            elif self.medium_start:
+                self.state = self.np_random.uniform(low=[-3, -1], high=[-1, 1])
             else:
                 self.state = self.np_random.uniform(low=-high, high=high)
         else:
@@ -119,8 +123,8 @@ def angle_normalize(x):
 
 
 def pendulum_reward(x, y):
-    th = x[0]
-    thdot = x[1]
-    u = x[2]
+    th = x[..., 0]
+    thdot = x[..., 1]
+    u = x[..., 2]
     costs = angle_normalize(th) ** 2 + .1 * thdot ** 2 + .001 * (u ** 2)
     return -costs

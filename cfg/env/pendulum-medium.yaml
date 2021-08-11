@@ -1,0 +1,14 @@
+name: "bacpendulum-medium-v0"
+gp:
+  ls: 0.85
+  alpha: 1.0
+  sigma: 0.01
+mpc:
+  nsamps: 25
+  planning_horizon: 20
+  n_elites: 5
+  beta: 3
+  gamma: 1.25
+  xi: 0.3
+  num_iters: 3
+  actions_per_plan: 6
