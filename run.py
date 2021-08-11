@@ -136,7 +136,7 @@ def main(config):
     logging.info(f"GT Execution: path_lengths.mean()={path_lengths.mean()} path_lengths.std()={path_lengths.std()}")
     neatplot.save_figure(str(dumper.expdir / 'mpc_gt'), 'png')
     if config.alg.rollout_sampling:
-        current_obs = env.reset() if start_obs is None else start_obs
+        current_obs = start_obs.copy() if config.fixed_start_obs else plan_env.reset()
         current_t = 0
     for i in range(config.num_iters):
         logging.info('---' * 5 + f' Start iteration i={i} ' + '---' * 5)
@@ -237,7 +237,7 @@ def main(config):
                 current_t += 1
                 if current_t > env.horizon:
                     current_t = 0
-                    current_obs = env.reset() if start_obs is None else start_obs
+                    current_obs = start_obs.copy() if config.fixed_start_obs else plan_env.reset()
                 else:
                     current_obs += y_next[-obs_dim:]
         plt.close('all')
