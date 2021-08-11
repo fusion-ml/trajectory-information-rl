@@ -84,8 +84,7 @@ def main(config):
 
     # Set data
     data = Namespace()
-    num_init_data = config.num_init_data
-    data.x = unif_random_sample_domain(domain, num_init_data)
+    data.x = unif_random_sample_domain(domain, config.num_init_data)
     data.y = f(data.x)
 
     # Make a test set for model evalution separate from the controller
@@ -197,17 +196,18 @@ def main(config):
                 algo.old_exe_paths = []
                 dumper.add('Eval Returns', real_returns)
                 dumper.add('Eval ndata', len(data.x))
+                logging.info(f"Eval Results: real_returns={real_returns}")
                 current_mpc_mse = np.mean(mses)
                 test_y_hat = postmean_fn(test_data.x)
                 random_mse = mse(test_data.y, test_y_hat)
                 gt_mpc_y_hat = postmean_fn(test_mpc_data.x)
                 gt_mpc_mse = mse(test_mpc_data.y, gt_mpc_y_hat)
-                print(f"Current MPC MSE: {current_mpc_mse:.3f}")
-                print(f"Random MSE: {random_mse:.3f}")
-                print(f"GT MPC MSE: {gt_mpc_mse:.3f}")
                 dumper.add('Model MSE (current MPC)', current_mpc_mse)
                 dumper.add('Model MSE (random test set)', random_mse)
                 dumper.add('Model MSE (GT MPC)', gt_mpc_mse)
+                logging.info(f"Current MPC MSE: {current_mpc_mse:.3f}")
+                logging.info(f"Random MSE: {random_mse:.3f}")
+                logging.info(f"GT MPC MSE: {gt_mpc_mse:.3f}")
 
             save_figure = True
         if save_figure:

@@ -1,5 +1,5 @@
 """
-Evolution strategies as algorithms for BAX.
+Model predictive control (MPC) with BAX.
 """
 
 from argparse import Namespace
