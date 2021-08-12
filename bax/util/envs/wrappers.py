@@ -10,9 +10,12 @@ class NormalizedEnv(Env):
         doesn't touch actions
         '''
         self._wrapped_env = wrapped_env
-        self.action_space = self._wrapped_env.action_space
+        self.unnorm_action_space = self._wrapped_env.action_space
         self.unnorm_observation_space = self._wrapped_env.observation_space
-        self.unnorm_space_size = self.unnorm_observation_space.high - self.unnorm_observation_space.low
+        self.unnorm_obs_space_size = self.unnorm_observation_space.high - self.unnorm_observation_space.low
+        self.unnorm_action_space_size = self.unnorm_action_space.high - self.unnorm_action_space.low
+        self.action_space = spaces.Box(low=-np.ones_like(self.unnorm_action_space.low),
+                                            high=np.ones_like(self.unnorm_action_space.high))
         self.observation_space = spaces.Box(low=-np.ones_like(self.unnorm_observation_space.low),
                                             high=np.ones_like(self.unnorm_observation_space.high))
 
@@ -29,7 +32,8 @@ class NormalizedEnv(Env):
         return self.normalize_obs(unnorm_obs)
 
     def step(self, action):
-        unnorm_obs, rew, done, info = self._wrapped_env.step(action)
+        unnorm_action = self.unnormalize_action(action)
+        unnorm_obs, rew, done, info = self._wrapped_env.step(unnorm_action)
         return self.normalize_obs(unnorm_obs), rew, done, info
 
     def render(self, *args, **kwargs):
@@ -67,10 +71,10 @@ class NormalizedEnv(Env):
     def normalize_obs(self, obs):
         if obs.ndim == 1:
             low = self.unnorm_observation_space.low
-            size = self.unnorm_space_size
+            size = self.unnorm_obs_space_size
         else:
             low = self.unnorm_observation_space.low[None, :]
-            size = self.unnorm_space_size[None, :]
+            size = self.unnorm_obs_space_size[None, :]
         pos_obs = obs - low
         norm_obs = (pos_obs / size * 2) - 1
         return norm_obs
@@ -78,15 +82,26 @@ class NormalizedEnv(Env):
     def unnormalize_obs(self, obs):
         if obs.ndim == 1:
             low = self.unnorm_observation_space.low
-            size = self.unnorm_space_size
+            size = self.unnorm_obs_space_size
         else:
             low = self.unnorm_observation_space.low[None, :]
-            size = self.unnorm_space_size[None, :]
+            size = self.unnorm_obs_space_size[None, :]
         obs01 = (obs + 1) / 2
         obs_ranged = obs01 * size
         unnorm_obs = obs_ranged + low
         return unnorm_obs
 
+    def unnormalize_action(self, action):
+        if action.ndim == 1:
+            low = self.unnorm_action_space.low
+            size = self.unnorm_action_space_size
+        else:
+            low = self.unnorm_action_space.low[None, :]
+            size = self.unnorm_action_space_size[None, :]
+        act01 = (action + 1) / 2
+        act_ranged = act01 * size
+        unnorm_act = act_ranged + low
+        return unnorm_act
 
 def make_normalized_reward_function(norm_env, reward_function):
     '''
@@ -99,25 +114,39 @@ def make_normalized_reward_function(norm_env, reward_function):
     def norm_rew_fn(x, y):
         norm_obs = x[..., :obs_dim]
         action = x[..., obs_dim:]
+        unnorm_action = norm_env.unnormalize_action(action)
         unnorm_obs = norm_env.unnormalize_obs(norm_obs)
-        unnorm_x = np.concat([unnorm_obs, action], axis=-1)
-        unnorm_y = norm.unnormalize_obs(y)
+        unnorm_x = np.concatenate([unnorm_obs, unnorm_action], axis=-1)
+        unnorm_y = norm_env.unnormalize_obs(y)
         return reward_function(unnorm_x, unnorm_y)
+    return norm_rew_fn
 
 def test_obs(wrapped_env, obs):
     unnorm_obs = wrapped_env.unnormalize_obs(obs)
     renorm_obs = wrapped_env.normalize_obs(unnorm_obs)
     assert np.allclose(obs, renorm_obs), f"Original obs {obs} not close to renormalized obs {renorm_obs}"
 
+def test_rew_fn(gt_rew, norm_rew_fn, old_obs, action, obs):
+    x = np.concatenate([old_obs, action])
+    y = obs
+    assert np.allclose(gt_rew, norm_rew_fn(x, y))
+
 def test():
-    env = gym.make('Pendulum-v0')
+    import sys
+    sys.path.append('.')
+    from pendulum import PendulumEnv, pendulum_reward
+    env = PendulumEnv()
     wrapped_env = NormalizedEnv(env)
+    wrapped_reward = make_normalized_reward_function(wrapped_env, pendulum_reward)
     obs = wrapped_env.reset()
     test_obs(wrapped_env, obs)
     done = False
     while not done:
-        obs, rew, done, info = wrapped_env.step(wrapped_env.action_space.sample())
+        old_obs = obs
+        action = wrapped_env.action_space.sample()
+        obs, rew, done, info = wrapped_env.step(action)
         test_obs(wrapped_env, obs)
+        test_rew_fn(rew, wrapped_reward, old_obs, action, obs)
     print("passed!")
 
 if __name__ == "__main__":
