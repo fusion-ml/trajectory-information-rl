@@ -87,6 +87,7 @@ def main(config):
             domain=domain,
             action_lower_bound=env.action_space.low,
             action_upper_bound=env.action_space.high,
+            crop_to_domain=config.crop_to_domain,
     )
     algo = algo_class(algo_params)
 
