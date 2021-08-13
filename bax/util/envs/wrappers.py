@@ -118,7 +118,8 @@ def make_normalized_reward_function(norm_env, reward_function):
         unnorm_obs = norm_env.unnormalize_obs(norm_obs)
         unnorm_x = np.concatenate([unnorm_obs, unnorm_action], axis=-1)
         unnorm_y = norm_env.unnormalize_obs(y)
-        return reward_function(unnorm_x, unnorm_y)
+        rewards = reward_function(unnorm_x, unnorm_y)
+        return rewards
     return norm_rew_fn
 
 def test_obs(wrapped_env, obs):
@@ -141,13 +142,30 @@ def test():
     obs = wrapped_env.reset()
     test_obs(wrapped_env, obs)
     done = False
+    total_rew = 0
+    observations = []
+    next_observations = []
+    rewards = []
+    actions = []
     while not done:
         old_obs = obs
+        observations.append(old_obs)
         action = wrapped_env.action_space.sample()
+        actions.append(action)
         obs, rew, done, info = wrapped_env.step(action)
+        next_observations = obs
+        total_rew += rew
+        rewards.append(rew)
         test_obs(wrapped_env, obs)
         test_rew_fn(rew, wrapped_reward, old_obs, action, obs)
-    print("passed!")
+    observations = np.array(observations)
+    actions = np.array(actions)
+    rewards = np.array(rewards)
+    next_observations = np.array(next_observations)
+    x = np.concatenate([observations, actions], axis=1)
+    test_rewards = wrapped_reward(x, next_observations)
+    assert np.allclose(rewards, test_rewards), f"Rewards: {rewards} not equal to test rewards: {test_rewards}"
+    print(f"passed!, rew={total_rew}")
 
 if __name__ == "__main__":
     test()

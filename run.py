@@ -1,7 +1,6 @@
 """
 Testing MultiGpfsGp and MultiBaxAcqFunction classes
-"""
-
+""" 
 from argparse import Namespace
 import logging
 import numpy as np
@@ -19,6 +18,7 @@ from bax.acq.acqoptimize import AcqOptimizer
 from bax.alg.mpc import MPC
 from bax.util.misc_util import Dumper
 from bax.util import envs
+from bax.util.envs.wrappers import NormalizedEnv, make_normalized_reward_function
 from bax.util.control_util import get_f_batch_mpc, get_f_batch_mpc_reward, compute_return, evaluate_policy
 from bax.util.control_util import rollout_mse, mse
 from bax.util.domain_util import unif_random_sample_domain
@@ -54,6 +54,12 @@ def main(config):
 
     plan_env = gym.make(config.env.name)
     plan_env.seed(seed)
+    reward_function = envs.reward_functions[config.env.name] if not config.alg.learn_reward else None
+    if config.normalize_env:
+        env = NormalizedEnv(env)
+        plan_env = NormalizedEnv(plan_env)
+        if reward_function is not None:
+            reward_function = make_normalized_reward_function(plan_env, reward_function)
     f = get_f_batch_mpc(plan_env) if not config.alg.learn_reward else get_f_batch_mpc_reward(plan_env)
     start_obs = env.reset() if config.fixed_start_obs else None
     logging.info(f"Start obs: {start_obs}")
@@ -68,7 +74,7 @@ def main(config):
     algo_params = dict(
             start_obs=start_obs,
             env=plan_env,
-            reward_function=envs.reward_functions[config.env.name] if not config.alg.learn_reward else None,
+            reward_function=reward_function,
             project_to_domain=False,
             base_nsamps=config.mpc.nsamps,
             planning_horizon=config.mpc.planning_horizon,
@@ -79,6 +85,8 @@ def main(config):
             num_iters=config.mpc.num_iters,
             actions_per_plan=config.mpc.actions_per_plan,
             domain=domain,
+            action_lower_bound=env.action_space.low,
+            action_upper_bound=env.action_space.high,
     )
     algo = algo_class(algo_params)
 

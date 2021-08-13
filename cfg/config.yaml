@@ -13,6 +13,7 @@ num_init_data: 1
 test_set_size: 1000
 n_paths: 15
 n_rand_acqopt: 500
+normalize_env: False
 hydra:
   job:
     name: ${name}
