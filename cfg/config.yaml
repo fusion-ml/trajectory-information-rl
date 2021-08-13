@@ -15,6 +15,7 @@ n_paths: 15
 n_rand_acqopt: 500
 normalize_env: False
 crop_to_domain: True
+teleport: False
 hydra:
   job:
     name: ${name}

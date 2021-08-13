@@ -1,6 +1,6 @@
 """
 Testing MultiGpfsGp and MultiBaxAcqFunction classes
-""" 
+"""
 from argparse import Namespace
 import logging
 import numpy as np
@@ -60,7 +60,10 @@ def main(config):
         plan_env = NormalizedEnv(plan_env)
         if reward_function is not None:
             reward_function = make_normalized_reward_function(plan_env, reward_function)
-    f = get_f_batch_mpc(plan_env) if not config.alg.learn_reward else get_f_batch_mpc_reward(plan_env)
+    if config.alg.learn_reward:
+        f = get_f_batch_mpc_reward(plan_env, use_info_delta=config.teleport)
+    else:
+        f = get_f_batch_mpc(plan_env, use_info_delta=config.teleport)
     start_obs = env.reset() if config.fixed_start_obs else None
     logging.info(f"Start obs: {start_obs}")
 
