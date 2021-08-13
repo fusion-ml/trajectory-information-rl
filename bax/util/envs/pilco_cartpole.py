@@ -34,6 +34,7 @@ class CartPoleSwingUpEnv(gym.Env):
         self.b = 0.1  # friction coefficient
         self.t = 0
         self.horizon = 25
+        self.periodic_dimensions = [2]
 
         # Angle at which to fail the episode
         self.theta_threshold_radians = 12 * 2 * math.pi / 360
@@ -69,11 +70,12 @@ class CartPoleSwingUpEnv(gym.Env):
         xdot_update = (-2*self.m_p_l*(theta_dot**2)*s + 3*self.m_p*self.g*s*c + 4*action - 4*self.b*x_dot)/(4*self.total_m - 3*self.m_p*c**2)
         thetadot_update = (-3*self.m_p_l*(theta_dot**2)*s*c + 6*self.total_m*self.g*s + 6*(action - self.b*x_dot)*c)/(4*self.l*self.total_m - 3*self.m_p_l*c**2)
         x = x + x_dot*self.dt
-        theta = theta + theta_dot*self.dt
-        theta = angle_normalize(theta)
+        unnorm_theta = theta + theta_dot*self.dt
+        theta = angle_normalize(unnorm_theta)
         x_dot = x_dot + xdot_update*self.dt
         theta_dot = theta_dot + thetadot_update*self.dt
 
+        delta_s = np.array([x, x_dot, unnorm_theta, theta_dot]) - np.array(state)
         self.state = (x,x_dot,theta,theta_dot)
 
         # compute costs - saturation cost
@@ -87,7 +89,7 @@ class CartPoleSwingUpEnv(gym.Env):
 
         done = self.t >= self.horizon
         self.t += 1
-        return np.array(self.state), -costs, done, {}
+        return np.array(self.state), -costs, done, {'delta_obs': delta_s}
 
     def reset(self, obs=None):
         #self.state = self.np_random.normal(loc=np.array([0.0, 0.0, 30*(2*np.pi)/360, 0.0]), scale=np.array([0.0, 0.0, 0.0, 0.0]))

@@ -98,6 +98,7 @@ class AcrobotEnv(core.Env):
         self.action_space = spaces.Box(-1, 1, shape=(1,))
         self.state = None
         self.horizon = 200
+        self.periodic_dimensions = [0, 1]
         self.t = 0
         self.seed()
 
@@ -134,16 +135,18 @@ class AcrobotEnv(core.Env):
         # ns_continuous = integrate.odeint(self._dsdt, self.s_continuous, [0, self.dt])
         # self.s_continuous = ns_continuous[-1] # We only care about the state
         # at the ''final timestep'', self.dt
+        ns[2] = bound(ns[2], -self.MAX_VEL_1, self.MAX_VEL_1)
+        ns[3] = bound(ns[3], -self.MAX_VEL_2, self.MAX_VEL_2)
+
+        delta_obs = ns - s
 
         ns[0] = wrap(ns[0], -pi, pi)
         ns[1] = wrap(ns[1], -pi, pi)
-        ns[2] = bound(ns[2], -self.MAX_VEL_1, self.MAX_VEL_1)
-        ns[3] = bound(ns[3], -self.MAX_VEL_2, self.MAX_VEL_2)
         self.state = ns
         done = self.t >= self.horizon
         self.t += 1
         reward = acrobot_reward(None, self.state)
-        return (self.state, reward, done, {})
+        return (self.state, reward, done, {'delta_obs': delta_obs})
 
     def _terminal(self):
         s = self.state
