@@ -34,6 +34,10 @@ class NormalizedEnv(Env):
     def step(self, action):
         unnorm_action = self.unnormalize_action(action)
         unnorm_obs, rew, done, info = self._wrapped_env.step(unnorm_action)
+        if 'delta_obs' in info:
+            unnorm_delta_obs = info['delta_obs']
+            norm_delta_obs = unnorm_delta_obs / self.unnorm_obs_space_size * 2
+            info['delta_obs'] = norm_delta_obs
         return self.normalize_obs(unnorm_obs), rew, done, info
 
     def render(self, *args, **kwargs):
