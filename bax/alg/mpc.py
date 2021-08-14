@@ -50,6 +50,7 @@ class MPC(BatchAlgorithm):
         self.params.actions_per_plan = getattr(params, "actions_per_plan", 4)
         self.params.project_to_domain = getattr(params, 'project_to_domain', False)
         self.params.domain = params.domain
+        self.update_fn = params.update_fn
         self.traj_samples = None
         self.traj_states = None
         self.traj_rewards = None
@@ -195,7 +196,7 @@ class MPC(BatchAlgorithm):
         else:
             obs = self.traj_states[-1]
         delta = new_y if self.params.reward_function else new_y[:, 1:]
-        new_obs = obs + delta
+        new_obs = self.update_fn(obs, delta)
         self.traj_states.append(new_obs)
         if self.params.reward_function:
             # rewards = np.array([self.params.reward_function(new_x[i, :], new_obs[i, :]) for i in range(n_samps)])
