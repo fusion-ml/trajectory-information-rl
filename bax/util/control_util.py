@@ -70,7 +70,6 @@ def mse(y, y_hat):
     return np.mean(np.sum(np.square(y_hat - y), axis=1))
 
 
-
 def CEM(start_obs,
         action_dim,
         dynamics_unroller,

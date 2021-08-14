@@ -1,4 +1,3 @@
-import gym
 from gym import Env, spaces
 import numpy as np
 
@@ -15,7 +14,7 @@ class NormalizedEnv(Env):
         self.unnorm_obs_space_size = self.unnorm_observation_space.high - self.unnorm_observation_space.low
         self.unnorm_action_space_size = self.unnorm_action_space.high - self.unnorm_action_space.low
         self.action_space = spaces.Box(low=-np.ones_like(self.unnorm_action_space.low),
-                                            high=np.ones_like(self.unnorm_action_space.high))
+                                       high=np.ones_like(self.unnorm_action_space.high))
         self.observation_space = spaces.Box(low=-np.ones_like(self.unnorm_observation_space.low),
                                             high=np.ones_like(self.unnorm_observation_space.high))
 
@@ -107,6 +106,7 @@ class NormalizedEnv(Env):
         unnorm_act = act_ranged + low
         return unnorm_act
 
+
 def make_normalized_reward_function(norm_env, reward_function):
     '''
     reward functions always take x, y as args
@@ -115,6 +115,7 @@ def make_normalized_reward_function(norm_env, reward_function):
     this assumes obs and next_obs are normalized but the reward function handles them in unnormalized form
     '''
     obs_dim = norm_env.observation_space.low.size
+
     def norm_rew_fn(x, y):
         norm_obs = x[..., :obs_dim]
         action = x[..., obs_dim:]
@@ -126,23 +127,64 @@ def make_normalized_reward_function(norm_env, reward_function):
         return rewards
     return norm_rew_fn
 
+
+def make_update_obs_fn(env, teleport=False):
+    periods = []
+    obs_dim = env.observation_space.low.size
+    obs_range = env.observation_space.high - env.observation_space.low
+    for i in range(obs_dim):
+        if i in env.periodic_dimensions:
+            periods.append(env.observation_space.high[i] - env.observation_space.low[i])
+        else:
+            periods.append(0)
+    periods = np.array(periods)
+    periodic = periods != 0
+    def update_obs_fn(x, y):
+        start_obs = x[..., :obs_dim]
+        delta_obs = y[..., -obs_dim:]
+        output = start_obs + delta_obs
+        if not teleport:
+            return output
+        shifted_output = output - env.observation_space.low
+        if x.ndim == 2:
+            mask = np.tile(periodic, (x.shape[0], 1))
+        else:
+            mask = periodic
+        np.remainder(shifted_output, obs_range, where=mask, out=shifted_output)
+        modded_output = shifted_output
+        wrapped_output = modded_output + env.observation_space.low
+        return wrapped_output
+    return update_obs_fn
+
+
 def test_obs(wrapped_env, obs):
     unnorm_obs = wrapped_env.unnormalize_obs(obs)
     renorm_obs = wrapped_env.normalize_obs(unnorm_obs)
     assert np.allclose(obs, renorm_obs), f"Original obs {obs} not close to renormalized obs {renorm_obs}"
+
 
 def test_rew_fn(gt_rew, norm_rew_fn, old_obs, action, obs):
     x = np.concatenate([old_obs, action])
     y = obs
     assert np.allclose(gt_rew, norm_rew_fn(x, y))
 
+
+def test_update_function(start_obs, action, delta_obs, next_obs, update_fn):
+    x = np.concatenate([start_obs, action], axis=-1)
+    updated_next_obs = update_fn(x, delta_obs)
+    assert np.allclose(next_obs, updated_next_obs), f"Next obs: {next_obs} and updated next obs: {updated_next_obs}"
+
+
 def test():
     import sys
     sys.path.append('.')
     from pendulum import PendulumEnv, pendulum_reward
+    sys.path.append('..')
     env = PendulumEnv()
     wrapped_env = NormalizedEnv(env)
+    regular_update_fn = make_update_obs_fn(wrapped_env)
     wrapped_reward = make_normalized_reward_function(wrapped_env, pendulum_reward)
+    teleport_update_fn = make_update_obs_fn(wrapped_env, teleport=True)
     obs = wrapped_env.reset()
     test_obs(wrapped_env, obs)
     done = False
@@ -151,14 +193,19 @@ def test():
     next_observations = []
     rewards = []
     actions = []
+    teleport_deltas = []
     while not done:
         old_obs = obs
         observations.append(old_obs)
         action = wrapped_env.action_space.sample()
         actions.append(action)
         obs, rew, done, info = wrapped_env.step(action)
-        next_observations = obs
+        next_observations.append(obs)
         total_rew += rew
+        standard_delta_obs = obs - old_obs
+        teleport_deltas.append(info['delta_obs'])
+        test_update_function(old_obs, action, standard_delta_obs, obs, regular_update_fn)
+        test_update_function(old_obs, action, info['delta_obs'], obs, teleport_update_fn)
         rewards.append(rew)
         test_obs(wrapped_env, obs)
         test_rew_fn(rew, wrapped_reward, old_obs, action, obs)
@@ -166,7 +213,10 @@ def test():
     actions = np.array(actions)
     rewards = np.array(rewards)
     next_observations = np.array(next_observations)
+    teleport_deltas = np.array(teleport_deltas)
     x = np.concatenate([observations, actions], axis=1)
+    teleport_next_obs = teleport_update_fn(x, teleport_deltas)
+    assert np.allclose(teleport_next_obs, next_observations)
     test_rewards = wrapped_reward(x, next_observations)
     assert np.allclose(rewards, test_rewards), f"Rewards: {rewards} not equal to test rewards: {test_rewards}"
     print(f"passed!, rew={total_rew}")

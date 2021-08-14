@@ -126,7 +126,7 @@ def angle_normalize(x):
     return (((x+np.pi) % (2*np.pi)) - np.pi)
 
 
-def pendulum_reward(x, y):
+def pendulum_reward(x, next_obs):
     th = x[..., 0]
     thdot = x[..., 1]
     u = x[..., 2]

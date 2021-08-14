@@ -185,9 +185,9 @@ class CartPoleSwingUpEnv(gym.Env):
         return self.viewer.render(return_rgb_array = mode=='rgb_array')
 
 
-def pilco_cartpole_reward(x, y):
-    xpos = y[..., 0]
-    theta = y[..., 2]
+def pilco_cartpole_reward(x, next_obs):
+    xpos = next_obs[..., 0]
+    theta = next_obs[..., 2]
     pole_x = CartPoleSwingUpEnv.POLE_LENGTH*np.sin(theta)
     pole_y = CartPoleSwingUpEnv.POLE_LENGTH*np.cos(theta)
     position = np.array([xpos + pole_x, pole_y]).T
