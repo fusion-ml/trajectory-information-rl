@@ -1,9 +1,14 @@
 defaults:
+  - _self_
   - env: pendulum
   - alg: bac
 name: "default"
 num_eval_trials: 3
 eval_frequency: 50
+env:
+    teleport: False
+    normalize_env: False
+
 num_iters: ${alg.num_iters}
 seed: 13
 mpc: ${env.mpc}
@@ -13,9 +18,9 @@ num_init_data: 1
 test_set_size: 1000
 n_paths: 15
 n_rand_acqopt: 500
-normalize_env: False
+normalize_env: ${env.normalize_env}
 crop_to_domain: True
-teleport: False
+teleport: ${env.teleport}
 hydra:
   job:
     name: ${name}
