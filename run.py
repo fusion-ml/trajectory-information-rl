@@ -144,7 +144,9 @@ def main(config):
     logging.info(f"GT Results: returns.mean()={returns.mean()} returns.std()={returns.std()}")
     logging.info(f"GT Execution: path_lengths.mean()={path_lengths.mean()} path_lengths.std()={path_lengths.std()}")
     neatplot.save_figure(str(dumper.expdir / 'mpc_gt'), 'png')
-
+    if config.alg.rollout_sampling:
+        current_obs = start_obs.copy() if config.fixed_start_obs else plan_env.reset()
+        current_t = 0
     for i in range(config.num_iters):
         logging.info('---' * 5 + f' Start iteration i={i} ' + '---' * 5)
         logging.info(f'Length of data.x: {len(data.x)}')
@@ -158,7 +160,10 @@ def main(config):
             # Set and optimize acquisition function
             acqfn_base = acqfn_class(acqfn_params, model, algo)
             acqfn = MCAcqFunction(acqfn_base, {"num_samples_mc": config.num_samples_mc})
-            x_test = unif_random_sample_domain(domain, n=n_rand_acqopt)
+            if config.alg.rollout_sampling:
+                x_test = [np.concatenate([current_obs, env.action_space.sample()]) for _ in range(n_rand_acqopt)]
+            else:
+                x_test = unif_random_sample_domain(domain, n=n_rand_acqopt)
             acqopt = AcqOptimizer({"x_batch": x_test})
             x_next, acq_val = acqopt.optimize(acqfn)
             dumper.add('Acquisition Function Value', acq_val)
@@ -237,6 +242,13 @@ def main(config):
             y_next = f([x_next])[0]
             data.x.append(x_next)
             data.y.append(y_next)
+            if config.alg.rollout_sampling:
+                current_t += 1
+                if current_t > env.horizon:
+                    current_t = 0
+                    current_obs = start_obs.copy() if config.fixed_start_obs else plan_env.reset()
+                else:
+                    current_obs += y_next[-obs_dim:]
         plt.close('all')
 
 

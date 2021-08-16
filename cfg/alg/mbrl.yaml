@@ -3,3 +3,5 @@ num_iters: 20
 use_acquisition: False
 rollout_all: True
 use_rollout_data: True
+n_rand_acqopt: -1
+rollout_sampling: False
