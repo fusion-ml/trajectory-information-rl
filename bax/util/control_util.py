@@ -3,8 +3,8 @@ from .misc_util import batch_function
 import gym
 import logging
 try:
-    from gym.envs.mujoco.mujoco_env import MujocoEnv
-    mj_here = True
+    # from gym.envs.mujoco.mujoco_env import MujocoEnv
+    mj_here = False
 except:
     mj_here = False
 import colorednoise
