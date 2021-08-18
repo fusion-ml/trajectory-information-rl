@@ -25,6 +25,7 @@ class PendulumEnv(gym.Env):
         self.l = 1.
         self.viewer = None
         self.horizon = 200
+        self.periodic_dimensions = [0]
         self.t = None
         self.tight_start = tight_start
         self.medium_start = medium_start
@@ -58,15 +59,18 @@ class PendulumEnv(gym.Env):
         costs = angle_normalize(th) ** 2 + .1 * thdot ** 2 + .001 * (u ** 2)
 
         newthdot = thdot + (-3 * g / (2 * l) * np.sin(th + np.pi) + 3. / (m * l ** 2) * u) * dt
-        newth = angle_normalize(th + newthdot * dt)
+        unnorm_newth = th + newthdot * dt
+        newth = angle_normalize(unnorm_newth)
         newthdot = np.clip(newthdot, -self.max_speed, self.max_speed)
+
+        delta_s = np.array([unnorm_newth - th, newthdot - thdot])
 
         self.state = np.array([newth, newthdot])
         self.t += 1
         done = False
         if self.t > self.horizon:
             done = True
-        return self._get_obs(), -costs, done, {}
+        return self._get_obs(), -costs, done, {'delta_obs': delta_s}
 
     def reset(self, obs=None):
         high = np.array([np.pi, 1])
@@ -122,7 +126,7 @@ def angle_normalize(x):
     return (((x+np.pi) % (2*np.pi)) - np.pi)
 
 
-def pendulum_reward(x, y):
+def pendulum_reward(x, next_obs):
     th = x[..., 0]
     thdot = x[..., 1]
     u = x[..., 2]

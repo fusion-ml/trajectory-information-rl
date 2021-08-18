@@ -1,6 +1,6 @@
 """
 Testing MultiGpfsGp and MultiBaxAcqFunction classes
-""" 
+"""
 from argparse import Namespace
 import logging
 import numpy as np
@@ -18,7 +18,7 @@ from bax.acq.acqoptimize import AcqOptimizer
 from bax.alg.mpc import MPC
 from bax.util.misc_util import Dumper
 from bax.util import envs
-from bax.util.envs.wrappers import NormalizedEnv, make_normalized_reward_function
+from bax.util.envs.wrappers import NormalizedEnv, make_normalized_reward_function, make_update_obs_fn
 from bax.util.control_util import get_f_batch_mpc, get_f_batch_mpc_reward, compute_return, evaluate_policy
 from bax.util.control_util import rollout_mse, mse
 from bax.util.domain_util import unif_random_sample_domain
@@ -60,7 +60,12 @@ def main(config):
         plan_env = NormalizedEnv(plan_env)
         if reward_function is not None:
             reward_function = make_normalized_reward_function(plan_env, reward_function)
-    f = get_f_batch_mpc(plan_env) if not config.alg.learn_reward else get_f_batch_mpc_reward(plan_env)
+    if config.alg.learn_reward:
+        f = get_f_batch_mpc_reward(plan_env, use_info_delta=config.teleport)
+    else:
+        f = get_f_batch_mpc(plan_env, use_info_delta=config.teleport)
+    update_fn = make_update_obs_fn(env, teleport=config.teleport)
+
     start_obs = env.reset() if config.fixed_start_obs else None
     logging.info(f"Start obs: {start_obs}")
 
@@ -88,6 +93,7 @@ def main(config):
             action_lower_bound=env.action_space.low,
             action_upper_bound=env.action_space.high,
             crop_to_domain=config.crop_to_domain,
+            update_fn=update_fn,
     )
     algo = algo_class(algo_params)
 
