@@ -16,7 +16,7 @@ from bax.models.gpfs_gp import BatchMultiGpfsGp
 from bax.acq.acquisition import MultiBaxAcqFunction, MCAcqFunction
 from bax.acq.acqoptimize import AcqOptimizer
 from bax.alg.mpc import MPC
-from bax.util.misc_util import Dumper
+from bax.util.misc_util import Dumper, make_postmean_fn
 from bax.util import envs
 from bax.util.envs.wrappers import NormalizedEnv, make_normalized_reward_function, make_update_obs_fn
 from bax.util.control_util import get_f_batch_mpc, get_f_batch_mpc_reward, compute_return, evaluate_policy
@@ -116,7 +116,6 @@ def main(config):
     # Set acqfunction
     acqfn_params = {'n_path': config.n_paths, 'crop': True}
     acqfn_class = MultiBaxAcqFunction
-    n_rand_acqopt = config.n_rand_acqopt
 
     # Compute true path and associated test set
     true_algo = algo_class(algo_params)
@@ -167,9 +166,9 @@ def main(config):
             acqfn_base = acqfn_class(acqfn_params, model, algo)
             acqfn = MCAcqFunction(acqfn_base, {"num_samples_mc": config.num_samples_mc})
             if config.alg.rollout_sampling:
-                x_test = [np.concatenate([current_obs, env.action_space.sample()]) for _ in range(n_rand_acqopt)]
+                x_test = [np.concatenate([current_obs, env.action_space.sample()]) for _ in range(config.n_rand_acqopt)]
             else:
-                x_test = unif_random_sample_domain(domain, n=n_rand_acqopt)
+                x_test = unif_random_sample_domain(domain, n=config.n_rand_acqopt)
             acqopt = AcqOptimizer({"x_batch": x_test})
             x_next, acq_val = acqopt.optimize(acqfn)
             dumper.add('Acquisition Function Value', acq_val)
@@ -187,18 +186,21 @@ def main(config):
 
             # Plot x_next
             ax.scatter(x_next[0], x_next[1], color='deeppink', s=120, zorder=100)
+        else:
+            algo.initialize()
+
+            policy = partial(algo.execute_mpc, f=make_postmean_fn(model))
+            action = policy(current_obs)
+            x_next = np.concatenate([current_obs, action])
 
         save_figure = False
-        if i % config.eval_frequency == 0 or i + 1 == config.num_iters or config.alg.rollout_all:
+        if i % config.eval_frequency == 0 or i + 1 == config.num_iters:
             with Timer("Evaluate the current MPC policy"):
                 # execute the best we can
                 # this is required to delete the current execution path
                 algo.initialize()
 
-                def postmean_fn(x):
-                    mu_list, std_list = model.get_post_mu_cov(x, full_cov=False)
-                    mu_tup_for_x = list(zip(*mu_list))
-                    return mu_tup_for_x
+                postmean_fn = make_postmean_fn(model)
                 policy = partial(algo.execute_mpc, f=postmean_fn)
                 real_returns = []
                 mses = []
@@ -238,23 +240,16 @@ def main(config):
         dumper.save()
 
         # Query function, update data
-        if config.alg.use_rollout_data:
-            new_x = [np.concatenate((obs, action)) for obs, action in zip(real_obs, real_actions)]
-            new_y = f(new_x)
-
-            data.x.extend(new_x)
-            data.y.extend(new_y)
-        else:
-            y_next = f([x_next])[0]
-            data.x.append(x_next)
-            data.y.append(y_next)
-            if config.alg.rollout_sampling:
-                current_t += 1
-                if current_t > env.horizon:
-                    current_t = 0
-                    current_obs = start_obs.copy() if config.fixed_start_obs else plan_env.reset()
-                else:
-                    current_obs += y_next[-obs_dim:]
+        y_next = f([x_next])[0]
+        data.x.append(x_next)
+        data.y.append(y_next)
+        if config.alg.rollout_sampling:
+            current_t += 1
+            if current_t > env.horizon:
+                current_t = 0
+                current_obs = start_obs.copy() if config.fixed_start_obs else plan_env.reset()
+            else:
+                current_obs += y_next[-obs_dim:]
         plt.close('all')
 
 
