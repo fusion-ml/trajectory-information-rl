@@ -128,7 +128,7 @@ def main(config):
     test_mpc_data.y = [tp[1] for tp in test_points]
 
     # set plot fn
-    plot_fn = plotters[config.env.name]
+    plot_fn = partial(plotters[config.env.name], env=plan_env)
 
     ax = None
     # Compute and plot true path (on true function) multiple times

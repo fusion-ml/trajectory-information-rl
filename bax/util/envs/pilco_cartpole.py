@@ -185,12 +185,17 @@ class CartPoleSwingUpEnv(gym.Env):
         return self.viewer.render(return_rgb_array = mode=='rgb_array')
 
 
-def pilco_cartpole_reward(x, next_obs):
-    xpos = next_obs[..., 0]
-    theta = next_obs[..., 2]
+def get_pole_pos(x):
+    xpos = x[..., 0]
+    theta = x[..., 2]
     pole_x = CartPoleSwingUpEnv.POLE_LENGTH*np.sin(theta)
     pole_y = CartPoleSwingUpEnv.POLE_LENGTH*np.cos(theta)
     position = np.array([xpos + pole_x, pole_y]).T
+    return position
+
+
+def pilco_cartpole_reward(x, next_obs):
+    position = get_pole_pos(next_obs)
     goal = np.array([0.0, CartPoleSwingUpEnv.POLE_LENGTH])
     squared_distance = np.sum((position - goal)**2, axis=-1)
     squared_sigma = 0.25**2
