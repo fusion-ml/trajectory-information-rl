@@ -38,7 +38,7 @@ def plot_pilco_cartpole(path, ax=None, domain=None, path_str="samp", env=None):
         assert domain is not None
         fig, ax = plt.subplots(1, 1, figsize=(5, 5))
         ax.set(
-            xlim=(-10, 10),
+            xlim=(-3, 3),
             ylim=(-0.7, 0.7),
             xlabel='$x$',
             ylabel='$y$',
