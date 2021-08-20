@@ -1,0 +1,14 @@
+name: "bacrobot-v0"
+gp:
+  ls: [3.8, 0.3, 2.2, 2.0]
+  alpha: [0.4, 1.5, 0.8, 1]
+  sigma: 0.01
+mpc:
+  nsamps: 50
+  planning_horizon: 20
+  n_elites: 10
+  beta: 3
+  gamma: 1.25
+  xi: 0.3
+  num_iters: 4
+  actions_per_plan: 3
