@@ -6,8 +6,8 @@ name: "default"
 num_eval_trials: 3
 eval_frequency: 50
 env:
-    teleport: False
-    normalize_env: False
+    teleport: True
+    normalize_env: True
 
 num_iters: ${alg.num_iters}
 seed: 13
