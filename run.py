@@ -27,6 +27,7 @@ from bax.util.timing import Timer
 from bax.viz import plotters
 import neatplot
 
+# tf.compat.v1.logging.set_verbosity(tf.compat.v1.logging.ERROR)
 
 @hydra.main(config_path='cfg', config_name='config')
 def main(config):
@@ -137,6 +138,7 @@ def main(config):
         for idx in range(len(data.y[0])):
             data_fit = Namespace(x=fit_data.x, y=[yi[idx] for yi in fit_data.y])
             gp_params = get_stangp_hypers_from_data(data_fit)
+        return
 
     # set plot fn
     plot_fn = partial(plotters[config.env.name], env=plan_env)
