@@ -94,7 +94,7 @@ def plot_cartpole(path, ax=None, domain=None, path_str="samp"):
     return ax
 
 
-def plot_acrobot(path, ax=None, domain=None, path_str="samp"):
+def plot_acrobot(path, ax=None, domain=None, path_str="samp", env=None):
     """Plot a path through an assumed two-dimensional state space."""
     assert path_str in ["samp", "true", "postmean"]
     if ax is None:
