@@ -194,6 +194,8 @@ def main(config):
 
             for path in acqfn.exe_path_list:
                 ax = plot_fn(path, ax, domain, 'samp')
+            posterior_returns = [compute_return(output[2], 1) for output in acqfn.output_list]
+            dumper.add('Posterior Returns', posterior_returns)
 
             # Plot x_next
             ax.scatter(x_next[0], x_next[1], color='deeppink', s=120, zorder=100)
