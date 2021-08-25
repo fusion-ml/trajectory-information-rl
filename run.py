@@ -1,7 +1,6 @@
 """
 Testing MultiGpfsGp and MultiBaxAcqFunction classes
 """
-
 from argparse import Namespace
 import logging
 import numpy as np
@@ -14,11 +13,13 @@ import random
 from matplotlib import pyplot as plt
 
 from bax.models.gpfs_gp import BatchMultiGpfsGp
+from bax.models.stan_gp import get_stangp_hypers_from_data
 from bax.acq.acquisition import MultiBaxAcqFunction, MCAcqFunction
 from bax.acq.acqoptimize import AcqOptimizer
 from bax.alg.mpc import MPC
-from bax.util.misc_util import Dumper
+from bax.util.misc_util import Dumper, make_postmean_fn
 from bax.util import envs
+from bax.util.envs.wrappers import NormalizedEnv, make_normalized_reward_function, make_update_obs_fn
 from bax.util.control_util import get_f_batch_mpc, get_f_batch_mpc_reward, compute_return, evaluate_policy
 from bax.util.control_util import rollout_mse, mse
 from bax.util.domain_util import unif_random_sample_domain
@@ -26,6 +27,7 @@ from bax.util.timing import Timer
 from bax.viz import plotters
 import neatplot
 
+tf.compat.v1.logging.set_verbosity(tf.compat.v1.logging.ERROR)
 
 @hydra.main(config_path='cfg', config_name='config')
 def main(config):
@@ -54,7 +56,18 @@ def main(config):
 
     plan_env = gym.make(config.env.name)
     plan_env.seed(seed)
-    f = get_f_batch_mpc(plan_env) if not config.alg.learn_reward else get_f_batch_mpc_reward(plan_env)
+    reward_function = envs.reward_functions[config.env.name] if not config.alg.learn_reward else None
+    if config.normalize_env:
+        env = NormalizedEnv(env)
+        plan_env = NormalizedEnv(plan_env)
+        if reward_function is not None:
+            reward_function = make_normalized_reward_function(plan_env, reward_function)
+    if config.alg.learn_reward:
+        f = get_f_batch_mpc_reward(plan_env, use_info_delta=config.teleport)
+    else:
+        f = get_f_batch_mpc(plan_env, use_info_delta=config.teleport)
+    update_fn = make_update_obs_fn(env, teleport=config.teleport)
+
     start_obs = env.reset() if config.fixed_start_obs else None
     logging.info(f"Start obs: {start_obs}")
 
@@ -68,7 +81,7 @@ def main(config):
     algo_params = dict(
             start_obs=start_obs,
             env=plan_env,
-            reward_function=envs.reward_functions[config.env.name] if not config.alg.learn_reward else None,
+            reward_function=reward_function,
             project_to_domain=False,
             base_nsamps=config.mpc.nsamps,
             planning_horizon=config.mpc.planning_horizon,
@@ -79,6 +92,10 @@ def main(config):
             num_iters=config.mpc.num_iters,
             actions_per_plan=config.mpc.actions_per_plan,
             domain=domain,
+            action_lower_bound=env.action_space.low,
+            action_upper_bound=env.action_space.high,
+            crop_to_domain=config.crop_to_domain,
+            update_fn=update_fn,
     )
     algo = algo_class(algo_params)
 
@@ -101,7 +118,6 @@ def main(config):
     # Set acqfunction
     acqfn_params = {'n_path': config.n_paths, 'crop': True}
     acqfn_class = MultiBaxAcqFunction
-    n_rand_acqopt = config.n_rand_acqopt
 
     # Compute true path and associated test set
     true_algo = algo_class(algo_params)
@@ -113,8 +129,19 @@ def main(config):
     test_mpc_data.x = [tp[0] for tp in test_points]
     test_mpc_data.y = [tp[1] for tp in test_points]
 
+    # Optionally: print fit for GP hyperparameters (only prints; still uses hypers in config)
+    if config.fit_hypers:
+        print('***** Fitting GP hyperparameters *****')
+        fit_data = test_mpc_data
+        print(f'Number of observations in fit_data: {len(fit_data.x)}')
+        assert len(fit_data.x) <= 3000, "fit_data larger than preset limit (can cause memory issues)"
+        for idx in range(len(data.y[0])):
+            data_fit = Namespace(x=fit_data.x, y=[yi[idx] for yi in fit_data.y])
+            gp_params = get_stangp_hypers_from_data(data_fit)
+        return
+
     # set plot fn
-    plot_fn = plotters[config.env.name]
+    plot_fn = partial(plotters[config.env.name], env=plan_env)
 
     ax = None
     # Compute and plot true path (on true function) multiple times
@@ -135,7 +162,9 @@ def main(config):
     logging.info(f"GT Results: returns.mean()={returns.mean()} returns.std()={returns.std()}")
     logging.info(f"GT Execution: path_lengths.mean()={path_lengths.mean()} path_lengths.std()={path_lengths.std()}")
     neatplot.save_figure(str(dumper.expdir / 'mpc_gt'), 'png')
-
+    if config.alg.rollout_sampling:
+        current_obs = start_obs.copy() if config.fixed_start_obs else plan_env.reset()
+        current_t = 0
     for i in range(config.num_iters):
         logging.info('---' * 5 + f' Start iteration i={i} ' + '---' * 5)
         logging.info(f'Length of data.x: {len(data.x)}')
@@ -149,7 +178,10 @@ def main(config):
             # Set and optimize acquisition function
             acqfn_base = acqfn_class(acqfn_params, model, algo)
             acqfn = MCAcqFunction(acqfn_base, {"num_samples_mc": config.num_samples_mc})
-            x_test = unif_random_sample_domain(domain, n=n_rand_acqopt)
+            if config.alg.rollout_sampling:
+                x_test = [np.concatenate([current_obs, env.action_space.sample()]) for _ in range(config.n_rand_acqopt)]
+            else:
+                x_test = unif_random_sample_domain(domain, n=config.n_rand_acqopt)
             acqopt = AcqOptimizer({"x_batch": x_test})
             x_next, acq_val = acqopt.optimize(acqfn)
             dumper.add('Acquisition Function Value', acq_val)
@@ -164,21 +196,27 @@ def main(config):
 
             for path in acqfn.exe_path_list:
                 ax = plot_fn(path, ax, domain, 'samp')
+            posterior_returns = [compute_return(output[2], 1) for output in acqfn.output_list]
+            dumper.add('Posterior Returns', posterior_returns)
 
             # Plot x_next
             ax.scatter(x_next[0], x_next[1], color='deeppink', s=120, zorder=100)
+        else:
+            algo.initialize()
+
+            policy = partial(algo.execute_mpc, f=make_postmean_fn(model))
+            action = policy(current_obs)
+            x_next = np.concatenate([current_obs, action])
 
         save_figure = False
-        if i % config.eval_frequency == 0 or i + 1 == config.num_iters or config.alg.rollout_all:
+        if i % config.eval_frequency == 0 or i + 1 == config.num_iters:
+            logging.info(f"Current posterior returns: {np.mean(posterior_returns)}, std: {np.std(posterior_returns)}")
             with Timer("Evaluate the current MPC policy"):
                 # execute the best we can
                 # this is required to delete the current execution path
                 algo.initialize()
 
-                def postmean_fn(x):
-                    mu_list, std_list = model.get_post_mu_cov(x, full_cov=False)
-                    mu_tup_for_x = list(zip(*mu_list))
-                    return mu_tup_for_x
+                postmean_fn = make_postmean_fn(model)
                 policy = partial(algo.execute_mpc, f=postmean_fn)
                 real_returns = []
                 mses = []
@@ -218,16 +256,16 @@ def main(config):
         dumper.save()
 
         # Query function, update data
-        if config.alg.use_rollout_data:
-            new_x = [np.concatenate((obs, action)) for obs, action in zip(real_obs, real_actions)]
-            new_y = f(new_x)
-
-            data.x.extend(new_x)
-            data.y.extend(new_y)
-        else:
-            y_next = f([x_next])[0]
-            data.x.append(x_next)
-            data.y.append(y_next)
+        y_next = f([x_next])[0]
+        data.x.append(x_next)
+        data.y.append(y_next)
+        if config.alg.rollout_sampling:
+            current_t += 1
+            if current_t > env.horizon:
+                current_t = 0
+                current_obs = start_obs.copy() if config.fixed_start_obs else plan_env.reset()
+            else:
+                current_obs += y_next[-obs_dim:]
         plt.close('all')
 
 

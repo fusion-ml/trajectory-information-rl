@@ -3,8 +3,8 @@ from .misc_util import batch_function
 import gym
 import logging
 try:
-    from gym.envs.mujoco.mujoco_env import MujocoEnv
-    mj_here = True
+    # from gym.envs.mujoco.mujoco_env import MujocoEnv
+    mj_here = False
 except:
     mj_here = False
 import colorednoise
@@ -19,7 +19,7 @@ def choose_subset(data_list, idx):
     return out
 
 
-def get_f_mpc(env):
+def get_f_mpc(env, use_info_delta=False):
     obs_dim = len(env.observation_space.low)
     def f(x):
         x = np.array(x)
@@ -27,15 +27,18 @@ def get_f_mpc(env):
         action = x[obs_dim:]
         env.reset(obs)
         next_obs, reward, done, info = env.step(action)
-        return next_obs - obs
+        if use_info_delta:
+            return info['delta_obs']
+        else:
+            return next_obs - obs
     return f
 
 
-def get_f_batch_mpc(env):
-    return batch_function(get_f_mpc(env))
+def get_f_batch_mpc(env, **kwargs):
+    return batch_function(get_f_mpc(env, **kwargs))
 
 
-def get_f_mpc_reward(env):
+def get_f_mpc_reward(env, use_info_delta=False):
     obs_dim = len(env.observation_space.low)
     def f(x):
         x = np.array(x)
@@ -43,13 +46,16 @@ def get_f_mpc_reward(env):
         action = x[obs_dim:]
         env.reset(obs)
         next_obs, reward, done, info = env.step(action)
-        delta_obs = next_obs - obs
+        if use_info_delta:
+            delta_obs = info['delta_obs']
+        else:
+            delta_obs = next_obs - obs
         return np.insert(delta_obs, 0, reward)
     return f
 
 
-def get_f_batch_mpc_reward(env):
-    return batch_function(get_f_mpc_reward(env))
+def get_f_batch_mpc_reward(env, **kwargs):
+    return batch_function(get_f_mpc_reward(env, **kwargs))
 
 
 def rollout_mse(path, f):
@@ -62,7 +68,6 @@ def mse(y, y_hat):
     y = np.array(y)
     y_hat = np.array(y_hat)
     return np.mean(np.sum(np.square(y_hat - y), axis=1))
-
 
 
 def CEM(start_obs,

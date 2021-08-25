@@ -36,6 +36,7 @@ class MPC(BatchAlgorithm):
         self.params.env_horizon = params.env.horizon
         self.params.action_dim = params.env.action_space.low.size
         self.params.obs_dim = params.env.observation_space.low.size
+        self.params.crop_to_domain = params.crop_to_domain
         self.params.action_lower_bound = getattr(params, "action_lower_bound", -1)
         self.params.action_upper_bound = getattr(params, "action_upper_bound", 1)
         self.params.initial_variance_divisor = getattr(params, "initial_variance_divisor", 4)
@@ -49,6 +50,7 @@ class MPC(BatchAlgorithm):
         self.params.actions_per_plan = getattr(params, "actions_per_plan", 4)
         self.params.project_to_domain = getattr(params, 'project_to_domain', False)
         self.params.domain = params.domain
+        self.update_fn = params.update_fn
         self.traj_samples = None
         self.traj_states = None
         self.traj_rewards = None
@@ -194,7 +196,7 @@ class MPC(BatchAlgorithm):
         else:
             obs = self.traj_states[-1]
         delta = new_y if self.params.reward_function else new_y[:, 1:]
-        new_obs = obs + delta
+        new_obs = self.update_fn(obs, delta)
         self.traj_states.append(new_obs)
         if self.params.reward_function:
             # rewards = np.array([self.params.reward_function(new_x[i, :], new_obs[i, :]) for i in range(n_samps)])
@@ -282,6 +284,13 @@ class MPC(BatchAlgorithm):
             next_obs = self.planned_states[i + 1]
             x = np.concatenate([obs, action])
 
+            # Optionally, skip queries not in the domain
+            if self.params.crop_to_domain:
+                high = np.array([elt[1] for elt in self.params.domain])
+                low = np.array([elt[0] for elt in self.params.domain])
+                clip_x = np.clip(x, low, high)
+                if not np.allclose(clip_x, x):
+                    continue
             # Optionally, project to domain
             if self.params.project_to_domain:
                 x = project_to_domain(x, self.params.domain)

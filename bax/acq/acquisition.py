@@ -702,6 +702,7 @@ class MCAcqFunction(AcqFunction):
             copy.deepcopy(wrapped_acq_function) for _ in range(self.num_samples_mc)
         ]
         self.exe_path_list = []
+        self.output_list = []
 
     def set_params(self, params):
         """Set self.params."""
@@ -718,9 +719,11 @@ class MCAcqFunction(AcqFunction):
     def initialize(self):
         """Initialize all acqfunction copies in self.acq_function_copies."""
         self.exe_path_list = []
+        self.output_list = []
         for fn in self.acq_function_copies:
             fn.initialize()
             self.exe_path_list += fn.exe_path_list
+            self.output_list += fn.output_list
 
     def __call__(self, x_list):
         """Call and average all acqfunctions in self.acq_function_copies."""

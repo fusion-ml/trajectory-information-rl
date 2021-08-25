@@ -98,6 +98,7 @@ class AcrobotEnv(core.Env):
         self.action_space = spaces.Box(-1, 1, shape=(1,))
         self.state = None
         self.horizon = 200
+        self.periodic_dimensions = [0, 1]
         self.t = 0
         self.seed()
 
@@ -134,16 +135,18 @@ class AcrobotEnv(core.Env):
         # ns_continuous = integrate.odeint(self._dsdt, self.s_continuous, [0, self.dt])
         # self.s_continuous = ns_continuous[-1] # We only care about the state
         # at the ''final timestep'', self.dt
+        ns[2] = bound(ns[2], -self.MAX_VEL_1, self.MAX_VEL_1)
+        ns[3] = bound(ns[3], -self.MAX_VEL_2, self.MAX_VEL_2)
+
+        delta_obs = ns - s
 
         ns[0] = wrap(ns[0], -pi, pi)
         ns[1] = wrap(ns[1], -pi, pi)
-        ns[2] = bound(ns[2], -self.MAX_VEL_1, self.MAX_VEL_1)
-        ns[3] = bound(ns[3], -self.MAX_VEL_2, self.MAX_VEL_2)
         self.state = ns
         done = self.t >= self.horizon
         self.t += 1
         reward = acrobot_reward(None, self.state)
-        return (self.state, reward, done, {})
+        return (self.state, reward, done, {'delta_obs': delta_obs})
 
     def _terminal(self):
         s = self.state
@@ -332,7 +335,12 @@ def rk4(derivs, y0, t, *args, **kwargs):
         yout[i + 1] = y0 + dt / 6.0 * (k1 + 2 * k2 + 2 * k3 + k4)
     return yout
 
-def acrobot_reward(x, y):
-    end_height = -np.cos(y[..., 0]) - np.cos(y[..., 1] + y[..., 0])
+def get_acrobot_height(obs):
+    end_height = -np.cos(obs[..., 0]) - np.cos(obs[..., 1] + obs[..., 0])
+    return end_height
+
+
+def acrobot_reward(x, next_obs):
+    end_height = get_acrobot_height(next_obs)
     cost = np.square(np.minimum(end_height - 1, 0))
     return -cost

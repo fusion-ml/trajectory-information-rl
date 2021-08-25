@@ -1,6 +1,8 @@
 from matplotlib import pyplot as plt
+import numpy as np
+from bax.util.envs.pilco_cartpole import get_pole_pos
 
-def plot_pendulum(path, ax=None, domain=None, path_str="samp"):
+def plot_pendulum(path, ax=None, domain=None, path_str="samp", env=None):
     """Plot a path through an assumed two-dimensional state space."""
     assert path_str in ["samp", "true", "postmean"]
     if ax is None:
@@ -29,22 +31,28 @@ def plot_pendulum(path, ax=None, domain=None, path_str="samp"):
     return ax
 
 
-def plot_cartpole(path, ax=None, domain=None, path_str="samp"):
+def plot_pilco_cartpole(path, ax=None, domain=None, path_str="samp", env=None):
     """Plot a path through an assumed two-dimensional state space."""
     assert path_str in ["samp", "true", "postmean"]
     if ax is None:
         assert domain is not None
         fig, ax = plt.subplots(1, 1, figsize=(5, 5))
         ax.set(
-            xlim=(domain[0][0], domain[0][1]),
-            ylim=(domain[1][0], domain[1][1]),
+            xlim=(-3, 3),
+            ylim=(-0.7, 0.7),
             xlabel='$x$',
-            ylabel='$\\theta$',
+            ylabel='$y$',
         )
 
 
-    x_plot = [xi[0] for xi in path.x]
-    y_plot = [xi[1] for xi in path.x]
+    xall = np.array(path.x)[:, :-1]
+    try:
+        xall = env.unnormalize_obs(xall)
+    except:
+        pass
+    pole_pos = get_pole_pos(xall)
+    x_plot = pole_pos[:, 0]
+    y_plot = pole_pos[:, 1]
 
     if path_str == "true":
         ax.plot(x_plot, y_plot, 'k--', linewidth=3)
@@ -57,7 +65,7 @@ def plot_cartpole(path, ax=None, domain=None, path_str="samp"):
         ax.plot(x_plot, y_plot, 'o', alpha=0.3)
     return ax
 
-def plot_pilco_cartpole(path, ax=None, domain=None, path_str="samp"):
+def plot_cartpole(path, ax=None, domain=None, path_str="samp"):
     """Plot a path through an assumed two-dimensional state space."""
     assert path_str in ["samp", "true", "postmean"]
     if ax is None:
@@ -86,7 +94,7 @@ def plot_pilco_cartpole(path, ax=None, domain=None, path_str="samp"):
     return ax
 
 
-def plot_acrobot(path, ax=None, domain=None, path_str="samp"):
+def plot_acrobot(path, ax=None, domain=None, path_str="samp", env=None):
     """Plot a path through an assumed two-dimensional state space."""
     assert path_str in ["samp", "true", "postmean"]
     if ax is None:
