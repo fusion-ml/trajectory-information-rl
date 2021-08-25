@@ -98,6 +98,7 @@ class CartPoleSwingUpEnv(gym.Env):
             self.state = self.np_random.normal(loc=np.array([0.0, 0.0, np.pi, 0.0]), scale=np.array([0.02, 0.02, 0.02, 0.02]))
         else:
             self.state = obs
+        self.state[2] = angle_normalize(self.state[2])
         self.steps_beyond_done = None
         return np.array(self.state)
 
