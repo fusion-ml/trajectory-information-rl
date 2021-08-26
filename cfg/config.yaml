@@ -6,8 +6,8 @@ name: "default"
 num_eval_trials: 3
 eval_frequency: 50
 env:
-    teleport: False
-    normalize_env: False
+    teleport: True
+    normalize_env: True
 
 num_iters: ${alg.num_iters}
 seed: 13
@@ -21,6 +21,7 @@ normalize_env: ${env.normalize_env}
 n_rand_acqopt: ${alg.n_rand_acqopt}
 crop_to_domain: True
 teleport: ${env.teleport}
+fit_hypers: False
 hydra:
   job:
     name: ${name}
