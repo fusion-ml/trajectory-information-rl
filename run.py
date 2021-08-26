@@ -123,8 +123,8 @@ def main(config):
     true_algo = algo_class(algo_params)
     full_path, output = true_algo.run_algorithm_on_f(f)
     true_path = true_algo.get_exe_path_crop()
-    true_path_data = list(zip(true_algo.exe_path.x, true_algo.exe_path.y))
-    test_points = random.sample(true_path_data, config.test_set_size)
+    true_planning_data = list(zip(true_algo.exe_path.x, true_algo.exe_path.y))
+    test_points = random.sample(true_planning_data, config.test_set_size)
     test_mpc_data = Namespace()
     test_mpc_data.x = [tp[0] for tp in test_points]
     test_mpc_data.y = [tp[1] for tp in test_points]
