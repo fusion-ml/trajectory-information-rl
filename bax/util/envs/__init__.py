@@ -36,6 +36,11 @@ register(
     entry_point=CartPoleSwingUpEnv,
     )
 register(
+    id='pilcocartpole-trig-v0',
+    entry_point=CartPoleSwingUpEnv,
+    kwargs={'use_trig': True},
+    )
+register(
     id='bacrobot-v0',
     entry_point=AcrobotEnv,
     )
@@ -46,5 +51,6 @@ reward_functions = {
         'goddard-v0': goddard_reward,
         # 'petscartpole-v0': cartpole_reward,
         'pilcocartpole-v0': pilco_cartpole_reward,
+        'pilcocartpole-trig-v0': pilco_cartpole_reward,
         'bacrobot-v0': acrobot_reward,
         }
