@@ -109,6 +109,7 @@ class CartPoleSwingUpEnv(gym.Env):
         else:
             assert not self.use_trig, f"can't use trig if you are going to have generative access"
             self.state = obs
+        self.state[2] = angle_normalize(self.state[2])
         self.steps_beyond_done = None
         return self.get_obs()
 

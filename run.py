@@ -27,7 +27,7 @@ from bax.util.timing import Timer
 from bax.viz import plotters
 import neatplot
 
-# tf.compat.v1.logging.set_verbosity(tf.compat.v1.logging.ERROR)
+tf.compat.v1.logging.set_verbosity(tf.compat.v1.logging.ERROR)
 
 @hydra.main(config_path='cfg', config_name='config')
 def main(config):
@@ -123,8 +123,8 @@ def main(config):
     true_algo = algo_class(algo_params)
     full_path, output = true_algo.run_algorithm_on_f(f)
     true_path = true_algo.get_exe_path_crop()
-    true_path_data = list(zip(true_algo.exe_path.x, true_algo.exe_path.y))
-    test_points = random.sample(true_path_data, config.test_set_size)
+    true_planning_data = list(zip(true_algo.exe_path.x, true_algo.exe_path.y))
+    test_points = random.sample(true_planning_data, config.test_set_size)
     test_mpc_data = Namespace()
     test_mpc_data.x = [tp[0] for tp in test_points]
     test_mpc_data.y = [tp[1] for tp in test_points]
@@ -210,6 +210,7 @@ def main(config):
 
         save_figure = False
         if i % config.eval_frequency == 0 or i + 1 == config.num_iters:
+            logging.info(f"Current posterior returns: {np.mean(posterior_returns)}, std: {np.std(posterior_returns)}")
             with Timer("Evaluate the current MPC policy"):
                 # execute the best we can
                 # this is required to delete the current execution path
