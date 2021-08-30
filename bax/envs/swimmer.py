@@ -1,7 +1,7 @@
 import numpy as np
 from gym.envs.mujoco import mujoco_env
 import os
-from gym import utils
+from gym import utils, spaces
 
 
 DEFAULT_CAMERA_CONFIG = {}
@@ -28,9 +28,13 @@ class BACSwimmerEnv(mujoco_env.MujocoEnv, utils.EzPickle):
 
         dir_path = os.path.dirname(os.path.realpath(__file__))
         self.t = 0
-        self.horizon = 1000
+        self.horizon = 500
+        self.periodic_dimensions = []
         mujoco_env.MujocoEnv.__init__(self, '%s/assets/swimmer.xml' % dir_path, 4)
         # TODO: set real obs spaces
+        low = np.array([-0.2, -4, 0, -0.5, -1., -2, -3, -3, -5.])
+        high = np.array([1.5, 0, 2, 2, 2, 3, 2, 6, 6])
+        self.observation_space = spaces.Box(low=low, high=high)
 
     def control_cost(self, action):
         control_cost = self._ctrl_cost_weight * np.sum(np.square(action))
@@ -71,6 +75,8 @@ class BACSwimmerEnv(mujoco_env.MujocoEnv, utils.EzPickle):
 
         if self._exclude_current_positions_from_observation:
             position = position[2:]
+        else:
+            position = np.delete(position, 1)
 
         observation = np.concatenate([position, velocity]).ravel()
         return observation
@@ -84,12 +90,12 @@ class BACSwimmerEnv(mujoco_env.MujocoEnv, utils.EzPickle):
             position = np.zeros(2)
             full_obs = np.concatenate([position, obs])
         else:
-            full_obs = obs
+            full_obs = np.insert(obs, 1, 0)
         qpos = full_obs[:len(self.init_qpos)]
         qvel = full_obs[len(self.init_qpos):]
         self.set_state(qpos, qvel)
         check_obs = self._get_obs()
-        assert np.allclose(check_obs, obs)
+        assert np.allclose(check_obs, obs), f"Obs: {obs} not equal to check_obs {check_obs}"
         return check_obs
 
     def reset_model(self):
@@ -121,10 +127,9 @@ def swimmer_reward(x, next_obs):
     forward_reward_weight = 1.0
     action_dim = 2
     control_cost_weight = 1e-4
-    pos_before = x[..., :2]
-    pos_after = next_obs[..., :2]
-    xy_velocity = (pos_after - pos_before) / dt
-    x_velocity = xy_velocity[..., 0]
+    pos_before = x[..., 0]
+    pos_after = next_obs[..., 0]
+    x_velocity = (pos_after - pos_before) / dt
 
     forward_reward = forward_reward_weight * x_velocity
 

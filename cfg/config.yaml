@@ -12,7 +12,7 @@ env:
 num_iters: ${alg.num_iters}
 seed: 13
 mpc: ${env.mpc}
-fixed_start_obs: True
+fixed_start_obs: False
 num_samples_mc: 1
 num_init_data: 1
 test_set_size: 1000
