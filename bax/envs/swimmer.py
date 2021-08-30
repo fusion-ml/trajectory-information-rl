@@ -27,7 +27,6 @@ class BACSwimmerEnv(mujoco_env.MujocoEnv, utils.EzPickle):
         )
 
         dir_path = os.path.dirname(os.path.realpath(__file__))
-        self.t = 0
         self.horizon = 1000
         mujoco_env.MujocoEnv.__init__(self, '%s/assets/swimmer.xml' % dir_path, 4)
         # TODO: set real obs spaces
@@ -50,8 +49,7 @@ class BACSwimmerEnv(mujoco_env.MujocoEnv, utils.EzPickle):
 
         observation = self._get_obs()
         reward = forward_reward - ctrl_cost
-        self.t += 1
-        done = self.t >= self.horizon
+        done = False
         info = {
             "reward_fwd": forward_reward,
             "reward_ctrl": -ctrl_cost,
@@ -76,7 +74,6 @@ class BACSwimmerEnv(mujoco_env.MujocoEnv, utils.EzPickle):
         return observation
 
     def reset(self, obs=None):
-        self.t = 0
         old_obs = super().reset()
         if obs is None:
             return old_obs

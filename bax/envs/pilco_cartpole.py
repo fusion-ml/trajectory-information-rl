@@ -33,7 +33,6 @@ class CartPoleSwingUpEnv(gym.Env):
         self.force_mag = 10.0
         self.dt = 0.1  # seconds between state updates
         self.b = 0.1  # friction coefficient
-        self.t = 0
         self.horizon = 25
         self.periodic_dimensions = [2]
 
@@ -91,9 +90,7 @@ class CartPoleSwingUpEnv(gym.Env):
         squared_sigma = 0.25**2
         costs = 1 - np.exp(-0.5*squared_distance/squared_sigma)
 
-        done = self.t >= self.horizon
-        self.t += 1
-        return self.get_obs(), -costs, done, {'delta_obs': delta_s}
+        return self.get_obs(), -costs, False, {'delta_obs': delta_s}
 
     def get_obs(self):
         if self.use_trig:
@@ -103,14 +100,12 @@ class CartPoleSwingUpEnv(gym.Env):
 
     def reset(self, obs=None):
         #self.state = self.np_random.normal(loc=np.array([0.0, 0.0, 30*(2*np.pi)/360, 0.0]), scale=np.array([0.0, 0.0, 0.0, 0.0]))
-        self.t = 0
         if obs is None:
             self.state = self.np_random.normal(loc=np.array([0.0, 0.0, np.pi, 0.0]), scale=np.array([0.02, 0.02, 0.02, 0.02]))
         else:
             assert not self.use_trig, f"can't use trig if you are going to have generative access"
             self.state = obs
         self.state[2] = angle_normalize(self.state[2])
-        self.steps_beyond_done = None
         return self.get_obs()
 
     def _render(self, mode='human', close=False):
@@ -229,9 +224,11 @@ def test_cartpole():
         assert np.allclose(new_obs, obs)
     done = False
     env.reset()
-    while not done:
+    for _ in range(env.horizon):
         action = env.action_space.sample()
         n, r, done, info = env.step(action)
+        if done:
+            break
     print("passed")
 
 
