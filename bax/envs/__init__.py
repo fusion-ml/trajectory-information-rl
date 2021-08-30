@@ -4,7 +4,7 @@ from bax.util.envs.pilco_cartpole import CartPoleSwingUpEnv, pilco_cartpole_rewa
 from bax.util.envs.goddard import GoddardEnv, goddard_reward
 # from bax.util.envs.pets_cartpole import PETSCartpoleEnv, cartpole_reward
 from bax.util.envs.acrobot import AcrobotEnv, acrobot_reward
-from bax.util.envs.swimmer import BACSwimmer, swimmer_reward
+from bax.util.envs.swimmer import BACSwimmerEnv, swimmer_reward
 
 # register each environment we wanna use
 register(
@@ -47,7 +47,7 @@ register(
     )
 register(
     id='bacswimmer-v0',
-    entry_point=BACSwimmer,
+    entry_point=BACSwimmerEnv,
     )
 reward_functions = {
         'bacpendulum-v0': pendulum_reward,
