@@ -17,9 +17,9 @@ from bax.models.stan_gp import get_stangp_hypers_from_data
 from bax.acq.acquisition import MultiBaxAcqFunction, MCAcqFunction
 from bax.acq.acqoptimize import AcqOptimizer
 from bax.alg.mpc import MPC
+from bax import envs
+from bax.envs.wrappers import NormalizedEnv, make_normalized_reward_function, make_update_obs_fn
 from bax.util.misc_util import Dumper, make_postmean_fn
-from bax.util import envs
-from bax.util.envs.wrappers import NormalizedEnv, make_normalized_reward_function, make_update_obs_fn
 from bax.util.control_util import get_f_batch_mpc, get_f_batch_mpc_reward, compute_return, evaluate_policy
 from bax.util.control_util import rollout_mse, mse
 from bax.util.domain_util import unif_random_sample_domain

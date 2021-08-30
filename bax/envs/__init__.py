@@ -1,10 +1,10 @@
 from gym.envs.registration import register
-from bax.util.envs.pendulum import PendulumEnv, pendulum_reward
-from bax.util.envs.pilco_cartpole import CartPoleSwingUpEnv, pilco_cartpole_reward
-from bax.util.envs.goddard import GoddardEnv, goddard_reward
+from bax.envs.pendulum import PendulumEnv, pendulum_reward
+from bax.envs.pilco_cartpole import CartPoleSwingUpEnv, pilco_cartpole_reward
+from bax.envs.goddard import GoddardEnv, goddard_reward
 # from bax.util.envs.pets_cartpole import PETSCartpoleEnv, cartpole_reward
-from bax.util.envs.acrobot import AcrobotEnv, acrobot_reward
-from bax.util.envs.swimmer import BACSwimmerEnv, swimmer_reward
+from bax.envs.acrobot import AcrobotEnv, acrobot_reward
+from bax.envs.swimmer import BACSwimmerEnv, swimmer_reward
 
 # register each environment we wanna use
 register(
