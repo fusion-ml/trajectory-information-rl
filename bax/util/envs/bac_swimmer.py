@@ -29,6 +29,7 @@ class BACSwimmerEnv(mujoco_env.MujocoEnv, utils.EzPickle):
         dir_path = os.path.dirname(os.path.realpath(__file__))
         mujoco_env.MujocoEnv.__init__(self, '%s/assets/swimmer.xml' % dir_path, 4)
         self.horizon = 1000
+        # TODO: set real obs spaces
 
     def control_cost(self, action):
         control_cost = self._ctrl_cost_weight * np.sum(np.square(action))
@@ -72,6 +73,22 @@ class BACSwimmerEnv(mujoco_env.MujocoEnv, utils.EzPickle):
         observation = np.concatenate([position, velocity]).ravel()
         return observation
 
+    def reset(self, obs=None):
+        old_obs = super().reset()
+        if obs is None:
+            return old_obs
+        if self._exclude_current_positions_from_observation:
+            position = np.zeros(2)
+            full_obs = np.concatenate([position, obs])
+        else:
+            full_obs = obs
+        qpos = full_obs[:len(self.init_qpos)]
+        qvel = full_obs[len(self.init_qpos):]
+        self.set_state(qpos, qvel)
+        check_obs = self._get_obs()
+        assert np.allclose(check_obs, obs)
+        return check_obs
+
     def reset_model(self):
         noise_low = -self._reset_noise_scale
         noise_high = self._reset_noise_scale
@@ -94,3 +111,10 @@ class BACSwimmerEnv(mujoco_env.MujocoEnv, utils.EzPickle):
                 getattr(self.viewer.cam, key)[:] = value
             else:
                 setattr(self.viewer.cam, key, value)
+
+
+if __name__ == "__main__":
+    env = BACSwimmerEnv()
+    done = False
+    while not done:
+        obs, rew, done, info = env.step(env.action_space.sample())
