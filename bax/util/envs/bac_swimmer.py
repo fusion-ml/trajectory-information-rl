@@ -28,6 +28,7 @@ class BACSwimmerEnv(mujoco_env.MujocoEnv, utils.EzPickle):
 
         dir_path = os.path.dirname(os.path.realpath(__file__))
         mujoco_env.MujocoEnv.__init__(self, '%s/assets/swimmer.xml' % dir_path, 4)
+        self.horizon = 1000
 
     def control_cost(self, action):
         control_cost = self._ctrl_cost_weight * np.sum(np.square(action))
