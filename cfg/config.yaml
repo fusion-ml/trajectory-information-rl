@@ -8,6 +8,7 @@ eval_frequency: 50
 env:
     teleport: True
     normalize_env: True
+    sample_exe: False
 
 num_iters: ${alg.num_iters}
 seed: 13
@@ -17,6 +18,7 @@ num_samples_mc: 1
 num_init_data: 1
 test_set_size: 1000
 n_paths: 15
+sample_exe: ${env.sample_exe}
 normalize_env: ${env.normalize_env}
 n_rand_acqopt: ${alg.n_rand_acqopt}
 crop_to_domain: True
