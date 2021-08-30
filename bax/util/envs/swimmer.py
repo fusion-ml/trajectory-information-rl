@@ -13,7 +13,7 @@ class BACSwimmerEnv(mujoco_env.MujocoEnv, utils.EzPickle):
         forward_reward_weight=1.0,
         ctrl_cost_weight=1e-4,
         reset_noise_scale=0.1,
-        exclude_current_positions_from_observation=True,
+        exclude_current_positions_from_observation=False,
     ):
         utils.EzPickle.__init__(**locals())
 
@@ -27,8 +27,9 @@ class BACSwimmerEnv(mujoco_env.MujocoEnv, utils.EzPickle):
         )
 
         dir_path = os.path.dirname(os.path.realpath(__file__))
-        mujoco_env.MujocoEnv.__init__(self, '%s/assets/swimmer.xml' % dir_path, 4)
+        self.t = 0
         self.horizon = 1000
+        mujoco_env.MujocoEnv.__init__(self, '%s/assets/swimmer.xml' % dir_path, 4)
         # TODO: set real obs spaces
 
     def control_cost(self, action):
@@ -49,7 +50,8 @@ class BACSwimmerEnv(mujoco_env.MujocoEnv, utils.EzPickle):
 
         observation = self._get_obs()
         reward = forward_reward - ctrl_cost
-        done = False
+        self.t += 1
+        done = self.t >= self.horizon
         info = {
             "reward_fwd": forward_reward,
             "reward_ctrl": -ctrl_cost,
@@ -74,6 +76,7 @@ class BACSwimmerEnv(mujoco_env.MujocoEnv, utils.EzPickle):
         return observation
 
     def reset(self, obs=None):
+        self.t = 0
         old_obs = super().reset()
         if obs is None:
             return old_obs
@@ -113,8 +116,37 @@ class BACSwimmerEnv(mujoco_env.MujocoEnv, utils.EzPickle):
                 setattr(self.viewer.cam, key, value)
 
 
+def swimmer_reward(x, next_obs):
+    dt = 0.04
+    forward_reward_weight = 1.0
+    action_dim = 2
+    control_cost_weight = 1e-4
+    pos_before = x[..., :2]
+    pos_after = next_obs[..., :2]
+    xy_velocity = (pos_after - pos_before) / dt
+    x_velocity = xy_velocity[..., 0]
+
+    forward_reward = forward_reward_weight * x_velocity
+
+    action = x[..., -action_dim:]
+    control_cost = np.sum(np.square(action), axis=-1) * control_cost_weight
+    return forward_reward - control_cost
+
+
 if __name__ == "__main__":
     env = BACSwimmerEnv()
+    print(f"{env.dt=}")
+    og_obs = env.reset()
+    obs = og_obs
     done = False
-    while not done:
-        obs, rew, done, info = env.step(env.action_space.sample())
+    for _ in range(env.horizon):
+        action = env.action_space.sample()
+        next_obs, rew, done, info = env.step(action)
+        x = np.concatenate([obs, action])
+        other_rew = swimmer_reward(x, next_obs)
+        assert np.allclose(rew, other_rew)
+        obs = next_obs
+        new_obs = env.reset(obs)
+        assert np.allclose(new_obs, obs)
+    # test reset to point
+    env.reset(og_obs)
