@@ -16,15 +16,17 @@ class BACReacherEnv(mujoco_env.MujocoEnv, utils.EzPickle):
         self.observation_space = spaces.Box(low=low, high=high)
 
     def step(self, a):
+        old_obs = self._get_obs()
         vec = self.get_body_com("fingertip") - self.get_body_com("target")
         vec = vec[:2]
         reward_dist = -np.linalg.norm(vec)
         reward_ctrl = -np.square(a).sum()
         reward = reward_dist + reward_ctrl
         self.do_simulation(a, self.frame_skip)
-        ob = self._get_obs()
+        ob, unnorm_obs = self._get_obs(return_unnorm_obs=True)
+        delta_obs = unnorm_obs - old_obs
         done = False
-        return ob, reward, done, dict(reward_dist=reward_dist, reward_ctrl=reward_ctrl)
+        return ob, reward, done, dict(reward_dist=reward_dist, reward_ctrl=reward_ctrl, delta_obs=delta_obs)
 
     def reset(self, obs=None):
         old_obs = super().reset()
@@ -58,12 +60,12 @@ class BACReacherEnv(mujoco_env.MujocoEnv, utils.EzPickle):
         self.set_state(qpos, qvel)
         return self._get_obs()
 
-    def _get_obs(self):
+    def _get_obs(self, return_unnorm_obs=False):
         theta = self.sim.data.qpos.flat[:2]
         vec = self.get_body_com("fingertip") - self.get_body_com("target")
         vec = vec[:2]
         norm_theta = angle_normalize(theta)
-        return np.concatenate(
+        obs = np.concatenate(
             [
                 # np.cos(theta),
                 # np.sin(theta),
@@ -73,6 +75,21 @@ class BACReacherEnv(mujoco_env.MujocoEnv, utils.EzPickle):
                 vec,
             ]
         )
+        if return_unnorm_obs:
+            unnorm_obs = np.concatenate(
+                [
+                    # np.cos(theta),
+                    # np.sin(theta),
+                    theta,
+                    self.sim.data.qpos.flat[2:],
+                    self.sim.data.qvel.flat[:2],
+                    vec,
+                ]
+            )
+            return obs, unnorm_obs
+        else:
+            return obs
+
 
 
 def reacher_reward(x, next_obs):
