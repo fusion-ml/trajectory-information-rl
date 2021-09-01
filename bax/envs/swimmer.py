@@ -27,8 +27,7 @@ class BACSwimmerEnv(mujoco_env.MujocoEnv, utils.EzPickle):
         )
 
         dir_path = os.path.dirname(os.path.realpath(__file__))
-        self.t = 0
-        self.horizon = 500
+        self.horizon = 200
         self.periodic_dimensions = []
         mujoco_env.MujocoEnv.__init__(self, '%s/assets/swimmer.xml' % dir_path, 4)
         # TODO: set real obs spaces
