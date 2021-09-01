@@ -57,10 +57,16 @@ reward_functions = {
 # mujoco stuff
 try:
     from bax.envs.swimmer import BACSwimmerEnv, swimmer_reward
+    from bax.envs.reacher import BACReacherEnv, reacher_reward
     register(
         id='bacswimmer-v0',
         entry_point=BACSwimmerEnv,
         )
+    register(
+        id='bacreacher-v0',
+        entry_point=BACReacherEnv,
+        )
     reward_functions['bacswimmer-v0'] = swimmer_reward,
+    reward_functions['bacreacher-v0'] = reacher_reward,
 except:
     pass

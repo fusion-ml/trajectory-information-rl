@@ -145,11 +145,13 @@ def main(config):
 
     ax = None
     # Compute and plot true path (on true function) multiple times
+    full_paths = []
     returns = []
     path_lengths = []
     pbar = trange(config.num_eval_trials)
     for _ in pbar:
         full_path, output = true_algo.run_algorithm_on_f(f)
+        full_paths.append(full_path)
         tp = true_algo.get_exe_path_crop()
         path_lengths.append(len(full_path.x))
         ax = plot_fn(tp, ax, domain, 'true')
@@ -161,6 +163,12 @@ def main(config):
     path_lengths = np.array(path_lengths)
     logging.info(f"GT Results: returns.mean()={returns.mean()} returns.std()={returns.std()}")
     logging.info(f"GT Execution: path_lengths.mean()={path_lengths.mean()} path_lengths.std()={path_lengths.std()}")
+    all_x = []
+    for fp in full_paths:
+        all_x += fp.x
+    all_x = np.array(all_x)
+    print(f"{all_x.min(axis=0)=}")
+    print(f"{all_x.max(axis=0)=}")
     neatplot.save_figure(str(dumper.expdir / 'mpc_gt'), 'png')
     if config.alg.rollout_sampling:
         current_obs = start_obs.copy() if config.fixed_start_obs else plan_env.reset()
