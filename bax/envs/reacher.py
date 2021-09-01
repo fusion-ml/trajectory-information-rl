@@ -1,6 +1,6 @@
 import os
 import numpy as np
-from gym import utils
+from gym import utils, spaces
 from gym.envs.mujoco import mujoco_env
 
 
@@ -8,9 +8,12 @@ class BACReacherEnv(mujoco_env.MujocoEnv, utils.EzPickle):
     def __init__(self):
         utils.EzPickle.__init__(self)
         self.horizon = 50
-        self.periodic_dimensions = []
+        self.periodic_dimensions = [0, 1]
         dir_path = os.path.dirname(os.path.realpath(__file__))
         mujoco_env.MujocoEnv.__init__(self, "%s/assets/reacher.xml" % dir_path, 2)
+        low = np.array([-np.pi, -np.pi, -5, -5, -4, -5, -3, -2])
+        high = np.array([np.pi, np.pi, 3, 2, 5, 4, 5, 3])
+        self.observation_space = spaces.Box(low=low, high=high)
 
     def step(self, a):
         vec = self.get_body_com("fingertip") - self.get_body_com("target")
@@ -56,14 +59,16 @@ class BACReacherEnv(mujoco_env.MujocoEnv, utils.EzPickle):
         return self._get_obs()
 
     def _get_obs(self):
-        # theta = self.sim.data.qpos.flat[:2]
+        theta = self.sim.data.qpos.flat[:2]
         vec = self.get_body_com("fingertip") - self.get_body_com("target")
         vec = vec[:2]
+        norm_theta = angle_normalize(theta)
         return np.concatenate(
             [
                 # np.cos(theta),
                 # np.sin(theta),
-                self.sim.data.qpos.flat,
+                norm_theta,
+                self.sim.data.qpos.flat[2:],
                 self.sim.data.qvel.flat[:2],
                 vec,
             ]
@@ -81,10 +86,15 @@ def reacher_reward(x, next_obs):
     return reward
 
 
+def angle_normalize(x):
+    return (((x+np.pi) % (2*np.pi)) - np.pi)
+
+
 if __name__ == "__main__":
     # we have an increased ATOL because the COM part of the state is the solution
     # to some kind of FK problem and can have numerical error
     env = BACReacherEnv()
+    print(f"{env.observation_space=}, {env.action_space=}")
     og_obs = env.reset()
     obs = og_obs
     done = False
@@ -93,9 +103,9 @@ if __name__ == "__main__":
         next_obs, rew, done, info = env.step(action)
         x = np.concatenate([obs, action])
         other_rew = reacher_reward(x, next_obs)
-        assert np.allclose(rew, other_rew, atol=1e-3), f"{rew=}, {other_rew=}"
+        assert np.allclose(rew, other_rew, atol=1e-2), f"{rew=}, {other_rew=}"
         obs = next_obs
         new_obs = env.reset(obs)
-        assert np.allclose(new_obs, obs, atol=1e-3)
+        assert np.allclose(new_obs, obs, atol=1e-2), f"{new_obs=}, {obs=}"
     # test reset to point
     env.reset(og_obs)
