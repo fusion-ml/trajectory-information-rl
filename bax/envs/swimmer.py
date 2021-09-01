@@ -54,8 +54,7 @@ class BACSwimmerEnv(mujoco_env.MujocoEnv, utils.EzPickle):
 
         observation = self._get_obs()
         reward = forward_reward - ctrl_cost
-        self.t += 1
-        done = self.t >= self.horizon
+        done = False
         info = {
             "reward_fwd": forward_reward,
             "reward_ctrl": -ctrl_cost,
@@ -82,7 +81,6 @@ class BACSwimmerEnv(mujoco_env.MujocoEnv, utils.EzPickle):
         return observation
 
     def reset(self, obs=None):
-        self.t = 0
         old_obs = super().reset()
         if obs is None:
             return old_obs

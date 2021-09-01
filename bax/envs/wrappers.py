@@ -194,7 +194,7 @@ def test():
     rewards = []
     actions = []
     teleport_deltas = []
-    while not done:
+    for _ in range(wrapped_env.horizon):
         old_obs = obs
         observations.append(old_obs)
         action = wrapped_env.action_space.sample()
@@ -209,6 +209,8 @@ def test():
         rewards.append(rew)
         test_obs(wrapped_env, obs)
         test_rew_fn(rew, wrapped_reward, old_obs, action, obs)
+        if done:
+            break
     observations = np.array(observations)
     actions = np.array(actions)
     rewards = np.array(rewards)
