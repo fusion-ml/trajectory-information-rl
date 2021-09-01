@@ -173,6 +173,7 @@ def main(config):
     if config.alg.rollout_sampling:
         current_obs = start_obs.copy() if config.fixed_start_obs else plan_env.reset()
         current_t = 0
+    posterior_returns = None
     for i in range(config.num_iters):
         logging.info('---' * 5 + f' Start iteration i={i} ' + '---' * 5)
         logging.info(f'Length of data.x: {len(data.x)}')
@@ -192,7 +193,7 @@ def main(config):
                 x_test = [np.concatenate([current_obs, env.action_space.sample()]) for _ in range(config.n_rand_acqopt)]
             elif config.sample_exe:
                 all_x = []
-                for path in acqfn.exe_path_list:
+                for path in acqfn.exe_path_full_list:
                     all_x += path.x
                 x_test = random.sample(all_x, config.n_rand_acqopt)
             else:
@@ -211,11 +212,11 @@ def main(config):
 
                 for path in acqfn.exe_path_list:
                     ax = plot_fn(path, ax, domain, 'samp')
-                posterior_returns = [compute_return(output[2], 1) for output in acqfn.output_list]
-                dumper.add('Posterior Returns', posterior_returns)
 
                 # Plot x_next
                 ax.scatter(x_next[0], x_next[1], color='deeppink', s=120, zorder=100)
+            posterior_returns = [compute_return(output[2], 1) for output in acqfn.output_list]
+            dumper.add('Posterior Returns', posterior_returns)
         else:
             algo.initialize()
 
@@ -225,7 +226,8 @@ def main(config):
 
         save_figure = False
         if i % config.eval_frequency == 0 or i + 1 == config.num_iters:
-            logging.info(f"Current posterior returns: {np.mean(posterior_returns)}, std: {np.std(posterior_returns)}")
+            if posterior_returns:
+                logging.info(f"Current posterior returns: {np.mean(posterior_returns)}, std: {np.std(posterior_returns)}")
             with Timer("Evaluate the current MPC policy"):
                 # execute the best we can
                 # this is required to delete the current execution path
