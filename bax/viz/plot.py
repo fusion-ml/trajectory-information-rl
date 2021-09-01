@@ -121,3 +121,7 @@ def plot_acrobot(path, ax=None, domain=None, path_str="samp", env=None):
         ax.plot(x_plot, y_plot, 'k--', linewidth=1, alpha=0.3)
         ax.plot(x_plot, y_plot, 'o', alpha=0.3)
     return ax
+
+
+def noop(*args, **kwargs):
+    pass

@@ -178,12 +178,18 @@ def main(config):
             # Set and optimize acquisition function
             acqfn_base = acqfn_class(acqfn_params, model, algo)
             acqfn = MCAcqFunction(acqfn_base, {"num_samples_mc": config.num_samples_mc})
+            acqopt = AcqOptimizer()
+            acqopt.initialize(acqfn)
             if config.alg.rollout_sampling:
                 x_test = [np.concatenate([current_obs, env.action_space.sample()]) for _ in range(config.n_rand_acqopt)]
+            elif config.sample_exe:
+                all_x = []
+                for path in acqfn.exe_path_list:
+                    all_x += path.x
+                x_test = random.sample(all_x, config.n_rand_acqopt)
             else:
                 x_test = unif_random_sample_domain(domain, n=config.n_rand_acqopt)
-            acqopt = AcqOptimizer({"x_batch": x_test})
-            x_next, acq_val = acqopt.optimize(acqfn)
+            x_next, acq_val = acqopt.optimize(x_test)
             dumper.add('Acquisition Function Value', acq_val)
 
             # Plot true path and posterior path samples

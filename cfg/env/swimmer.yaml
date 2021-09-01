@@ -1,4 +1,5 @@
 name: "bacswimmer-v0"
+teleport: False
 gp:
   ls: 0.85
   alpha: 1.0
