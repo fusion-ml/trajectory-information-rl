@@ -202,19 +202,20 @@ def main(config):
 
             # Plot true path and posterior path samples
             ax = plot_fn(true_path, ax, domain, 'true')
-            # Plot observations
-            x_obs = [xi[0] for xi in data.x]
-            y_obs = [xi[1] for xi in data.x]
-            ax.scatter(x_obs, y_obs, color='grey', s=5, alpha=0.1)  # small grey dots
-            # ax.scatter(x_obs, y_obs, color='k', s=120)             # big black dots
+            if ax is not None:
+                # Plot observations
+                x_obs = [xi[0] for xi in data.x]
+                y_obs = [xi[1] for xi in data.x]
+                ax.scatter(x_obs, y_obs, color='grey', s=5, alpha=0.1)  # small grey dots
+                # ax.scatter(x_obs, y_obs, color='k', s=120)             # big black dots
 
-            for path in acqfn.exe_path_list:
-                ax = plot_fn(path, ax, domain, 'samp')
-            posterior_returns = [compute_return(output[2], 1) for output in acqfn.output_list]
-            dumper.add('Posterior Returns', posterior_returns)
+                for path in acqfn.exe_path_list:
+                    ax = plot_fn(path, ax, domain, 'samp')
+                posterior_returns = [compute_return(output[2], 1) for output in acqfn.output_list]
+                dumper.add('Posterior Returns', posterior_returns)
 
-            # Plot x_next
-            ax.scatter(x_next[0], x_next[1], color='deeppink', s=120, zorder=100)
+                # Plot x_next
+                ax.scatter(x_next[0], x_next[1], color='deeppink', s=120, zorder=100)
         else:
             algo.initialize()
 
