@@ -1,5 +1,71 @@
+import gym
 from gym import Env, spaces
 import numpy as np
+
+
+class TrigWrapperEnv(Env):
+    def __init__(self, base_name):
+        self._wrapped_env = gym.make(base_name)
+        wrapped_obs_space = self._wrapped_env.observation_space
+        high = []
+        low = []
+        for i in range(wrapped_obs_space.high.size):
+            if i in self._wrapped_env.periodic_dimensions:
+                high += [1, 1]
+                low += [-1, -1]
+            else:
+                high.append(wrapped_obs_space.high[i])
+                low.append(wrapped_obs_space.low[i])
+
+        self.observation_space = spaces.Box(high=np.array(high), low=np.array(low))
+
+    def reset(self, obs=None):
+        if obs is None:
+            return self._wrapped_env.reset()
+        norm_obs = trig_normalize_obs(obs, trig_dims=self._wrapped_env.periodic_dimensions)
+        return self._wrapped_env.reset(norm_obs)
+
+    def step(self, action):
+        return self._wrapped_env.step(action)
+
+    @property
+    def horizon(self):
+        return self._wrapped_env.horizon
+
+    def terminate(self):
+        if hasattr(self.wrapped_env, "terminate"):
+            self.wrapped_env.terminate()
+
+    def __getattr__(self, attr):
+        if attr == '_wrapped_env':
+            raise AttributeError()
+        return getattr(self._wrapped_env, attr)
+
+
+def get_theta(s, c):
+    r_sq = s ** 2 + c ** 2
+    r = np.sqrt(r_sq)
+    abs_theta = np.arccos(c / r)
+    return abs_theta * np.sign(s)
+
+
+def trig_normalize_obs(obs, trig_dims):
+    for dim in reversed(trig_dims):
+        s = obs[..., dim]
+        c = obs[..., dim + 1]
+        theta = get_theta(s, c)
+        obs[..., dim] = theta
+        obs = np.delete(dim + 1, axis=-1)
+    return obs
+
+
+def make_trig_reward_function(periodic_dimensions, reward_function):
+
+    def trig_rew_fn(x, y):
+        angle_x = trig_normalize_obs(x, periodic_dimensions)
+        angle_y = trig_normalize_obs(y, periodic_dimensions)
+        return reward_function(angle_x, angle_y)
+    return trig_rew_fn
 
 
 class NormalizedEnv(Env):
@@ -139,6 +205,7 @@ def make_update_obs_fn(env, teleport=False):
             periods.append(0)
     periods = np.array(periods)
     periodic = periods != 0
+
     def update_obs_fn(x, y):
         start_obs = x[..., :obs_dim]
         delta_obs = y[..., -obs_dim:]
@@ -222,6 +289,7 @@ def test():
     test_rewards = wrapped_reward(x, next_observations)
     assert np.allclose(rewards, test_rewards), f"Rewards: {rewards} not equal to test rewards: {test_rewards}"
     print(f"passed!, rew={total_rew}")
+
 
 if __name__ == "__main__":
     test()
