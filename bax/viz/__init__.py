@@ -7,4 +7,5 @@ plotters = {
         'pilcocartpole-v0': plot_pilco_cartpole,
         'bacrobot-v0': plot_acrobot,
         'bacswimmer-v0': noop,
+        'bacreacher-v0': noop,
         }
