@@ -18,7 +18,7 @@ from bax.acq.acquisition import MultiBaxAcqFunction, MCAcqFunction
 from bax.acq.acqoptimize import AcqOptimizer
 from bax.alg.mpc import MPC
 from bax import envs
-from bax.envs.wrappers import NormalizedEnv, make_normalized_reward_function, make_update_obs_fn
+from bax.envs.wrappers import NormalizedEnv, make_normalized_reward_function, make_update_obs_fn, make_trig_reward_function
 from bax.util.misc_util import Dumper, make_postmean_fn
 from bax.util.control_util import get_f_batch_mpc, get_f_batch_mpc_reward, compute_return, evaluate_policy
 from bax.util.control_util import rollout_mse, mse
@@ -57,6 +57,8 @@ def main(config):
     plan_env = gym.make(config.env.name)
     plan_env.seed(seed)
     reward_function = envs.reward_functions[config.env.name] if not config.alg.learn_reward else None
+    if config.env.trig_angles:
+        reward_function = make_trig_reward_function(reward_function, env.periodic_dimensions)
     if config.normalize_env:
         env = NormalizedEnv(env)
         plan_env = NormalizedEnv(plan_env)
@@ -101,6 +103,9 @@ def main(config):
 
     # Set data
     data = Namespace()
+    # TODO for trig: make a trig sampler, pick one sampler, use it across the fil
+    # then test the trig code in the wrapper file
+    # thats it
     data.x = unif_random_sample_domain(domain, config.num_init_data)
     data.y = f(data.x)
 

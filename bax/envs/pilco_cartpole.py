@@ -22,8 +22,7 @@ class CartPoleSwingUpEnv(gym.Env):
     OBSERVATION_DIM = 4
     POLE_LENGTH = 0.6
 
-    def __init__(self, use_trig=False):
-        self.use_trig = use_trig
+    def __init__(self):
         self.g = 9.82  # gravity
         self.m_c = 0.5  # cart mass
         self.m_p = 0.5  # pendulum mass
@@ -48,9 +47,6 @@ class CartPoleSwingUpEnv(gym.Env):
 
         self.action_space = spaces.Box(-1, 1, shape=(1,))
         self.observation_space = spaces.Box(-high, high)
-        if self.use_trig:
-            high = np.array([10., 10., 1., 1., 25.])
-            self.observation_space = spaces.Box(-high, high)
 
         self._seed()
         self.viewer = None
@@ -93,17 +89,13 @@ class CartPoleSwingUpEnv(gym.Env):
         return self.get_obs(), -costs, False, {'delta_obs': delta_s}
 
     def get_obs(self):
-        if self.use_trig:
-            return np.array([self.state[0], self.state[1], np.sin(self.state[2]), np.cos(self.state[2]), self.state[3]])
-        else:
-            return np.array(self.state)
+        return np.array(self.state)
 
     def reset(self, obs=None):
         #self.state = self.np_random.normal(loc=np.array([0.0, 0.0, 30*(2*np.pi)/360, 0.0]), scale=np.array([0.0, 0.0, 0.0, 0.0]))
         if obs is None:
             self.state = self.np_random.normal(loc=np.array([0.0, 0.0, np.pi, 0.0]), scale=np.array([0.02, 0.02, 0.02, 0.02]))
         else:
-            assert not self.use_trig, f"can't use trig if you are going to have generative access"
             self.state = obs
         self.state[2] = angle_normalize(self.state[2])
         return self.get_obs()

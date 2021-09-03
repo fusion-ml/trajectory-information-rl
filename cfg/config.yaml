@@ -9,6 +9,7 @@ env:
     teleport: True
     normalize_env: True
     sample_exe: False
+    trig_angles: False
 
 num_iters: ${alg.num_iters}
 seed: 13
