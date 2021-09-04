@@ -58,6 +58,7 @@ register(
     )
 reward_functions = {
         'bacpendulum-v0': pendulum_reward,
+        'bacpendulum-trig-v0': pendulum_reward,
         'bacpendulum-tight-v0': pendulum_reward,
         'bacpendulum-medium-v0': pendulum_reward,
         'goddard-v0': goddard_reward,
@@ -78,11 +79,11 @@ try:
         id='bacreacher-v0',
         entry_point=BACReacherEnv,
         )
-register(
-    id='bacreacher-trig-v0',
-    entry_point=TrigWrapperEnv,
-    kwargs={'base_name': 'bacreacher-v0'},
-    )
+    register(
+        id='bacreacher-trig-v0',
+        entry_point=TrigWrapperEnv,
+        kwargs={'base_name': 'bacreacher-v0'},
+        )
     reward_functions['bacswimmer-v0'] = swimmer_reward
     reward_functions['bacreacher-v0'] = reacher_reward
 except:
