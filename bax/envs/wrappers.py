@@ -1,4 +1,5 @@
 import gym
+from gym.envs.registration import register
 from gym import Env, spaces
 import numpy as np
 
@@ -6,6 +7,7 @@ import numpy as np
 class TrigWrapperEnv(Env):
     def __init__(self, base_name):
         self._wrapped_env = gym.make(base_name)
+        self.action_space = self._wrapped_env.action_space
         wrapped_obs_space = self._wrapped_env.observation_space
         high = []
         low = []
@@ -21,12 +23,15 @@ class TrigWrapperEnv(Env):
 
     def reset(self, obs=None):
         if obs is None:
-            return self._wrapped_env.reset()
-        norm_obs = trig_normalize_obs(obs, trig_dims=self._wrapped_env.periodic_dimensions)
-        return self._wrapped_env.reset(norm_obs)
+            return angle_to_trig(self._wrapped_env.reset(), trig_dims=self.periodic_dimensions)
+        norm_obs = trig_to_angle(obs, trig_dims=self.periodic_dimensions)
+        return angle_to_trig(self._wrapped_env.reset(norm_obs), trig_dims=self.periodic_dimensions)
 
     def step(self, action):
-        return self._wrapped_env.step(action)
+        obs, rew, done, info = self._wrapped_env.step(action)
+        info['angle_obs'] = obs.copy()
+        norm_obs = angle_to_trig(obs, trig_dims=self.periodic_dimensions)
+        return norm_obs, rew, done, info
 
     @property
     def horizon(self):
@@ -49,21 +54,33 @@ def get_theta(s, c):
     return abs_theta * np.sign(s)
 
 
-def trig_normalize_obs(obs, trig_dims):
-    for dim in reversed(trig_dims):
+def trig_to_angle(obs, trig_dims):
+    obs = obs.copy()
+    for dim in trig_dims:
         s = obs[..., dim]
         c = obs[..., dim + 1]
         theta = get_theta(s, c)
         obs[..., dim] = theta
-        obs = np.delete(dim + 1, axis=-1)
+        obs = np.delete(obs, dim + 1, axis=-1)
+    return obs
+
+
+def angle_to_trig(obs, trig_dims):
+    obs = obs.copy()
+    for dim in reversed(trig_dims):
+        theta = obs[..., dim]
+        s = np.sin(theta)
+        c = np.cos(theta)
+        obs[..., dim] = s
+        obs = np.insert(obs, dim + 1, c, axis=-1)
     return obs
 
 
 def make_trig_reward_function(periodic_dimensions, reward_function):
 
     def trig_rew_fn(x, y):
-        angle_x = trig_normalize_obs(x, periodic_dimensions)
-        angle_y = trig_normalize_obs(y, periodic_dimensions)
+        angle_x = trig_to_angle(x, periodic_dimensions)
+        angle_y = trig_to_angle(y, periodic_dimensions)
         return reward_function(angle_x, angle_y)
     return trig_rew_fn
 
@@ -242,7 +259,7 @@ def test_update_function(start_obs, action, delta_obs, next_obs, update_fn):
     assert np.allclose(next_obs, updated_next_obs), f"Next obs: {next_obs} and updated next obs: {updated_next_obs}"
 
 
-def test():
+def test_normalization():
     import sys
     sys.path.append('.')
     from pendulum import PendulumEnv, pendulum_reward
@@ -291,5 +308,54 @@ def test():
     print(f"passed!, rew={total_rew}")
 
 
+def test_trig_wrapper():
+    from pendulum import PendulumEnv, pendulum_reward
+    register(
+        id='bacpendulum-v0',
+        entry_point=PendulumEnv,
+        )
+    env = TrigWrapperEnv('bacpendulum-v0')
+    old_obs = env.reset()
+    action = env.action_space.sample()
+    obs, rew, done, info = env.step(action)
+    angle_to_trig_obs = angle_to_trig(info['angle_obs'], env.periodic_dimensions)
+    assert np.allclose(angle_to_trig_obs, obs), f"angle_to_trig obs: {angle_to_trig_obs}, obs: {obs}"
+    trig_to_angle_obs = trig_to_angle(obs, env.periodic_dimensions)
+    assert np.allclose(trig_to_angle_obs, info['angle_obs']), f"obs: {obs}, trig_to_angle_obs: {trig_to_angle_obs}, angle_obs: {info['angle_obs']}"
+    env.reset()
+    new_obs = env.reset(old_obs)
+    assert np.allclose(new_obs, old_obs), f"new_obs: {new_obs}, old_obs: {old_obs}"
+    half_trig_obs = old_obs.copy()
+    half_trig_obs[0:2] /= 2
+    scaled_obs = env.reset(half_trig_obs)
+    assert np.allclose(old_obs, scaled_obs), f"half_trig_obs: {half_trig_obs}, old_obs: {old_obs}, scaled_obs: {scaled_obs}"
+    trig_rew_fn = make_trig_reward_function(env.periodic_dimensions, pendulum_reward)
+    xs = []
+    ys = []
+    rewards = []
+    for _ in range(env.horizon):
+        action = env.action_space.sample()
+        obs, rew, done, info = env.step(action)
+        angle_to_trig_obs = angle_to_trig(info['angle_obs'], env.periodic_dimensions)
+        assert np.allclose(angle_to_trig_obs, obs), f"angle_to_trig obs: {angle_to_trig_obs}, obs: {obs}"
+        trig_to_angle_obs = trig_to_angle(obs, env.periodic_dimensions)
+        assert np.allclose(trig_to_angle_obs, info['angle_obs']), f"obs: {obs}, trig_to_angle_obs: {trig_to_angle_obs}, angle_obs: {info['angle_obs']}"
+        x = np.concatenate([old_obs, action])
+        xs.append(x)
+        ys.append(obs)
+        rew_hat = trig_rew_fn(x, obs)
+        rewards.append(rew)
+        assert np.allclose(rew_hat, rew)
+        old_obs = obs
+
+    xs = np.vstack(xs)
+    ys = np.vstack(ys)
+    rewards = np.array(rewards)
+    rewards_hat = trig_rew_fn(xs, ys)
+    assert np.allclose(rewards, rewards_hat)
+
+
+
 if __name__ == "__main__":
-    test()
+    # test_normalization()
+    test_trig_wrapper()
