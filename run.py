@@ -22,12 +22,13 @@ from bax.envs.wrappers import NormalizedEnv, make_normalized_reward_function, ma
 from bax.util.misc_util import Dumper, make_postmean_fn
 from bax.util.control_util import get_f_batch_mpc, get_f_batch_mpc_reward, compute_return, evaluate_policy
 from bax.util.control_util import rollout_mse, mse
-from bax.util.domain_util import unif_random_sample_domain
+from bax.util.domain_util import unif_random_sample_cylinder, unif_random_sample_domain, project_to_domain, project_to_cylinder
 from bax.util.timing import Timer
 from bax.viz import plotters
 import neatplot
 
 tf.compat.v1.logging.set_verbosity(tf.compat.v1.logging.ERROR)
+
 
 @hydra.main(config_path='cfg', config_name='config')
 def main(config):
@@ -78,13 +79,22 @@ def main(config):
     high = np.concatenate([env.observation_space.high, env.action_space.high])
     domain = [elt for elt in zip(low, high)]
 
+    # set sampler and projector
+    if config.use_trig_angles:
+        sampler = partial(unif_random_sample_cylinder, domain=domain, env=env)
+        projector = partial(project_to_cylinder, domain=domain, env=env)
+    else:
+        sampler = partial(unif_random_sample_domain, domain=domain)
+        projector = partial(project_to_domain, domain=domain)
+
     # Set algorithm
     algo_class = MPC
     algo_params = dict(
             start_obs=start_obs,
             env=plan_env,
             reward_function=reward_function,
-            project_to_domain=False,
+            project_to_domain=config.env.project_to_domain,
+            projector=projector,
             base_nsamps=config.mpc.nsamps,
             planning_horizon=config.mpc.planning_horizon,
             n_elites=config.mpc.n_elites,
@@ -103,15 +113,17 @@ def main(config):
 
     # Set data
     data = Namespace()
-    # TODO for trig: make a trig sampler, pick one sampler, use it across the fil
-    # then test the trig code in the wrapper file
+    # TODO for trig: make a trig sampler, pick one sampler, use it across the file (done)
+    # then test the trig code in the wrapper file (done)
+    # configure the uniform sampling code (done)
+    # also make sure project to domain works
     # thats it
-    data.x = unif_random_sample_domain(domain, config.num_init_data)
+    data.x = sampler(config.num_init_data)
     data.y = f(data.x)
 
     # Make a test set for model evalution separate from the controller
     test_data = Namespace()
-    test_data.x = unif_random_sample_domain(domain, config.test_set_size)
+    test_data.x = sampler(config.test_set_size)
     test_data.y = f(test_data.x)
 
     # Set model
@@ -202,7 +214,7 @@ def main(config):
                     all_x += path.x
                 x_test = random.sample(all_x, config.n_rand_acqopt)
             else:
-                x_test = unif_random_sample_domain(domain, n=config.n_rand_acqopt)
+                x_test = sampler(config.n_rand_acqopt)
             x_next, acq_val = acqopt.optimize(x_test)
             dumper.add('Acquisition Function Value', acq_val)
 

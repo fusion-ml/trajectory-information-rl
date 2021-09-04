@@ -49,6 +49,7 @@ class MPC(BatchAlgorithm):
         self.params.num_iters = getattr(params, "num_iters", 3)
         self.params.actions_per_plan = getattr(params, "actions_per_plan", 4)
         self.params.project_to_domain = getattr(params, 'project_to_domain', False)
+        self.params.projector = params.projector
         self.params.domain = params.domain
         self.update_fn = params.update_fn
         self.traj_samples = None
@@ -143,7 +144,6 @@ class MPC(BatchAlgorithm):
             obs = self.traj_states[-1]
         queries = np.concatenate([obs, actions], axis=1)
         if self.params.project_to_domain:
-            raise NotImplementedError()
             queries = project_to_domain(queries, self.params.domain)
         batch = list(queries)
         return batch
