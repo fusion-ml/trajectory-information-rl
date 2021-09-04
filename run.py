@@ -80,7 +80,7 @@ def main(config):
     domain = [elt for elt in zip(low, high)]
 
     # set sampler and projector
-    if config.use_trig_angles:
+    if config.env.trig_angles:
         sampler = partial(unif_random_sample_cylinder, domain=domain, env=env)
         projector = partial(project_to_cylinder, domain=domain, env=env)
     else:
