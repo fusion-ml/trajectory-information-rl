@@ -121,13 +121,13 @@ def main(config):
 
     # Compute true path and associated test set
     true_algo = algo_class(algo_params)
-    full_path, output = true_algo.run_algorithm_on_f(f)
-    true_path = true_algo.get_exe_path_crop()
-    true_planning_data = list(zip(true_algo.exe_path.x, true_algo.exe_path.y))
-    test_points = random.sample(true_planning_data, config.test_set_size)
-    test_mpc_data = Namespace()
-    test_mpc_data.x = [tp[0] for tp in test_points]
-    test_mpc_data.y = [tp[1] for tp in test_points]
+    #full_path, output = true_algo.run_algorithm_on_f(f)
+    #true_path = true_algo.get_exe_path_crop()
+    #true_planning_data = list(zip(true_algo.exe_path.x, true_algo.exe_path.y))
+    #test_points = random.sample(true_planning_data, config.test_set_size)
+    #test_mpc_data = Namespace()
+    #test_mpc_data.x = [tp[0] for tp in test_points]
+    #test_mpc_data.y = [tp[1] for tp in test_points]
 
     # Optionally: print fit for GP hyperparameters (only prints; still uses hypers in config)
     if config.fit_hypers:
@@ -143,42 +143,97 @@ def main(config):
     # set plot fn
     plot_fn = partial(plotters[config.env.name], env=plan_env)
 
-    ax = None
+    ax_gt, fig_gt = None, None
     # Compute and plot true path (on true function) multiple times
     full_paths = []
+    true_paths = []
     returns = []
     path_lengths = []
+    all_test_mpc_data = Namespace(x=[], y=[])
     pbar = trange(config.num_eval_trials)
-    for _ in pbar:
+    for i in pbar:
         full_path, output = true_algo.run_algorithm_on_f(f)
         full_paths.append(full_path)
-        tp = true_algo.get_exe_path_crop()
         path_lengths.append(len(full_path.x))
-        ax = plot_fn(tp, ax, domain, 'true')
+        tp = true_algo.get_exe_path_crop()
+        true_paths.append(tp)
+        if i==0:
+            true_path = tp
+            true_planning_data = list(zip(true_algo.exe_path.x, true_algo.exe_path.y))
+            test_points = random.sample(true_planning_data, config.test_set_size)
+            test_mpc_data = Namespace()
+            test_mpc_data.x = [test_pt[0] for test_pt in test_points]
+            test_mpc_data.y = [test_pt[1] for test_pt in test_points]
+        # -----
+        tpd = list(zip(true_algo.exe_path.x, true_algo.exe_path.y))
+        test_points = random.sample(tpd, int(config.test_set_size/config.num_eval_trials))
+        new_x = [test_pt[0] for test_pt in test_points]
+        new_y = [test_pt[1] for test_pt in test_points]
+        all_test_mpc_data.x.extend(new_x)
+        all_test_mpc_data.y.extend(new_y)
+        # -----
+        ax_gt, fig_gt = plot_fn(tp, ax_gt, fig_gt, domain, 'samp')
         returns.append(compute_return(output[2], 1))
         stats = {"Mean Return": np.mean(returns), "Std Return:": np.std(returns)}
         pbar.set_postfix(stats)
     returns = np.array(returns)
     dumper.add('GT Returns', returns)
     path_lengths = np.array(path_lengths)
-    logging.info(f"GT Results: returns.mean()={returns.mean()} returns.std()={returns.std()}")
+    logging.info(f"GT Returns: returns{returns}")
+    logging.info(f"GT Returns: mean={returns.mean()} std={returns.std()}")
     logging.info(f"GT Execution: path_lengths.mean()={path_lengths.mean()} path_lengths.std()={path_lengths.std()}")
     all_x = []
     for fp in full_paths:
         all_x += fp.x
     all_x = np.array(all_x)
-    print(f"{all_x.min(axis=0)=}")
-    print(f"{all_x.max(axis=0)=}")
-    neatplot.save_figure(str(dumper.expdir / 'mpc_gt'), 'png')
+    print(f"all_x.min(axis=0) = {all_x.min(axis=0)}")
+    print(f"all_x.max(axis=0) = {all_x.max(axis=0)}")
+    neatplot.save_figure(str(dumper.expdir / 'mpc_gt'), 'png', fig=fig_gt)
+
+    #### ----- Attempt re-set data.x as gt data
+    #data.x = test_mpc_data.x
+    #data.y = test_mpc_data.y
+    #
+    data.x = all_test_mpc_data.x
+    data.y = all_test_mpc_data.y
+    #
+    #data.x = true_path.x
+    #data.y = true_path.y
+    #
+    #data.x, data.y = [], []
+    #for tp in true_paths:
+        #data.x += tp.x
+        #data.y += tp.y
+
+    # Plot initial data
+    ax_obs_init, fig_obs_init = plot_fn(path=None, domain=domain)
+    x_obs = [xi[0] for xi in data.x]
+    y_obs = [xi[1] for xi in data.x]
+    ax_obs_init.plot(x_obs, y_obs, 'o', color='k', ms=1)
+    neatplot.save_figure(str(dumper.expdir / f'mpc_obs_init'), 'png', fig=fig_obs_init)
+    #### ----- ----- ----- ----- ----- -----
+
     if config.alg.rollout_sampling:
         current_obs = start_obs.copy() if config.fixed_start_obs else plan_env.reset()
         current_t = 0
+
     posterior_returns = None
+
     for i in range(config.num_iters):
         logging.info('---' * 5 + f' Start iteration i={i} ' + '---' * 5)
         logging.info(f'Length of data.x: {len(data.x)}')
         logging.info(f'Length of data.y: {len(data.y)}')
-        ax = None
+
+        # Initialize set of figures and axes
+        #ax_all, fig_all = None, None
+        #ax_postmean, fig_postmean = None, None
+        #ax_samp, fig_samp = None, None
+        #ax_obs, fig_obs = None, None
+        #### ----
+        ax_all, fig_all = plot_fn(path=None, domain=domain)
+        ax_postmean, fig_postmean = plot_fn(path=None, domain=domain)
+        ax_samp, fig_samp = plot_fn(path=None, domain=domain)
+        ax_obs, fig_obs = plot_fn(path=None, domain=domain)
 
         # Set model
         model = gp_model_class(multi_gp_params, data)
@@ -202,19 +257,21 @@ def main(config):
             dumper.add('Acquisition Function Value', acq_val)
 
             # Plot true path and posterior path samples
-            ax = plot_fn(true_path, ax, domain, 'true')
-            if ax is not None:
+            ax_all, fig_all = plot_fn(true_path, ax_all, fig_all, domain, 'true')
+            if ax_all is not None:
                 # Plot observations
                 x_obs = [xi[0] for xi in data.x]
                 y_obs = [xi[1] for xi in data.x]
-                ax.scatter(x_obs, y_obs, color='grey', s=5, alpha=0.1)  # small grey dots
-                # ax.scatter(x_obs, y_obs, color='k', s=120)             # big black dots
+                ax_all.scatter(x_obs, y_obs, color='grey', s=5, alpha=0.1)
+                ax_obs.plot(x_obs, y_obs, 'o', color='k', ms=1)
 
                 for path in acqfn.exe_path_list:
-                    ax = plot_fn(path, ax, domain, 'samp')
+                    ax_all, fig_all = plot_fn(path, ax_all, fig_all, domain, 'samp')
+                    ax_samp, fig_samp = plot_fn(path, ax_samp, fig_samp, domain, 'samp')
 
                 # Plot x_next
-                ax.scatter(x_next[0], x_next[1], color='deeppink', s=120, zorder=100)
+                ax_all.scatter(x_next[0], x_next[1], facecolors='deeppink', edgecolors='k', s=120, zorder=100)
+                ax_obs.plot(x_next[0], x_next[1], 'o', mfc='deeppink', mec='k', ms=12, zorder=100)
             posterior_returns = [compute_return(output[2], 1) for output in acqfn.output_list]
             dumper.add('Posterior Returns', posterior_returns)
         else:
@@ -227,7 +284,8 @@ def main(config):
         save_figure = False
         if i % config.eval_frequency == 0 or i + 1 == config.num_iters:
             if posterior_returns:
-                logging.info(f"Current posterior returns: {np.mean(posterior_returns)}, std: {np.std(posterior_returns)}")
+                logging.info(f"Current posterior returns: {posterior_returns}")
+                logging.info(f"Current posterior returns: mean={np.mean(posterior_returns)}, std={np.std(posterior_returns)}")
             with Timer("Evaluate the current MPC policy"):
                 # execute the best we can
                 # this is required to delete the current execution path
@@ -245,7 +303,8 @@ def main(config):
                     real_returns.append(real_return)
                     real_path_mpc = Namespace()
                     real_path_mpc.x = real_obs
-                    ax = plot_fn(real_path_mpc, ax, domain, 'postmean')
+                    ax_all, fig_all = plot_fn(real_path_mpc, ax_all, fig_all, domain, 'postmean')
+                    ax_postmean, fig_postmean = plot_fn(real_path_mpc, ax_postmean, fig_postmean, domain, 'samp')
                     mses.append(rollout_mse(algo.old_exe_paths[-1], f))
                     stats = {"Mean Return": np.mean(real_returns), "Std Return:": np.std(real_returns),
                              "Model MSE": np.mean(mses)}
@@ -269,7 +328,10 @@ def main(config):
 
             save_figure = True
         if save_figure:
-            neatplot.save_figure(str(dumper.expdir / f'mpc_{i}'), 'png')
+            neatplot.save_figure(str(dumper.expdir / f'mpc_all_{i}'), 'png', fig=fig_all)
+            neatplot.save_figure(str(dumper.expdir / f'mpc_postmean_{i}'), 'png', fig=fig_postmean)
+            neatplot.save_figure(str(dumper.expdir / f'mpc_samp_{i}'), 'png', fig=fig_samp)
+            neatplot.save_figure(str(dumper.expdir / f'mpc_obs_{i}'), 'png', fig=fig_obs)
         dumper.save()
 
         # Query function, update data
