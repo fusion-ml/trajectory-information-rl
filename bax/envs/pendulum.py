@@ -55,11 +55,11 @@ class PendulumEnv(gym.Env):
 
         u = np.clip(u, -self.max_torque, self.max_torque)[0]
         self.last_u = u  # for rendering
-        costs = angle_normalize(th) ** 2 + .1 * thdot ** 2 + .001 * (u ** 2)
 
         newthdot = thdot + (-3 * g / (2 * l) * np.sin(th + np.pi) + 3. / (m * l ** 2) * u) * dt
         unnorm_newth = th + newthdot * dt
         newth = angle_normalize(unnorm_newth)
+        costs = angle_normalize(newth) ** 2 + .1 * newthdot ** 2 + .001 * (u ** 2)
         newthdot = np.clip(newthdot, -self.max_speed, self.max_speed)
 
         delta_s = np.array([unnorm_newth - th, newthdot - thdot])
@@ -122,8 +122,8 @@ def angle_normalize(x):
 
 
 def pendulum_reward(x, next_obs):
-    th = x[..., 0]
-    thdot = x[..., 1]
+    th = next_obs[..., 0]
+    thdot = next_obs[..., 1]
     u = x[..., 2]
     costs = angle_normalize(th) ** 2 + .1 * thdot ** 2 + .001 * (u ** 2)
     return -costs
