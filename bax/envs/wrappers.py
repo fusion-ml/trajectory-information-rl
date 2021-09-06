@@ -19,18 +19,26 @@ class TrigWrapperEnv(Env):
                 high.append(wrapped_obs_space.high[i])
                 low.append(wrapped_obs_space.low[i])
 
+        self.prev_obs = None
         self.observation_space = spaces.Box(high=np.array(high), low=np.array(low))
 
     def reset(self, obs=None):
         if obs is None:
-            return angle_to_trig(self._wrapped_env.reset(), trig_dims=self.periodic_dimensions)
+            trig_obs = angle_to_trig(self._wrapped_env.reset(), trig_dims=self.periodic_dimensions)
+            self.prev_obs = trig_obs.copy()
+            return trig_obs 
         norm_obs = trig_to_angle(obs, trig_dims=self.periodic_dimensions)
+        self.prev_obs = obs.copy()
         return angle_to_trig(self._wrapped_env.reset(norm_obs), trig_dims=self.periodic_dimensions)
 
     def step(self, action):
         obs, rew, done, info = self._wrapped_env.step(action)
         info['angle_obs'] = obs.copy()
+        # need to handle delta_obs
         norm_obs = angle_to_trig(obs, trig_dims=self.periodic_dimensions)
+        if 'delta_obs' in info:
+            info['delta_obs'] = norm_obs - self.prev_obs
+        self.prev_obs = norm_obs
         return norm_obs, rew, done, info
 
     @property

@@ -59,7 +59,7 @@ def main(config):
     plan_env.seed(seed)
     reward_function = envs.reward_functions[config.env.name] if not config.alg.learn_reward else None
     if config.env.trig_angles:
-        reward_function = make_trig_reward_function(reward_function, env.periodic_dimensions)
+        reward_function = make_trig_reward_function(env.periodic_dimensions, reward_function)
     if config.normalize_env:
         env = NormalizedEnv(env)
         plan_env = NormalizedEnv(plan_env)
@@ -80,7 +80,7 @@ def main(config):
     domain = [elt for elt in zip(low, high)]
 
     # set sampler and projector
-    if config.use_trig_angles:
+    if config.env.trig_angles:
         sampler = partial(unif_random_sample_cylinder, domain=domain, env=env)
         projector = partial(project_to_cylinder, domain=domain, env=env)
     else:
@@ -116,8 +116,9 @@ def main(config):
     # TODO for trig: make a trig sampler, pick one sampler, use it across the file (done)
     # then test the trig code in the wrapper file (done)
     # configure the uniform sampling code (done)
-    # also make sure project to domain works
-    # thats it
+    # also make sure project to domain works (done)
+    # thats it (false)
+    # make the info['delta_obs'] work with trig, somehow
     data.x = sampler(config.num_init_data)
     data.y = f(data.x)
 

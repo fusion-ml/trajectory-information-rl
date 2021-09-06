@@ -35,7 +35,7 @@ def project_to_domain(x, domain):
     # Assume input x is either a list or 1d numpy array
     assert isinstance(x, list) or isinstance(x, np.ndarray)
     if isinstance(x, np.ndarray):
-        assert len(x.shape) == 1
+        # assert len(x.shape) == 1
         x_is_list = False
     else:
         x_is_list = True
