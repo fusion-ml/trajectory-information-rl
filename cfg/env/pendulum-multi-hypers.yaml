@@ -1,7 +1,12 @@
 name: "bacpendulum-v0"
 gp:
-  ls: [0.6, 2.5]
-  alpha: [2.5, 1.5]
+  #ls: [0.6, 2.5]
+  #ls: [2.3, 1.1]
+  #ls: [2.23, 0.86]
+  ls: [1.23, 0.86]
+  #alpha: [2.5, 1.5]
+  #alpha: [0.18, 0.2]
+  alpha: [0.21, 0.12]
   sigma: 0.01
 mpc:
   nsamps: 25

@@ -129,17 +129,6 @@ def main(config):
     #test_mpc_data.x = [tp[0] for tp in test_points]
     #test_mpc_data.y = [tp[1] for tp in test_points]
 
-    # Optionally: print fit for GP hyperparameters (only prints; still uses hypers in config)
-    if config.fit_hypers:
-        print('***** Fitting GP hyperparameters *****')
-        fit_data = test_mpc_data
-        print(f'Number of observations in fit_data: {len(fit_data.x)}')
-        assert len(fit_data.x) <= 3000, "fit_data larger than preset limit (can cause memory issues)"
-        for idx in range(len(data.y[0])):
-            data_fit = Namespace(x=fit_data.x, y=[yi[idx] for yi in fit_data.y])
-            gp_params = get_stangp_hypers_from_data(data_fit)
-        return
-
     # set plot fn
     plot_fn = partial(plotters[config.env.name], env=plan_env)
 
@@ -186,16 +175,19 @@ def main(config):
     for fp in full_paths:
         all_x += fp.x
     all_x = np.array(all_x)
+    print(f"all_x.shape = {all_x.shape}")
     print(f"all_x.min(axis=0) = {all_x.min(axis=0)}")
     print(f"all_x.max(axis=0) = {all_x.max(axis=0)}")
+    print(f"all_x.mean(axis=0) = {all_x.mean(axis=0)}")
+    print(f"all_x.var(axis=0) = {all_x.var(axis=0)}")
     neatplot.save_figure(str(dumper.expdir / 'mpc_gt'), 'png', fig=fig_gt)
 
     #### ----- Attempt re-set data.x as gt data
     #data.x = test_mpc_data.x
     #data.y = test_mpc_data.y
     #
-    data.x = all_test_mpc_data.x
-    data.y = all_test_mpc_data.y
+    #data.x = all_test_mpc_data.x
+    #data.y = all_test_mpc_data.y
     #
     #data.x = true_path.x
     #data.y = true_path.y
@@ -212,6 +204,18 @@ def main(config):
     ax_obs_init.plot(x_obs, y_obs, 'o', color='k', ms=1)
     neatplot.save_figure(str(dumper.expdir / f'mpc_obs_init'), 'png', fig=fig_obs_init)
     #### ----- ----- ----- ----- ----- -----
+
+    # Optionally: print fit for GP hyperparameters (only prints; still uses hypers in config)
+    if config.fit_hypers:
+        print('***** Fitting GP hyperparameters *****')
+        #fit_data = test_mpc_data
+        fit_data = data ##### NOTE
+        print(f'Number of observations in fit_data: {len(fit_data.x)}')
+        assert len(fit_data.x) <= 3000, "fit_data larger than preset limit (can cause memory issues)"
+        for idx in range(len(data.y[0])):
+            data_fit = Namespace(x=fit_data.x, y=[yi[idx] for yi in fit_data.y])
+            gp_params = get_stangp_hypers_from_data(data_fit)
+        return
 
     if config.alg.rollout_sampling:
         current_obs = start_obs.copy() if config.fixed_start_obs else plan_env.reset()
