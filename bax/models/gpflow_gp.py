@@ -4,6 +4,7 @@ Code for Gaussian processes with hyperparameter fitting/sampling using GPflow.
 
 from argparse import Namespace
 import copy
+import collections.abc
 import numpy as np
 import gpflow
 
@@ -93,7 +94,7 @@ class GpflowGp(SimpleGp):
             gpflow.utilities.set_trainable(mean_func.c, False)
 
         # Set kernel
-        if isinstance(self.params.ls, list):
+        if isinstance(self.params.ls, collections.abc.Sequence):
             ls_init_list = self.params.ls
         else:
             ls_init_list = [self.params.ls for _ in range(n_dimx)]
