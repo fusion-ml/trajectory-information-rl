@@ -13,7 +13,7 @@ import random
 from matplotlib import pyplot as plt
 
 from bax.models.gpfs_gp import BatchMultiGpfsGp
-from bax.models.stan_gp import get_stangp_hypers_from_data
+from bax.models.gpflow_gp import get_gpflow_hypers_from_data
 from bax.acq.acquisition import MultiBaxAcqFunction, MCAcqFunction
 from bax.acq.acqoptimize import AcqOptimizer
 from bax.alg.mpc import MPC
@@ -214,7 +214,8 @@ def main(config):
         assert len(fit_data.x) <= 3000, "fit_data larger than preset limit (can cause memory issues)"
         for idx in range(len(data.y[0])):
             data_fit = Namespace(x=fit_data.x, y=[yi[idx] for yi in fit_data.y])
-            gp_params = get_stangp_hypers_from_data(data_fit)
+            gp_params = get_gpflow_hypers_from_data(data_fit, print_fit_hypers=True)
+            print(f'gp_params for output {idx} = {gp_params}')
         return
 
     if config.alg.rollout_sampling:
