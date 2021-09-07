@@ -9,7 +9,7 @@ import tensorflow as tf
 from gpflow import kernels
 from gpflow.config import default_float as floatx
 
-from .simple_gp import SimpleGp
+from .gpflow_gp import GpflowGp
 from .gpfs.models import PathwiseGPR
 from .gp.gp_utils import kern_exp_quad
 from ..util.base import Base
@@ -17,7 +17,7 @@ from ..util.misc_util import dict_to_namespace, suppress_stdout_stderr
 from ..util.domain_util import unif_random_sample_domain
 
 
-class GpfsGp(SimpleGp):
+class GpfsGp(GpflowGp):
     """
     GP model using GPFlowSampling.
     """
@@ -35,23 +35,10 @@ class GpfsGp(SimpleGp):
 
     def set_kernel(self, params):
         """Set GPflow kernel."""
-        self.params.kernel_str = getattr(params, 'kernel_str', 'rbf')
-
-        ls = self.params.ls
-        kernvar = self.params.alpha**2
-
-        if self.params.kernel_str == 'rbf':
-            gpf_kernel = kernels.SquaredExponential(variance=kernvar, lengthscales=ls)
-            kernel = getattr(params, 'kernel', kern_exp_quad)
-        elif self.params.kernel_str == 'matern52':
-            gpf_kernel = kernels.Matern52(variance=kernvar, lengthscales=ls)
-            raise Exception('Matern 52 kernel is not yet supported.')
-        elif self.params.kernel_str == 'matern32':
-            gpf_kernel = kernels.Matern32(variance=kernvar, lengthscales=ls)
-            raise Exception('Matern 32 kernel is not yet supported.')
-
+        gpf_kernel = kernels.SquaredExponential(
+            variance=self.params.alpha**2, lengthscales=self.params.ls
+        )
         self.params.gpf_kernel = gpf_kernel
-        self.params.kernel = kernel
 
     def set_data(self, data):
         """Set self.data."""
@@ -64,7 +51,7 @@ class GpfsGp(SimpleGp):
         self.set_model()
 
     def set_model(self):
-        """Set GPFlowSampling as self.model."""
+        """Set GPFlowSampling as self.params.model."""
         self.params.model = PathwiseGPR(
             data=(self.tf_data.x, self.tf_data.y),
             kernel=self.params.gpf_kernel,
@@ -203,7 +190,7 @@ class MultiGpfsGp(Base):
         return y_vec
 
     def get_post_mu_cov(self, x_list, full_cov=False):
-        """See SimpleGp. Returns a list of mu, and a list of cov/std."""
+        """See GpflowGp. Returns a list of mu, and a list of cov/std."""
         mu_list, cov_list = [], []
         for gpfsgp in self.gpfsgp_list:
             # Call usual 1d gpfsgp gp_post_wrapper
@@ -214,7 +201,7 @@ class MultiGpfsGp(Base):
         return mu_list, cov_list
 
     def gp_post_wrapper(self, x_list, data, full_cov=True):
-        """See SimpleGp. Returns a list of mu, and a list of cov/std."""
+        """See GpflowGp. Returns a list of mu, and a list of cov/std."""
 
         data_list = self.get_data_list(data)
         mu_list = []
