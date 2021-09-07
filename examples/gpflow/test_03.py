@@ -52,18 +52,13 @@ gpfp_fixedsig = GpflowGp(gpfp_fixedsig_params, data, verbose=True)
 gpfp.fit_hypers()
 gpfp_fixedsig.fit_hypers()
 
-# Extract GPflow models
-model = gpfp.get_gpflow_model()
-model_fixedsig = gpfp_fixedsig.get_gpflow_model()
-
 # Test predictions on gpflow models
 n_test_data = 50
 x_test = unif_random_sample_domain(domain, n=n_test_data)
 y_test = func(x_test)
 
-x_test_gpf = np.array(x_test).reshape(-1, n_dimx)
-y_pred_mean_fixedsig, y_pred_var_fixedsig = model_fixedsig.predict_f(x_test_gpf)
-y_pred_mean, y_pred_var = model.predict_f(x_test_gpf)
+y_pred_mean_fixedsig, y_pred_var_fixedsig = gpfp_fixedsig.get_post_mu_cov(x_test, full_cov=False)
+y_pred_mean, y_pred_var = gpfp.get_post_mu_cov(x_test, full_cov=False)
 
 col_names = ('y_test', 'y_pred_fixedsig', 'y_pred', '2*std_fixedsig', '2*std')
 print(f'Columns: {col_names}')
@@ -77,11 +72,13 @@ join_print_columns(
     ]
 )
 
-error_model = np.abs(y_test.reshape(-1) -  y_pred_mean.numpy().reshape(-1))
-error_model_fixedsig = np.abs(y_test.reshape(-1) -  y_pred_mean_fixedsig.numpy().reshape(-1))
+#error_model = np.abs(y_test.reshape(-1) -  y_pred_mean.numpy().reshape(-1))
+#error_model_fixedsig = np.abs(y_test.reshape(-1) -  y_pred_mean_fixedsig.numpy().reshape(-1))
+error_gpfp = np.abs(y_test.reshape(-1) -  y_pred_mean)
+error_gpfp_fixedsig = np.abs(y_test.reshape(-1) -  y_pred_mean_fixedsig)
 
-print(f'mean(error_model) = {np.mean(error_model)}')
-print(f'mean(error_model_fixedsig) = {np.mean(error_model_fixedsig)}')
+print(f'mean(error_gpfp) = {np.mean(error_gpfp)}')
+print(f'mean(error_gpfp_fixedsig) = {np.mean(error_gpfp_fixedsig)}')
 
 
 #breakpoint()
