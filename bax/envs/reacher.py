@@ -11,8 +11,8 @@ class BACReacherEnv(mujoco_env.MujocoEnv, utils.EzPickle):
         self.periodic_dimensions = [0, 1]
         dir_path = os.path.dirname(os.path.realpath(__file__))
         mujoco_env.MujocoEnv.__init__(self, "%s/assets/reacher.xml" % dir_path, 2)
-        low = np.array([-np.pi, -np.pi, -5, -5, -4, -5, -3, -2])
-        high = np.array([np.pi, np.pi, 3, 2, 5, 4, 5, 3])
+        low = np.array([-np.pi, -np.pi, -0.3, -0.3, -50, -40, -0.5, -0.5])
+        high = np.array([np.pi, np.pi, 0.3, 0.3, 50, 40, 0.5, 0.5])
         self.observation_space = spaces.Box(low=low, high=high)
 
     def step(self, a):
