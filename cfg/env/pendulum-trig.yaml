@@ -2,8 +2,8 @@ name: "bacpendulum-trig-v0"
 trig_angles: True
 project_to_domain: True
 gp:
-  ls: 0.85
-  alpha: 1.0
+  ls: [4, 4, 14]
+  alpha: [1.65, 1.65, 0.42]
   sigma: 0.01
 mpc:
   nsamps: 25
