@@ -42,14 +42,23 @@ class GpflowGp(SimpleGp):
         self.params.print_fit_hypers = getattr(params, 'print_fit_hypers', False)
         self.params.fixed_mean_func = getattr(params, 'fixed_mean_func', True)
         self.params.mean_func_c = getattr(params, 'mean_func_c', 0.0)
-        self.params.kernel_ls_init = getattr(params, 'kernel_ls_init', 1.0)
-        self.params.kernel_var_init = getattr(params, 'kernel_var_init', 1.0)
+        self.params.ls = getattr(params, 'ls', 1.0)
+        self.params.alpha = getattr(params, 'alpha', 1.0)
         self.params.fixed_noise = getattr(params, 'fixed_noise', True)
-        self.params.noise_var_init = getattr(params, 'noise_var_init', 0.1)
+        self.params.sigma = getattr(params, 'sigma', 0.1)
 
     def set_data(self, data):
         """Set self.data."""
-        super().set_data(data)
+        if data is None:
+            # Initialize self.data to be empty
+            self.data = Namespace()
+            self.data.x = []
+            self.data.y = []
+        else:
+            data = dict_to_namespace(data)
+            self.data = copy.deepcopy(data)
+
+        # Set self.gpflow_data
         self.set_gpflow_data()
 
     def set_gpflow_data(self):
@@ -84,14 +93,17 @@ class GpflowGp(SimpleGp):
             gpflow.utilities.set_trainable(mean_func.c, False)
 
         # Set kernel
-        ls_init_list = [self.params.kernel_ls_init for _ in range(n_dimx)]
+        if isinstance(self.params.ls, list):
+            ls_init_list = self.params.ls
+        else:
+            ls_init_list = [self.params.ls for _ in range(n_dimx)]
         kernel = gpflow.kernels.SquaredExponential(
-            variance=self.params.kernel_var_init, lengthscales=ls_init_list
+            variance=self.params.alpha**2, lengthscales=ls_init_list
         )
 
         # Set GPR model
         model = gpflow.models.GPR(data=gpflow_data, kernel=kernel, mean_function=mean_func)
-        model.likelihood.variance.assign(self.params.noise_var_init)
+        model.likelihood.variance.assign(self.params.sigma**2)
         if self.params.fixed_noise:
             gpflow.utilities.set_trainable(model.likelihood.variance, False)
         return model
@@ -186,9 +198,9 @@ def get_gpflow_hypers_from_data(data, print_fit_hypers=False):
     model = GpflowGp(params=model_params, data=data)
     model.fit_hypers()
     gp_hypers = {
-        'kernel_ls': model.model.kernel.lengthscales.numpy().tolist(),
-        'kernel_var': float(model.model.kernel.variance.numpy()),
-        'noise_var': float(model.model.likelihood.variance.numpy()),
+        'ls': model.model.kernel.lengthscales.numpy().tolist(),
+        'alpha': np.sqrt(float(model.model.kernel.variance.numpy())),
+        'sigma': np.sqrt(float(model.model.likelihood.variance.numpy())),
         'n_dimx': len(data.x[0]),
     }
 
