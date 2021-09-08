@@ -1,9 +1,9 @@
 from gym.envs.registration import register
-from bax.util.envs.pendulum import PendulumEnv, pendulum_reward
-from bax.util.envs.pilco_cartpole import CartPoleSwingUpEnv, pilco_cartpole_reward
-from bax.util.envs.goddard import GoddardEnv, goddard_reward
+from bax.envs.pendulum import PendulumEnv, pendulum_reward
+from bax.envs.pilco_cartpole import CartPoleSwingUpEnv, pilco_cartpole_reward
+from bax.envs.goddard import GoddardEnv, goddard_reward
 # from bax.util.envs.pets_cartpole import PETSCartpoleEnv, cartpole_reward
-from bax.util.envs.acrobot import AcrobotEnv, acrobot_reward
+from bax.envs.acrobot import AcrobotEnv, acrobot_reward
 
 # register each environment we wanna use
 register(
@@ -36,6 +36,11 @@ register(
     entry_point=CartPoleSwingUpEnv,
     )
 register(
+    id='pilcocartpole-trig-v0',
+    entry_point=CartPoleSwingUpEnv,
+    kwargs={'use_trig': True},
+    )
+register(
     id='bacrobot-v0',
     entry_point=AcrobotEnv,
     )
@@ -46,5 +51,22 @@ reward_functions = {
         'goddard-v0': goddard_reward,
         # 'petscartpole-v0': cartpole_reward,
         'pilcocartpole-v0': pilco_cartpole_reward,
+        'pilcocartpole-trig-v0': pilco_cartpole_reward,
         'bacrobot-v0': acrobot_reward,
         }
+# mujoco stuff
+try:
+    from bax.envs.swimmer import BACSwimmerEnv, swimmer_reward
+    from bax.envs.reacher import BACReacherEnv, reacher_reward
+    register(
+        id='bacswimmer-v0',
+        entry_point=BACSwimmerEnv,
+        )
+    register(
+        id='bacreacher-v0',
+        entry_point=BACReacherEnv,
+        )
+    reward_functions['bacswimmer-v0'] = swimmer_reward
+    reward_functions['bacreacher-v0'] = reacher_reward
+except:
+    pass

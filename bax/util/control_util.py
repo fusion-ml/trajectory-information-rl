@@ -320,7 +320,7 @@ def evaluate_policy(env, policy, start_obs=None, mpc_pass=False):
     rewards = []
     done = False
     samples_to_pass = []
-    while not done:
+    for _ in range(env.horizon):
         if not mpc_pass:
             action = policy(obs)
         else:
@@ -329,6 +329,8 @@ def evaluate_policy(env, policy, start_obs=None, mpc_pass=False):
         observations.append(obs)
         actions.append(action)
         rewards.append(rew)
+        if done:
+            break
     return observations, actions, rewards
 
 

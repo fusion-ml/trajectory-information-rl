@@ -26,7 +26,6 @@ class PendulumEnv(gym.Env):
         self.viewer = None
         self.horizon = 200
         self.periodic_dimensions = [0]
-        self.t = None
         self.tight_start = tight_start
         self.medium_start = medium_start
 
@@ -66,15 +65,11 @@ class PendulumEnv(gym.Env):
         delta_s = np.array([unnorm_newth - th, newthdot - thdot])
 
         self.state = np.array([newth, newthdot])
-        self.t += 1
         done = False
-        if self.t > self.horizon:
-            done = True
         return self._get_obs(), -costs, done, {'delta_obs': delta_s}
 
     def reset(self, obs=None):
         high = np.array([np.pi, 1])
-        self.t = 0
         if obs is None:
             if self.tight_start:
                 self.state = self.np_random.uniform(low=[-0.35, -0.9], high=[-0.05, -0.6])

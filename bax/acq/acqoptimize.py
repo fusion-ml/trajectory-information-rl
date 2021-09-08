@@ -25,10 +25,15 @@ class AcqOptimizer(Base):
         self.params.opt_str = getattr(params, "opt_str", "batch")
         # default_x_batch = [[x] for x in np.linspace(0.0, 40.0, 500)]
         # self.params.x_batch = getattr(params, "x_batch", default_x_batch)
-        self.params.x_batch = params.x_batch
+        # self.params.x_batch = params.x_batch
         self.params.remove_x_dups = getattr(params, "remove_x_dups", False)
 
-    def optimize(self, acqfunction):
+    def initialize(self, acqfunction):
+        # Set self.acqfunction
+        self.set_acqfunction(acqfunction)
+        self.acqfunction.initialize()
+
+    def optimize(self, x_batch):
         """
         Optimize acquisition function.
 
@@ -37,10 +42,8 @@ class AcqOptimizer(Base):
         acqfunction : AcqFunction
             AcqFunction instance.
         """
+        self.params.x_batch = x_batch
 
-        # Set self.acqfunction
-        self.set_acqfunction(acqfunction)
-        self.acqfunction.initialize()
         if self.params.opt_str == "batch":
             acq_opt, acq_val = self.optimize_batch()
 
@@ -94,4 +97,3 @@ class AcqOptimizer(Base):
     def set_print_params(self):
         """Set self.print_params."""
         self.print_params = copy.deepcopy(self.params)
-        delattr(self.print_params, "x_batch")

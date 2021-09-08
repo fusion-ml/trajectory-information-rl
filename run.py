@@ -17,9 +17,9 @@ from bax.models.stan_gp import get_stangp_hypers_from_data
 from bax.acq.acquisition import MultiBaxAcqFunction, MCAcqFunction
 from bax.acq.acqoptimize import AcqOptimizer
 from bax.alg.mpc import MPC
+from bax import envs
+from bax.envs.wrappers import NormalizedEnv, make_normalized_reward_function, make_update_obs_fn
 from bax.util.misc_util import Dumper, make_postmean_fn
-from bax.util import envs
-from bax.util.envs.wrappers import NormalizedEnv, make_normalized_reward_function, make_update_obs_fn
 from bax.util.control_util import get_f_batch_mpc, get_f_batch_mpc_reward, compute_return, evaluate_policy
 from bax.util.control_util import rollout_mse, mse
 from bax.util.domain_util import unif_random_sample_domain
@@ -123,8 +123,8 @@ def main(config):
     true_algo = algo_class(algo_params)
     full_path, output = true_algo.run_algorithm_on_f(f)
     true_path = true_algo.get_exe_path_crop()
-    true_path_data = list(zip(true_algo.exe_path.x, true_algo.exe_path.y))
-    test_points = random.sample(true_path_data, config.test_set_size)
+    true_planning_data = list(zip(true_algo.exe_path.x, true_algo.exe_path.y))
+    test_points = random.sample(true_planning_data, config.test_set_size)
     test_mpc_data = Namespace()
     test_mpc_data.x = [tp[0] for tp in test_points]
     test_mpc_data.y = [tp[1] for tp in test_points]
@@ -145,11 +145,13 @@ def main(config):
 
     ax = None
     # Compute and plot true path (on true function) multiple times
+    full_paths = []
     returns = []
     path_lengths = []
     pbar = trange(config.num_eval_trials)
     for _ in pbar:
         full_path, output = true_algo.run_algorithm_on_f(f)
+        full_paths.append(full_path)
         tp = true_algo.get_exe_path_crop()
         path_lengths.append(len(full_path.x))
         ax = plot_fn(tp, ax, domain, 'true')
@@ -161,10 +163,17 @@ def main(config):
     path_lengths = np.array(path_lengths)
     logging.info(f"GT Results: returns.mean()={returns.mean()} returns.std()={returns.std()}")
     logging.info(f"GT Execution: path_lengths.mean()={path_lengths.mean()} path_lengths.std()={path_lengths.std()}")
+    all_x = []
+    for fp in full_paths:
+        all_x += fp.x
+    all_x = np.array(all_x)
+    print(f"{all_x.min(axis=0)=}")
+    print(f"{all_x.max(axis=0)=}")
     neatplot.save_figure(str(dumper.expdir / 'mpc_gt'), 'png')
     if config.alg.rollout_sampling:
         current_obs = start_obs.copy() if config.fixed_start_obs else plan_env.reset()
         current_t = 0
+    posterior_returns = None
     for i in range(config.num_iters):
         logging.info('---' * 5 + f' Start iteration i={i} ' + '---' * 5)
         logging.info(f'Length of data.x: {len(data.x)}')
@@ -178,29 +187,36 @@ def main(config):
             # Set and optimize acquisition function
             acqfn_base = acqfn_class(acqfn_params, model, algo)
             acqfn = MCAcqFunction(acqfn_base, {"num_samples_mc": config.num_samples_mc})
+            acqopt = AcqOptimizer()
+            acqopt.initialize(acqfn)
             if config.alg.rollout_sampling:
                 x_test = [np.concatenate([current_obs, env.action_space.sample()]) for _ in range(config.n_rand_acqopt)]
+            elif config.sample_exe:
+                all_x = []
+                for path in acqfn.exe_path_full_list:
+                    all_x += path.x
+                x_test = random.sample(all_x, config.n_rand_acqopt)
             else:
                 x_test = unif_random_sample_domain(domain, n=config.n_rand_acqopt)
-            acqopt = AcqOptimizer({"x_batch": x_test})
-            x_next, acq_val = acqopt.optimize(acqfn)
+            x_next, acq_val = acqopt.optimize(x_test)
             dumper.add('Acquisition Function Value', acq_val)
 
             # Plot true path and posterior path samples
             ax = plot_fn(true_path, ax, domain, 'true')
-            # Plot observations
-            x_obs = [xi[0] for xi in data.x]
-            y_obs = [xi[1] for xi in data.x]
-            ax.scatter(x_obs, y_obs, color='grey', s=5, alpha=0.1)  # small grey dots
-            # ax.scatter(x_obs, y_obs, color='k', s=120)             # big black dots
+            if ax is not None:
+                # Plot observations
+                x_obs = [xi[0] for xi in data.x]
+                y_obs = [xi[1] for xi in data.x]
+                ax.scatter(x_obs, y_obs, color='grey', s=5, alpha=0.1)  # small grey dots
+                # ax.scatter(x_obs, y_obs, color='k', s=120)             # big black dots
 
-            for path in acqfn.exe_path_list:
-                ax = plot_fn(path, ax, domain, 'samp')
+                for path in acqfn.exe_path_list:
+                    ax = plot_fn(path, ax, domain, 'samp')
+
+                # Plot x_next
+                ax.scatter(x_next[0], x_next[1], color='deeppink', s=120, zorder=100)
             posterior_returns = [compute_return(output[2], 1) for output in acqfn.output_list]
             dumper.add('Posterior Returns', posterior_returns)
-
-            # Plot x_next
-            ax.scatter(x_next[0], x_next[1], color='deeppink', s=120, zorder=100)
         else:
             algo.initialize()
 
@@ -210,7 +226,8 @@ def main(config):
 
         save_figure = False
         if i % config.eval_frequency == 0 or i + 1 == config.num_iters:
-            logging.info(f"Current posterior returns: {np.mean(posterior_returns)}, std: {np.std(posterior_returns)}")
+            if posterior_returns:
+                logging.info(f"Current posterior returns: {np.mean(posterior_returns)}, std: {np.std(posterior_returns)}")
             with Timer("Evaluate the current MPC policy"):
                 # execute the best we can
                 # this is required to delete the current execution path

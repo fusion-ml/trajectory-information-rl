@@ -1,6 +1,6 @@
 from matplotlib import pyplot as plt
 import numpy as np
-from bax.util.envs.pilco_cartpole import get_pole_pos
+from bax.envs.pilco_cartpole import get_pole_pos
 
 def plot_pendulum(path, ax=None, domain=None, path_str="samp", env=None):
     """Plot a path through an assumed two-dimensional state space."""
@@ -121,3 +121,7 @@ def plot_acrobot(path, ax=None, domain=None, path_str="samp", env=None):
         ax.plot(x_plot, y_plot, 'k--', linewidth=1, alpha=0.3)
         ax.plot(x_plot, y_plot, 'o', alpha=0.3)
     return ax
+
+
+def noop(*args, **kwargs):
+    pass

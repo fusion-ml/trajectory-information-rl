@@ -99,7 +99,6 @@ class AcrobotEnv(core.Env):
         self.state = None
         self.horizon = 200
         self.periodic_dimensions = [0, 1]
-        self.t = 0
         self.seed()
 
     def seed(self, seed=None):
@@ -107,7 +106,6 @@ class AcrobotEnv(core.Env):
         return [seed]
 
     def reset(self, obs=None):
-        self.t = 0
         self.state = self.np_random.uniform(low=-0.1, high=0.1, size=(4,))
         if obs is not None:
             self.state = obs
@@ -143,13 +141,8 @@ class AcrobotEnv(core.Env):
         ns[0] = wrap(ns[0], -pi, pi)
         ns[1] = wrap(ns[1], -pi, pi)
         self.state = ns
-        done = self.t >= self.horizon
-        self.t += 1
         reward = acrobot_reward(None, self.state)
-        return (self.state, reward, done, {'delta_obs': delta_obs})
-
-    def _terminal(self):
-        s = self.state
+        return (self.state, reward, False, {'delta_obs': delta_obs})
 
     def _dsdt(self, s_augmented, t):
         m1 = self.LINK_MASS_1
@@ -334,6 +327,7 @@ def rk4(derivs, y0, t, *args, **kwargs):
         k4 = np.asarray(derivs(y0 + dt * k3, thist + dt, *args, **kwargs))
         yout[i + 1] = y0 + dt / 6.0 * (k1 + 2 * k2 + 2 * k3 + k4)
     return yout
+
 
 def get_acrobot_height(obs):
     end_height = -np.cos(obs[..., 0]) - np.cos(obs[..., 1] + obs[..., 0])
