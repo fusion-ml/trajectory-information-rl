@@ -26,7 +26,7 @@ class TrigWrapperEnv(Env):
         if obs is None:
             trig_obs = angle_to_trig(self._wrapped_env.reset(), trig_dims=self.periodic_dimensions)
             self.prev_obs = trig_obs.copy()
-            return trig_obs 
+            return trig_obs
         norm_obs = trig_to_angle(obs, trig_dims=self.periodic_dimensions)
         self.prev_obs = obs.copy()
         return angle_to_trig(self._wrapped_env.reset(norm_obs), trig_dims=self.periodic_dimensions)
