@@ -3,7 +3,7 @@ defaults:
   - env: pendulum
   - alg: bac
 name: "default"
-num_eval_trials: 3
+num_eval_trials: 5
 eval_frequency: 50
 env:
     teleport: True
