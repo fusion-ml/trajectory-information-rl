@@ -2,11 +2,52 @@
 Utilities for Gaussian process (GP) inference.
 """
 
+from typing import Iterable
 import numpy as np
 from scipy.linalg import solve_triangular
 from scipy.spatial.distance import cdist
 import itertools
 
+
+def kern_exp_quad_per(xmat1, xmat2, ls, alpha, pdims):
+    """
+    Exponentiated quadratic kernel function with
+    - dimensionwise lengthscales if ls is an ndarray
+    - periodic dimensions denoted by pdims. We assume that the period
+    is 2.
+    """
+    xdim = xmat1.shape[1]
+    euc_dims = [i for i in range(xdim) if i not in pdims]
+    xmat1 = np.expand_dims(xmat1, axis=1)
+    xmat2 = np.expand_dims(xmat2, axis=2)
+    diff = xmat1 - xmat2
+    diff_euc = diff[..., euc_dims]
+    diff_per = diff[..., pdims]
+
+    dper = np.sin(np.pi * diff_per / 2)
+    deuc = diff_euc
+    dall = np.concatenate([dper, deuc], axis=-1)
+    if isinstance(ls, np.ndarray):
+        ls = ls[pdims + euc_dims]
+    dall /= ls
+    dall = np.sum(dall ** 2, axis=-1) / 2.0
+    kern = alpha ** 2 * np.exp(-dall)
+
+    return kern
+
+def kern_exp_ard(xmat1, xmat2, ls, alpha):
+    """
+    Exponentiated quadratic kernel function with
+    dimensionwise lengthscales if ls is an ndarray.
+    """
+    xmat1 = np.expand_dims(xmat1, axis=1)
+    xmat2 = np.expand_dims(xmat2, axis=2)
+    diff = xmat1 - xmat2
+    diff /= ls
+    norm = np.sum(diff ** 2, axis=-1) / 2.0
+    kern = alpha ** 2 * np.exp(-norm)
+
+    return kern
 
 def kern_exp_quad(xmat1, xmat2, ls, alpha):
     """
@@ -202,3 +243,14 @@ def gp_post(x_train, y_train, x_pred, ls, alpha, sigma, kernel, full_cov=True):
     if full_cov is False:
         k2 = np.sqrt(np.diag(k2))
     return mu2, k2
+
+
+def main():
+    xmat1 = np.array([[1.0, 2.0], [2.0, 3.0]])
+    xmat2 = np.array([[2.0, 3.0], [1.0, 4.0]])
+
+    print(kern_exp_quad_per(xmat1, xmat2, np.array([1.0, 2.0]), 1.0, [1]))
+    print(kern_exp_ard(xmat1, xmat2, np.array([1.0, 2.0]), 1.0))
+
+if __name__=='__main__':
+    main()
