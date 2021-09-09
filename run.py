@@ -18,7 +18,7 @@ from bax.acq.acquisition import MultiBaxAcqFunction, MCAcqFunction
 from bax.acq.acqoptimize import AcqOptimizer
 from bax.alg.mpc import MPC
 from bax import envs
-from bax.envs.wrappers import NormalizedEnv, make_normalized_reward_function, make_update_obs_fn
+from bax.envs.wrappers import NormalizedEnv, make_normalized_reward_function, make_update_obs_fn, make_normalized_plot_fn
 from bax.util.misc_util import Dumper, make_postmean_fn
 from bax.util.control_util import get_f_batch_mpc, get_f_batch_mpc_reward, compute_return, evaluate_policy
 from bax.util.control_util import rollout_mse, mse
@@ -56,12 +56,17 @@ def main(config):
 
     plan_env = gym.make(config.env.name)
     plan_env.seed(seed)
+
+    # set plot fn
+    plot_fn = partial(plotters[config.env.name], env=plan_env)
+
     reward_function = envs.reward_functions[config.env.name] if not config.alg.learn_reward else None
     if config.normalize_env:
         env = NormalizedEnv(env)
         plan_env = NormalizedEnv(plan_env)
         if reward_function is not None:
             reward_function = make_normalized_reward_function(plan_env, reward_function)
+        plot_fn = make_normalized_plot_fn(plan_env, plot_fn)
     if config.alg.learn_reward:
         f = get_f_batch_mpc_reward(plan_env, use_info_delta=config.teleport)
     else:
@@ -140,8 +145,6 @@ def main(config):
             gp_params = get_stangp_hypers_from_data(data_fit)
         return
 
-    # set plot fn
-    plot_fn = partial(plotters[config.env.name], env=plan_env)
 
     ax = None
     # Compute and plot true path (on true function) multiple times
