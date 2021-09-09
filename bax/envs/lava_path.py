@@ -1,10 +1,10 @@
 import gym
 from gym.spaces import Box
 import numpy as np
-import cv2
-import matplotlib.pyplot as plt
-import matplotlib.patches as patches
-from matplotlib.backends.backend_agg import FigureCanvas
+# import cv2
+# import matplotlib.pyplot as plt
+# import matplotlib.patches as patches
+# from matplotlib.backends.backend_agg import FigureCanvas
 
 def in_lava(x, lava_pits):
     #TODO add intersection checking to make sure we don't jump over lava
@@ -113,7 +113,7 @@ class LavaPathEnv(gym.Env):
         return np.sum((self.x - self.goal)**2) < self.goal_delta
 
     def get_matplotlib_image(self):
-        fig = plt.figure()
+        # fig = plt.figure()
         canvas = FigureCanvas(fig)
         ax = fig.subplots()
 
@@ -132,9 +132,9 @@ class LavaPathEnv(gym.Env):
 
         canvas.draw()
         img = np.array(canvas.renderer.buffer_rgba())
-        img = cv2.cvtColor(img, cv2.COLOR_BGR2RGB)
+        # img = cv2.cvtColor(img, cv2.COLOR_BGR2RGB)
 
-        plt.close(fig)
+        # plt.close(fig)
 
         return img
 
