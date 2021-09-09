@@ -1,6 +1,6 @@
 learn_reward: False
-num_iters: 1000
-use_acquisition: True
+num_iters: 3000
+use_acquisition: False
+rollout_all: False
 rollout_sampling: False
-n_rand_acqopt: 500
 use_mpc: False

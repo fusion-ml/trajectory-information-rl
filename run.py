@@ -235,12 +235,14 @@ def main(config):
                 ax.scatter(x_next[0], x_next[1], color='deeppink', s=120, zorder=100)
             posterior_returns = [compute_return(output[2], 1) for output in acqfn.output_list]
             dumper.add('Posterior Returns', posterior_returns)
-        else:
+        elif config.alg.use_mpc:
             algo.initialize()
 
             policy = partial(algo.execute_mpc, f=make_postmean_fn(model))
             action = policy(current_obs)
             x_next = np.concatenate([current_obs, action])
+        else:
+            x_next = sampler(1)[0]
 
         save_figure = False
         if i % config.eval_frequency == 0 or i + 1 == config.num_iters:
