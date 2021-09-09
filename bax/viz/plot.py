@@ -49,7 +49,7 @@ def plot_lava_path(path, ax=None, domain=None, path_str="samp", env=None):
     # Draw left rectangle
     for lava_pit in LavaPathEnv.lava_pits:
         delta = lava_pit.high - lava_pit.low
-        patch = patches.Rectangle(lava_pit.low, delta[0], delta[1], fill = True, color = "red")
+        patch = patches.Rectangle(lava_pit.low, delta[0], delta[1], fill = True, color = "orange")
 
         ax.add_patch(patch)
 
@@ -66,7 +66,7 @@ def plot_lava_path(path, ax=None, domain=None, path_str="samp", env=None):
     elif path_str == "samp":
         ax.plot(x_plot, y_plot, 'k--', linewidth=1, alpha=0.3)
         ax.plot(x_plot, y_plot, 'o', alpha=0.3)
-    ax.scatter(LavaPathEnv.goal[0], LavaPathEnv.goal[1], color = "green", s=10)
+    ax.scatter(LavaPathEnv.goal[0], LavaPathEnv.goal[1], color = "green", s=20)
     return ax
 
 
