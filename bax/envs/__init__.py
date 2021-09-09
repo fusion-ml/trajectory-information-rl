@@ -4,7 +4,7 @@ from bax.envs.pilco_cartpole import CartPoleSwingUpEnv, pilco_cartpole_reward
 from bax.envs.goddard import GoddardEnv, goddard_reward
 # from bax.util.envs.pets_cartpole import PETSCartpoleEnv, cartpole_reward
 from bax.envs.acrobot import AcrobotEnv, acrobot_reward
-from lava_path import LavaPathEnv, lava_path_reward
+from bax.envs.lava_path import LavaPathEnv, lava_path_reward
 
 # register each environment we wanna use
 register(

@@ -19,6 +19,7 @@ class LavaPathEnv(gym.Env):
 
     lava_penalty = -500
     goal = np.array([0, 10])
+    periodic_dimensions = []
 
     # For each lava pit, we have
     lava_pits = [
@@ -30,8 +31,8 @@ class LavaPathEnv(gym.Env):
     ]
     def __init__(self):
         # Observation space is [x, y, x_dot, y_dot]
-        self.observation_space = Box(low = np.array([-20, -20, -1, 1]),
-                                    high = np.array([ 20,  20,  1, 1]))
+        self.observation_space = Box(low = np.array([-20, -20, -10, -10]),
+                                    high = np.array([ 20,  20,  10, 10]))
 
         # Action space is [F_x, F_y]
         self.action_space = Box(low = np.array([-1, -1]),
@@ -214,15 +215,15 @@ class LavaPathEnv(gym.Env):
 def lava_path_reward(x, next_obs):
     x_prob = next_obs[..., :2]
     if x.ndim == 1:
-        lava = in_lava(x_prob, LavaPath.lava_pits)
-        reward = -np.sum((x_prob - LavaPath.goal) ** 2) / 800 + LavaPath.lava_penalty * int(lava)
+        lava = in_lava(x_prob, LavaPathEnv.lava_pits)
+        reward = -np.sum((x_prob - LavaPathEnv.goal) ** 2) / 800 + LavaPathEnv.lava_penalty * int(lava)
     else:
-        lava = np.array([in_lava(xi, LavaPath.lava_pits) for xi in x_prob]).astype(int)
-        reward = -np.sum((x_prob - LavaPath.goal) ** 2, axis=-1) / 800 + LavaPath.lava_penalty * lava
+        lava = np.array([in_lava(xi, LavaPathEnv.lava_pits) for xi in x_prob]).astype(int)
+        reward = -np.sum((x_prob - LavaPathEnv.goal) ** 2, axis=-1) / 800 + LavaPathEnv.lava_penalty * lava
     return reward
 
 def test_lava_path():
-    env = LavaPath()
+    env = LavaPathEnv()
     n_tests = 100
     observations = []
     actions = []

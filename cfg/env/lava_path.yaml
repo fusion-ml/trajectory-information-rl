@@ -1,7 +1,8 @@
 name: 'lavapath-v0'
+teleport: False
 gp:
-  ls: 0.85
-  alpha: 1.0
+  ls: [0.6, 6.3, 2.4, 0.4]
+  alpha: 0.1
   sigma: 0.01
 mpc:
   nsamps: 25
