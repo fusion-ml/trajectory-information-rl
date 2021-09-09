@@ -11,4 +11,5 @@ plotters = {
         'bacrobot-v0': plot_acrobot,
         'bacswimmer-v0': noop,
         'bacreacher-v0': noop,
+        'bacreacher-trig-v0': noop,
         }
