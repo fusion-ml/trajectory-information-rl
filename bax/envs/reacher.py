@@ -13,7 +13,7 @@ class BACReacherEnv(mujoco_env.MujocoEnv, utils.EzPickle):
         mujoco_env.MujocoEnv.__init__(self, "%s/assets/reacher.xml" % dir_path, 2)
         low = np.array([-np.pi, -np.pi, -0.3, -0.3, -50, -40, -0.5, -0.5])
         high = np.array([np.pi, np.pi, 0.3, 0.3, 50, 40, 0.5, 0.5])
-        self.observation_space = spaces.Box(low=low, high=high)
+        self.observation_space = spaces.Box(low, high)
 
     def step(self, a):
         old_obs = self._get_obs()

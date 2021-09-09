@@ -3,6 +3,7 @@ Utilities for domains (search spaces).
 """
 
 import numpy as np
+from copy import deepcopy
 
 
 def unif_random_sample_domain(n=1, domain=None):
@@ -13,15 +14,16 @@ def unif_random_sample_domain(n=1, domain=None):
 
 
 def unif_random_sample_cylinder(n=1, domain=None, env=None):
+    domain = deepcopy(domain)
     periodic_dimensions = env.periodic_dimensions
+    for i in periodic_dimensions:
+        del domain[i]
     data = []
     for i, dom in enumerate(domain):
         if i in periodic_dimensions:
             theta = np.random.uniform(-np.pi, np.pi, n)
             data.append(np.sin(theta))
             data.append(np.cos(theta))
-            continue
-        if i - 1 in periodic_dimensions:
             continue
         data.append(np.random.uniform(dom[0], dom[1], n))
     list_of_arr_per_dim = data

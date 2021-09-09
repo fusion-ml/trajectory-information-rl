@@ -86,5 +86,6 @@ try:
         )
     reward_functions['bacswimmer-v0'] = swimmer_reward
     reward_functions['bacreacher-v0'] = reacher_reward
+    reward_functions['bacreacher-trig-v0'] = reacher_reward
 except:
     pass

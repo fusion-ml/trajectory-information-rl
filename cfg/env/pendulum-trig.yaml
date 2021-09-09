@@ -1,4 +1,6 @@
 name: "bacpendulum-trig-v0"
+teleport: False
+normalize_env: True
 trig_angles: True
 project_to_domain: True
 gp:
