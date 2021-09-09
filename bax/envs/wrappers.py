@@ -21,21 +21,23 @@ class TrigWrapperEnv(Env):
 
         self.prev_obs = None
         self.observation_space = spaces.Box(high=np.array(high), low=np.array(low))
+        self.wrapped_periodic_dimensions = self._wrapped_env.periodic_dimensions
+        self.periodic_dimensions = []
 
     def reset(self, obs=None):
         if obs is None:
-            trig_obs = angle_to_trig(self._wrapped_env.reset(), trig_dims=self.periodic_dimensions)
+            trig_obs = angle_to_trig(self._wrapped_env.reset(), trig_dims=self.wrapped_periodic_dimensions)
             self.prev_obs = trig_obs.copy()
             return trig_obs
-        norm_obs = trig_to_angle(obs, trig_dims=self.periodic_dimensions)
+        norm_obs = trig_to_angle(obs, trig_dims=self.wrapped_periodic_dimensions)
         self.prev_obs = obs.copy()
-        return angle_to_trig(self._wrapped_env.reset(norm_obs), trig_dims=self.periodic_dimensions)
+        return angle_to_trig(self._wrapped_env.reset(norm_obs), trig_dims=self.wrapped_periodic_dimensions)
 
     def step(self, action):
         obs, rew, done, info = self._wrapped_env.step(action)
         info['angle_obs'] = obs.copy()
         # need to handle delta_obs
-        norm_obs = angle_to_trig(obs, trig_dims=self.periodic_dimensions)
+        norm_obs = angle_to_trig(obs, trig_dims=self.wrapped_periodic_dimensions)
         if 'delta_obs' in info:
             info['delta_obs'] = norm_obs - self.prev_obs
         self.prev_obs = norm_obs
@@ -48,11 +50,6 @@ class TrigWrapperEnv(Env):
     def terminate(self):
         if hasattr(self.wrapped_env, "terminate"):
             self.wrapped_env.terminate()
-
-    def __getattr__(self, attr):
-        if attr == '_wrapped_env':
-            raise AttributeError()
-        return getattr(self._wrapped_env, attr)
 
 
 def get_theta(s, c):
