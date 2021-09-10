@@ -44,6 +44,7 @@ class GpflowGp(SimpleGp):
         self.params.fixed_mean_func = getattr(params, 'fixed_mean_func', True)
         self.params.mean_func_c = getattr(params, 'mean_func_c', 0.0)
         self.params.ls = getattr(params, 'ls', 1.0)
+        self.params.use_ard = getattr(params, 'use_ard', True)
         self.params.alpha = getattr(params, 'alpha', 1.0)
         self.params.fixed_noise = getattr(params, 'fixed_noise', True)
         self.params.sigma = getattr(params, 'sigma', 0.1)
@@ -94,12 +95,16 @@ class GpflowGp(SimpleGp):
             gpflow.utilities.set_trainable(mean_func.c, False)
 
         # Set kernel
-        if isinstance(self.params.ls, collections.abc.Sequence):
-            ls_init_list = self.params.ls
+        if self.params.use_ard:
+            if isinstance(self.params.ls, collections.abc.Sequence):
+                ls_init = self.params.ls
+            else:
+                ls_init = [self.params.ls for _ in range(n_dimx)]
         else:
-            ls_init_list = [self.params.ls for _ in range(n_dimx)]
+            assert not isinstance(self.params.ls, collections.abc.Sequence)
+            ls_init = self.params.ls
         kernel = gpflow.kernels.SquaredExponential(
-            variance=self.params.alpha**2, lengthscales=ls_init_list
+            variance=self.params.alpha**2, lengthscales=ls_init
         )
 
         # Set GPR model
