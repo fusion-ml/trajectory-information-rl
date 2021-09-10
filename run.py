@@ -211,7 +211,7 @@ def main(config):
             if ax is not None:
                 # Plot observations
                 scatter(ax, data.x, color='grey', s=5, alpha=0.1, env=env,
-                        normalize_obs=config.normalize_obs)  # small grey dots
+                        normalize_obs=config.env.normalize_env)  # small grey dots
                 # ax.scatter(x_obs, y_obs, color='k', s=120)             # big black dots
 
                 for path in acqfn.exe_path_list:
@@ -219,7 +219,7 @@ def main(config):
 
                 # Plot x_next
                 scatter(ax, x_next, color='deeppink', s=120, zorder=100, env=env,
-                        normalize_obs=config.normalize_obs)
+                        normalize_obs=config.env.normalize_env)
             posterior_returns = [compute_return(output[2], 1) for output in acqfn.output_list]
             dumper.add('Posterior Returns', posterior_returns)
         else:

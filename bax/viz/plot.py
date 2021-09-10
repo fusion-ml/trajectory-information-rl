@@ -167,7 +167,6 @@ def noop(*args, **kwargs):
 
 
 def scatter(ax, x_data, env, normalize_obs, **kwargs):
-    # check out 
     obs_dim = env.observation_space.low.size
     x_data = np.array(x_data)
     if normalize_obs:
@@ -175,6 +174,6 @@ def scatter(ax, x_data, env, normalize_obs, **kwargs):
         unnorm_obs = env.unnormalize_obs(norm_obs)
         x_data = unnorm_obs
     x_obs = x_data[..., 0]
-    y_obs = y_data[..., 1]
+    y_obs = x_data[..., 1]
 
     ax.scatter(x_obs, y_obs, **kwargs)
