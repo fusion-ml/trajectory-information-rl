@@ -203,6 +203,7 @@ def main(config):
                 x_test = unif_random_sample_domain(domain, n=config.n_rand_acqopt)
             x_next, acq_val = acqopt.optimize(x_test)
             dumper.add('Acquisition Function Value', acq_val)
+            dumper.add('x_next', x_next)
 
             # Plot true path and posterior path samples
             ax = plot_fn(true_path, ax, domain, 'true')
