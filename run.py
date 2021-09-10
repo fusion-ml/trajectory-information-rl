@@ -18,13 +18,14 @@ from bax.acq.acquisition import MultiBaxAcqFunction, MCAcqFunction
 from bax.acq.acqoptimize import AcqOptimizer
 from bax.alg.mpc import MPC
 from bax import envs
-from bax.envs.wrappers import NormalizedEnv, make_normalized_reward_function, make_update_obs_fn, make_normalized_plot_fn
+from bax.envs.wrappers import NormalizedEnv, make_normalized_reward_function, make_update_obs_fn
+from bax.envs.wrappers import make_normalized_plot_fn
 from bax.util.misc_util import Dumper, make_postmean_fn
 from bax.util.control_util import get_f_batch_mpc, get_f_batch_mpc_reward, compute_return, evaluate_policy
 from bax.util.control_util import rollout_mse, mse
 from bax.util.domain_util import unif_random_sample_domain
 from bax.util.timing import Timer
-from bax.viz import plotters
+from bax.viz import plotters, scatter
 import neatplot
 
 tf.compat.v1.logging.set_verbosity(tf.compat.v1.logging.ERROR)
@@ -209,16 +210,16 @@ def main(config):
             ax = plot_fn(true_path, ax, domain, 'true')
             if ax is not None:
                 # Plot observations
-                x_obs = [xi[0] for xi in data.x]
-                y_obs = [xi[1] for xi in data.x]
-                ax.scatter(x_obs, y_obs, color='grey', s=5, alpha=0.1)  # small grey dots
+                scatter(ax, data.x, color='grey', s=5, alpha=0.1, env=env,
+                        normalize_obs=config.normalize_obs)  # small grey dots
                 # ax.scatter(x_obs, y_obs, color='k', s=120)             # big black dots
 
                 for path in acqfn.exe_path_list:
                     ax = plot_fn(path, ax, domain, 'samp')
 
                 # Plot x_next
-                ax.scatter(x_next[0], x_next[1], color='deeppink', s=120, zorder=100)
+                scatter(ax, x_next, color='deeppink', s=120, zorder=100, env=env,
+                        normalize_obs=config.normalize_obs)
             posterior_returns = [compute_return(output[2], 1) for output in acqfn.output_list]
             dumper.add('Posterior Returns', posterior_returns)
         else:

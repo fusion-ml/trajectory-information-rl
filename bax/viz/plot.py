@@ -164,3 +164,17 @@ def plot_acrobot(path, ax=None, domain=None, path_str="samp", env=None):
 
 def noop(*args, **kwargs):
     pass
+
+
+def scatter(ax, x_data, env, normalize_obs, **kwargs):
+    # check out 
+    obs_dim = env.observation_space.low.size
+    x_data = np.array(x_data)
+    if normalize_obs:
+        norm_obs = x_data[..., :obs_dim]
+        unnorm_obs = env.unnormalize_obs(norm_obs)
+        x_data = unnorm_obs
+    x_obs = x_data[..., 0]
+    y_obs = y_data[..., 1]
+
+    ax.scatter(x_obs, y_obs, **kwargs)
