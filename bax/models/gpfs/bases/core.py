@@ -68,7 +68,7 @@ class KernelBasis(AbstractBasis):
       #       the behavior of gpflow.covariances.Kuf.
       _kwargs.setdefault('full_output_cov', False)
 
-    return self.kernel.K(x, self.centers, **_kwargs)
+    return self.kernel(x, self.centers, **_kwargs)
 
   @property
   def num_bases(self):
