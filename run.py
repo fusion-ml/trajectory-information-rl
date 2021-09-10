@@ -319,6 +319,7 @@ def main(config):
                 dumper.add('Eval Returns', real_returns)
                 dumper.add('Eval ndata', len(data.x))
                 logging.info(f"Eval Results: real_returns={real_returns}")
+                logging.info(f"Eval Results: mean={np.mean(real_returns)}, std={np.std(real_returns)}")
                 current_mpc_mse = np.mean(mses)
                 test_y_hat = postmean_fn(test_data.x)
                 random_mse = mse(test_data.y, test_y_hat)
