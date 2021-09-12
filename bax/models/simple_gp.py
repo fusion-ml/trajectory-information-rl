@@ -4,9 +4,12 @@ Code for Gaussian processes.
 
 from argparse import Namespace
 import copy
+import collections.abc
 import numpy as np
+from scipy.spatial.distance import cdist #### NOTE
 
-from .gp.gp_utils import kern_exp_quad, sample_mvn, gp_post
+#from .gp.gp_utils import kern_exp_quad, sample_mvn, gp_post
+from .gp.gp_utils import sample_mvn, gp_post #### NOTE
 from .gp.gp_utils import solve_lower_triangular, solve_upper_triangular, get_cholesky_decomp
 from ..util.base import Base
 from ..util.misc_util import dict_to_namespace
@@ -37,10 +40,31 @@ class SimpleGp(Base):
         params = dict_to_namespace(params)
 
         self.params.name = getattr(params, 'name', 'SimpleGp')
+        self.params.n_dimx = getattr(params, 'n_dimx', 2)
         self.params.ls = getattr(params, 'ls', 3.7)
         self.params.alpha = getattr(params, 'alpha', 1.85)
         self.params.sigma = getattr(params, 'sigma', 1e-2)
-        self.params.kernel = getattr(params, 'kernel', kern_exp_quad)
+        self.params.kernel = getattr(params, 'kernel', self.kern_exp_quad) #### NOTE
+
+        # Format lengthscale
+        if not isinstance(self.params.ls, collections.abc.Sequence):
+            self.params.ls = [self.params.ls for _ in range(self.n_dimx)]
+        self.params.ls = np.array(self.params.ls).reshape(-1)
+
+    def kern_exp_quad(self, xmat1, xmat2, ls, alpha):
+        """Test."""
+        # Sklearn version ard kernel
+        #dists = cdist(xmat1 / ls, xmat2 / ls, metric='sqeuclidean')
+        #exp_neg_norm = np.exp(-.5 * dists)
+        #return alpha ** 2 * exp_neg_norm
+
+        # Biswa version ard kernel
+        xmat1 = np.expand_dims(xmat1, axis=1)
+        xmat2 = np.expand_dims(xmat2, axis=0)
+        diff = xmat1 - xmat2
+        diff /= ls
+        norm = np.sum(diff ** 2, axis=-1) / 2.0
+        return alpha ** 2 * np.exp(-norm)
 
     def set_data(self, data):
         """Set self.data."""

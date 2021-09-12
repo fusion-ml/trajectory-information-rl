@@ -47,7 +47,7 @@ class GpflowGp(SimpleGp):
         self.params.use_ard = getattr(params, 'use_ard', True)
         self.params.alpha = getattr(params, 'alpha', 1.0)
         self.params.fixed_noise = getattr(params, 'fixed_noise', True)
-        self.params.sigma = getattr(params, 'sigma', 0.1)
+        self.params.sigma = getattr(params, 'sigma', 0.01)
 
     def set_data(self, data):
         """Set self.data."""

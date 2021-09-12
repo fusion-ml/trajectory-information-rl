@@ -9,7 +9,7 @@ import tensorflow as tf
 from gpflow import kernels
 from gpflow.config import default_float as floatx
 
-from .gpflow_gp import GpflowGp
+from .simple_gp import SimpleGp
 from .gpfs.models import PathwiseGPR
 from .gp.gp_utils import kern_exp_quad
 from ..util.base import Base
@@ -17,7 +17,7 @@ from ..util.misc_util import dict_to_namespace, suppress_stdout_stderr
 from ..util.domain_util import unif_random_sample_domain
 
 
-class GpfsGp(GpflowGp):
+class GpfsGp(SimpleGp):
     """
     GP model using GPFlowSampling.
     """
@@ -190,7 +190,7 @@ class MultiGpfsGp(Base):
         return y_vec
 
     def get_post_mu_cov(self, x_list, full_cov=False):
-        """See GpflowGp. Returns a list of mu, and a list of cov/std."""
+        """Returns a list of mu, and a list of cov/std."""
         mu_list, cov_list = [], []
         for gpfsgp in self.gpfsgp_list:
             # Call usual 1d gpfsgp gp_post_wrapper
@@ -201,7 +201,7 @@ class MultiGpfsGp(Base):
         return mu_list, cov_list
 
     def gp_post_wrapper(self, x_list, data, full_cov=True):
-        """See GpflowGp. Returns a list of mu, and a list of cov/std."""
+        """Returns a list of mu, and a list of cov/std."""
 
         data_list = self.get_data_list(data)
         mu_list = []
