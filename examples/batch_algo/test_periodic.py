@@ -2,10 +2,9 @@ from argparse import Namespace
 import numpy as np
 import matplotlib.pyplot as plt
 from gpflow import kernels
-from gpflow.config import default_float as floatx
 import tensorflow as tf
 from bax.models.gpfs.models import PathwiseGPR
-import periodic
+#import periodic
 
 
 # Set random seed

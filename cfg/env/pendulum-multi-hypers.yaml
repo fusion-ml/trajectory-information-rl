@@ -3,6 +3,9 @@ gp:
   ls: [[2.27, 7.73, 138.94], [0.84, 288.15, 11.05]]
   alpha: [0.54, 0.22]
   sigma: 0.01
+  periodic: False
+  periodic_dims: [0]
+  period: 2.0
 mpc:
   nsamps: 25
   planning_horizon: 20

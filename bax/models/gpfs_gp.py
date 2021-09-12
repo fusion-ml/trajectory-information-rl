@@ -11,7 +11,6 @@ from gpflow.config import default_float as floatx
 
 from .simple_gp import SimpleGp
 from .gpfs.models import PathwiseGPR
-from .gp.gp_utils import kern_exp_quad
 from ..util.base import Base
 from ..util.misc_util import dict_to_namespace, suppress_stdout_stderr
 from ..util.domain_util import unif_random_sample_domain
@@ -35,9 +34,30 @@ class GpfsGp(SimpleGp):
 
     def set_kernel(self, params):
         """Set GPflow kernel."""
-        gpf_kernel = kernels.SquaredExponential(
-            variance=self.params.alpha**2, lengthscales=self.params.ls
-        )
+        super().set_kernel(params)
+
+        if self.params.kernel_str == 'rbf':
+            gpf_kernel = kernels.SquaredExponential(
+                variance=self.params.alpha**2, lengthscales=self.params.ls
+            )
+
+        elif self.params.kernel_str == 'rbf_periodic':
+            period = params.period
+            per_dims = params.periodic_dims
+            rbf_dims = [i for i in range(self.params.n_dimx) if i not in per_dims]
+            gpf_kernel_1 = kernels.SquaredExponential(
+                variance=self.params.alpha**2,
+                lengthscales=self.params.ls[rbf_dims],
+                active_dims=rbf_dims,
+            )
+            gpf_kernel_2 = kernels.SquaredExponential(
+                variance=1.0,
+                lengthscales=self.params.ls[per_dims],
+                active_dims=per_dims,
+            )
+            gpf_kernel_per = kernels.Periodic(gpf_kernel_2, period=period)
+            gpf_kernel = kernels.Product([gpf_kernel_1, gpf_kernel_per])
+
         self.params.gpf_kernel = gpf_kernel
 
     def set_data(self, data):

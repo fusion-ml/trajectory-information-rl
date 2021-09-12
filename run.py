@@ -128,6 +128,10 @@ def main(config):
         'sigma': config.env.gp.sigma,
         'n_dimx': obs_dim + action_dim
     }
+    if config.env.gp.periodic:
+        gp_params['kernel_str'] = 'rbf_periodic'
+        gp_params['periodic_dims'] = config.env.gp.periodic_dims
+        gp_params['period'] = config.env.gp.period
     multi_gp_params = {'n_dimy': obs_dim, 'gp_params': gp_params}
     gp_model_class = BatchMultiGpfsGp
 

@@ -2,69 +2,79 @@
 Utilities for Gaussian process (GP) inference.
 """
 
-from typing import Iterable
 import numpy as np
 from scipy.linalg import solve_triangular
 from scipy.spatial.distance import cdist
 import itertools
 
 
-def kern_exp_quad_per(xmat1, xmat2, ls, alpha, pdims):
+def kern_exp_quad_ard(xmat1, xmat2, ls, alpha):
+    """
+    Exponentiated quadratic kernel function with
+    dimensionwise lengthscales if ls is an ndarray.
+    """
+    xmat1 = np.expand_dims(xmat1, axis=1)
+    xmat2 = np.expand_dims(xmat2, axis=0)
+    diff = xmat1 - xmat2
+    diff /= ls
+    norm = np.sum(diff ** 2, axis=-1) / 2.0
+    kern = alpha ** 2 * np.exp(-norm)
+    return kern
+
+
+def kern_exp_quad_ard_sklearn(xmat1, xmat2, ls, alpha):
+    """
+    Exponentiated quadratic kernel function with dimensionwise lengthscales if ls is an
+    ndarray, based on scikit-learn implementation.
+    """
+    dists = cdist(xmat1 / ls, xmat2 / ls, metric='sqeuclidean')
+    exp_neg_norm = np.exp(-.5 * dists)
+    return alpha ** 2 * exp_neg_norm
+
+
+def kern_exp_quad_ard_per(xmat1, xmat2, ls, alpha, pdims, period=2):
     """
     Exponentiated quadratic kernel function with
     - dimensionwise lengthscales if ls is an ndarray
     - periodic dimensions denoted by pdims. We assume that the period
     is 2.
     """
-    xdim = xmat1.shape[1]
+    xdim = len(ls)
     euc_dims = [i for i in range(xdim) if i not in pdims]
     xmat1 = np.expand_dims(xmat1, axis=1)
-    xmat2 = np.expand_dims(xmat2, axis=2)
+    xmat2 = np.expand_dims(xmat2, axis=0)
     diff = xmat1 - xmat2
     diff_euc = diff[..., euc_dims]
     diff_per = diff[..., pdims]
 
-    dper = np.sin(np.pi * diff_per / 2)
-    deuc = diff_euc
-    dall = np.concatenate([dper, deuc], axis=-1)
-    if isinstance(ls, np.ndarray):
-        ls = ls[pdims + euc_dims]
-    dall /= ls
-    dall = np.sum(dall ** 2, axis=-1) / 2.0
-    kern = alpha ** 2 * np.exp(-dall)
-
-    return kern
-
-def kern_exp_ard(xmat1, xmat2, ls, alpha):
-    """
-    Exponentiated quadratic kernel function with
-    dimensionwise lengthscales if ls is an ndarray.
-    """
-    xmat1 = np.expand_dims(xmat1, axis=1)
-    xmat2 = np.expand_dims(xmat2, axis=2)
-    diff = xmat1 - xmat2
-    diff /= ls
-    norm = np.sum(diff ** 2, axis=-1) / 2.0
+    diff_per = np.sin(np.pi * diff_per / period)
+    diff_all = np.concatenate([diff_per, diff_euc], axis=-1)
+    ls = ls[pdims + euc_dims]
+    diff_all /= ls
+    norm = np.sum(diff_all ** 2, axis=-1) / 2.0
     kern = alpha ** 2 * np.exp(-norm)
 
     return kern
 
-def kern_exp_quad(xmat1, xmat2, ls, alpha):
+
+def kern_exp_quad_noard(xmat1, xmat2, ls, alpha):
     """
     Exponentiated quadratic kernel function (aka squared exponential kernel aka
     RBF kernel).
     """
-    return alpha ** 2 * kern_exp_quad_noscale(xmat1, xmat2, ls)
+    kern = alpha ** 2 * kern_exp_quad_noard_noscale(xmat1, xmat2, ls)
+    return kern
 
 
-def kern_exp_quad_noscale(xmat1, xmat2, ls):
+def kern_exp_quad_noard_noscale(xmat1, xmat2, ls):
     """
     Exponentiated quadratic kernel function (aka squared exponential kernel aka
     RBF kernel), without scale parameter.
     """
     distmat = squared_euc_distmat(xmat1, xmat2)
-    sq_norm = -distmat / (2 * ls ** 2)
-    return np.exp(sq_norm)
+    norm = distmat / (2 * ls ** 2)
+    exp_neg_norm = np.exp(-norm)
+    return exp_neg_norm
 
 
 def squared_euc_distmat(xmat1, xmat2, coef=1.0):

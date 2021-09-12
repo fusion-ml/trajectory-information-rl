@@ -59,6 +59,7 @@ def _fourier_conv2d_transposed(kern: kernels.Conv2dTranspose, **kwargs):
 def _fourier_depthwise_conv2d(kern: kernels.DepthwiseConv2d, **kwargs):
   return fourier_bases.DepthwiseConv2d(kernel=kern, **kwargs)
 
+
 @fourier_basis.register(Periodic)
 def _fourier_periodic(kern: Periodic, **kwargs):
   return periodic_bases.PeriodicBasis(kernel=kern, **kwargs)
