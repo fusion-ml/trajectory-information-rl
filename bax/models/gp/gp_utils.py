@@ -39,19 +39,12 @@ def kern_exp_quad_ard_per(xmat1, xmat2, ls, alpha, pdims, period=2):
     - periodic dimensions denoted by pdims. We assume that the period
     is 2.
     """
-    xdim = len(ls)
-    euc_dims = [i for i in range(xdim) if i not in pdims]
     xmat1 = np.expand_dims(xmat1, axis=1)
     xmat2 = np.expand_dims(xmat2, axis=0)
     diff = xmat1 - xmat2
-    diff_euc = diff[..., euc_dims]
-    diff_per = diff[..., pdims]
-
-    diff_per = np.sin(np.pi * diff_per / period)
-    diff_all = np.concatenate([diff_per, diff_euc], axis=-1)
-    ls = ls[pdims + euc_dims]
-    diff_all /= ls
-    norm = np.sum(diff_all ** 2, axis=-1) / 2.0
+    diff[..., pdims] = np.sin(np.pi * diff[..., pdims] / period)
+    diff /= ls
+    norm = np.sum(diff ** 2, axis=-1) / 2.0
     kern = alpha ** 2 * np.exp(-norm)
 
     return kern
@@ -259,8 +252,8 @@ def main():
     xmat1 = np.array([[1.0, 2.0], [2.0, 3.0]])
     xmat2 = np.array([[2.0, 3.0], [1.0, 4.0]])
 
-    print(kern_exp_quad_per(xmat1, xmat2, np.array([1.0, 2.0]), 1.0, [1]))
-    print(kern_exp_ard(xmat1, xmat2, np.array([1.0, 2.0]), 1.0))
+    print(kern_exp_quad_ard_per(xmat1, xmat2, np.array([1.0, 2.0]), 1.0, [1]))
+    print(kern_exp_quad_ard(xmat1, xmat2, np.array([1.0, 2.0]), 1.0))
 
 if __name__=='__main__':
     main()
