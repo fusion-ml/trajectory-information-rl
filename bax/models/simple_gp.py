@@ -52,7 +52,7 @@ class SimpleGp(Base):
 
         # Format lengthscale
         if not isinstance(self.params.ls, collections.abc.Sequence):
-            self.params.ls = [self.params.ls for _ in range(self.n_dimx)]
+            self.params.ls = [self.params.ls for _ in range(self.params.n_dimx)]
         self.params.ls = np.array(self.params.ls).reshape(-1)
 
         # Set kernel
