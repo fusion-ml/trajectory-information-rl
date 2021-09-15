@@ -9,8 +9,8 @@ import tensorflow as tf
 from gpflow import kernels
 from gpflow.config import default_float as floatx
 
+from gpflow_sampling.models import PathwiseGPR
 from .simple_gp import SimpleGp
-from .gpfs.models import PathwiseGPR
 from ..util.base import Base
 from ..util.misc_util import dict_to_namespace, suppress_stdout_stderr
 from ..util.domain_util import unif_random_sample_domain
