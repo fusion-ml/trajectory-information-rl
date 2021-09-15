@@ -11,3 +11,7 @@ gym==0.18.3
 colorednoise==1.1.1
 tqdm==4.55.0
 hydra-core==1.1.0
+dm-tree==0.1.5
+tensorflow==2.4.0
+tensorflow-probability==0.12.1
+gpflow==2.1.4
