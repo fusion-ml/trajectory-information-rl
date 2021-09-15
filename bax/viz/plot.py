@@ -66,7 +66,7 @@ def plot_lava_path(path, ax=None, domain=None, path_str="samp", env=None):
     elif path_str == "samp":
         ax.plot(x_plot, y_plot, 'k--', linewidth=1, alpha=0.3)
         ax.plot(x_plot, y_plot, 'o', alpha=0.3)
-    ax.scatter(LavaPathEnv.goal[0], LavaPathEnv.goal[1], color = "green", s=20)
+    ax.scatter(LavaPathEnv.goal[0], LavaPathEnv.goal[1], color = "green", s=20, zorder=99)
     return ax
 
 
@@ -175,6 +175,6 @@ def scatter(ax, x_data, env, normalize_obs, **kwargs):
         unnorm_obs = env.unnormalize_obs(norm_obs)
         x_data = unnorm_obs
     x_obs = x_data[..., 0]
-    y_obs = y_data[..., 1]
+    y_obs = x_data[..., 1]
 
     ax.scatter(x_obs, y_obs, **kwargs)
