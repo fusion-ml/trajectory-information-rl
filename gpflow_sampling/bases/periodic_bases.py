@@ -14,7 +14,7 @@ from gpflow_sampling.utils import (move_axis,
                                    expand_to,
                                    batch_tensordot,
                                    inducing_to_tensor)
-from gpflow_sampling.bases.dispatch import fourier_basis
+from gpflow_sampling.bases import fourier_bases
 from scipy.special import iv
 
 
@@ -23,6 +23,8 @@ __all__ = (
   'PeriodicBasis',
   'ProductBasis',
 )
+
+fourier_basis = Dispatcher("fourier_basis")
 
 class PeriodicBasis(AbstractFourierBasis):
   def __init__(self,

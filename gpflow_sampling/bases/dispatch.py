@@ -9,6 +9,8 @@ from typing import Union
 from gpflow import kernels as gpflow_kernels
 from gpflow.base import TensorType
 from gpflow.utilities import Dispatcher
+from gpflow.kernels.base import Product
+from gpflow.kernels.periodic import Periodic
 from gpflow.inducing_variables import InducingVariables
 from gpflow_sampling import kernels
 from gpflow_sampling.bases import fourier_bases, periodic_bases
