@@ -4,8 +4,8 @@ import matplotlib.pyplot as plt
 from gpflow import kernels
 from gpflow.config import default_float as floatx
 import tensorflow as tf
-from bax.models.gpfs.models import PathwiseGPR
-import periodic
+from gpflow_sampling.models import PathwiseGPR
+from periodic import Periodic
 
 
 # Set random seed

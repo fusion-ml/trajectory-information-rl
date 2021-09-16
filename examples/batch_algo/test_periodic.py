@@ -3,8 +3,8 @@ import numpy as np
 import matplotlib.pyplot as plt
 from gpflow import kernels
 import tensorflow as tf
-from bax.models.gpfs.models import PathwiseGPR
-#import periodic
+from gpflow_sampling.models import PathwiseGPR
+from periodic import Periodic
 
 
 # Set random seed
@@ -13,7 +13,6 @@ np.random.seed(seed)
 tf.random.set_seed(seed)
 
 # Set data
-n_dimx = 2
 data_x = [[0.0, 0.0], [1.0, 1.0], [2.0, 2.0]]
 data_y = [0.0, 1.0, 2.0]
 
@@ -21,10 +20,10 @@ tf_data_x = tf.convert_to_tensor(np.array(data_x))
 tf_data_y = tf.convert_to_tensor(np.array(data_y).reshape(-1, 1))
 
 # Set GP hypers and kernel
-ls = 1.0
+ls = 0.25
 kernvar = 5.0 ** 2
 noisevar = 1e-2 ** 2
-period = 4.0
+period = 3.99
 
 kexp1 = kernels.SquaredExponential(variance=kernvar, lengthscales=ls, active_dims=[0])
 kexp2 = kernels.SquaredExponential(variance=1.0, lengthscales=ls, active_dims=[1])
@@ -37,7 +36,7 @@ model = PathwiseGPR(
 )
 
 # Set paths
-n_fsamp = 1
+n_fsamp = 2
 n_batch = 3
 n_bases = 5
 paths = model.generate_paths(num_samples=n_fsamp, num_bases=n_bases)
