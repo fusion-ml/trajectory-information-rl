@@ -10,7 +10,7 @@ from gpflow import kernels
 from gpflow.config import default_float as floatx
 
 from gpflow_sampling.models import PathwiseGPR
-from .gpfs.periodic import *
+from .gpfs.periodic import Periodic
 from .simple_gp import SimpleGp
 from ..util.base import Base
 from ..util.misc_util import dict_to_namespace, suppress_stdout_stderr
