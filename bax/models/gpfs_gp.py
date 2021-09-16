@@ -10,6 +10,7 @@ from gpflow import kernels
 from gpflow.config import default_float as floatx
 
 from gpflow_sampling.models import PathwiseGPR
+from .gpfs.periodic import *
 from .simple_gp import SimpleGp
 from ..util.base import Base
 from ..util.misc_util import dict_to_namespace, suppress_stdout_stderr
@@ -43,16 +44,20 @@ class GpfsGp(SimpleGp):
 
         elif self.params.kernel_str == 'rbf_periodic':
             period = params.period
+
             per_dims = params.periodic_dims
+            per_dims_ls_idx = per_dims[0] if len(per_dims)==1 else list(per_dims)
             rbf_dims = [i for i in range(self.params.n_dimx) if i not in per_dims]
+            rbf_dims_ls_idx = rbf_dims[0] if len(rbf_dims)==1 else list(rbf_dims)
+
             gpf_kernel_1 = kernels.SquaredExponential(
                 variance=self.params.alpha**2,
-                lengthscales=self.params.ls[rbf_dims],
+                lengthscales=self.params.ls[rbf_dims_ls_idx],
                 active_dims=rbf_dims,
             )
             gpf_kernel_2 = kernels.SquaredExponential(
                 variance=1.0,
-                lengthscales=self.params.ls[per_dims],
+                lengthscales=self.params.ls[per_dims_ls_idx],
                 active_dims=per_dims,
             )
             gpf_kernel_per = kernels.Periodic(gpf_kernel_2, period=period)
@@ -87,8 +92,7 @@ class GpfsGp(SimpleGp):
         Xinit = tf.random.uniform(
             [n_fsamp, self.params.n_dimx], minval=0.0, maxval=0.1, dtype=floatx()
         )
-        Xvars = tf.Variable(Xinit)
-        self.fsl_xvars = Xvars
+        self.fsl_xvars = Xinit.numpy() #### TODO initialize directly with numpy
         self.n_fsamp = n_fsamp
 
     @tf.function
@@ -104,7 +108,7 @@ class GpfsGp(SimpleGp):
         x_list = self.replace_x_list_none(x_list)
 
         # Set fsl_xvars as x_list, call fsl, return y_list
-        self.fsl_xvars.assign(x_list)
+        self.fsl_xvars = np.array(x_list)
 
         y_tf = self.call_fsl_on_xvars(self.params.model, self.fsl_xvars)
         y_list = list(y_tf.numpy().reshape(-1))
@@ -120,7 +124,7 @@ class GpfsGp(SimpleGp):
         x_dupe_list = [x for _ in range(self.n_fsamp)]
 
         # Set fsl_xvars as x_dupe_list, call fsl, return y_list
-        self.fsl_xvars.assign(x_dupe_list)
+        self.fsl_xvars = np.array(x_dupe_list)
         y_tf = self.call_fsl_on_xvars(self.params.model, self.fsl_xvars)
         y_mean = y_tf.numpy().reshape(-1).mean()
         return y_mean
@@ -291,8 +295,7 @@ class BatchGpfsGp(GpfsGp):
         n_batch.
         """
         Xinit = tf.zeros([self.n_fsamp, n_batch, self.params.n_dimx], dtype=floatx())
-        Xvars = tf.Variable(Xinit)
-        self.fsl_xvars = Xvars
+        self.fsl_xvars = Xinit.numpy() #### TODO initialize directly with numpy
 
     def call_function_sample_list(self, x_batch_list):
         """
@@ -311,7 +314,7 @@ class BatchGpfsGp(GpfsGp):
             self.initialize_fsl_xvars(max_n_batch)
 
         # Set fsl_xvars as x_batch_list_new
-        self.fsl_xvars.assign(x_batch_list_new)
+        self.fsl_xvars = np.array(x_batch_list_new)
 
         # Call fsl on fsl_xvars, return y_list
         y_tf = self.call_fsl_on_xvars(self.params.model, self.fsl_xvars)

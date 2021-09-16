@@ -42,7 +42,8 @@ def kern_exp_quad_ard_per(xmat1, xmat2, ls, alpha, pdims, period=2):
     xmat1 = np.expand_dims(xmat1, axis=1)
     xmat2 = np.expand_dims(xmat2, axis=0)
     diff = xmat1 - xmat2
-    diff[..., pdims] = np.sin(np.pi * diff[..., pdims] / period)
+    diff[..., pdims] = np.sin((np.pi * diff[..., pdims] / period) % (2 * np.pi))
+    #diff[..., pdims] = np.cos( (np.pi/2) + (np.pi * diff[..., pdims] / period) )
     diff /= ls
     norm = np.sum(diff ** 2, axis=-1) / 2.0
     kern = alpha ** 2 * np.exp(-norm)
