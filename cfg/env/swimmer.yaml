@@ -5,11 +5,11 @@ gp:
   alpha: [0.08, 0.04, 0.1, 0.2, 0.3, 0.14, 0.3, 0.3, 0.2]
   sigma: 0.01
 mpc:
-  nsamps: 30
+  nsamps: 4
   planning_horizon: 15
-  n_elites: 6
+  n_elites: 4
   beta: 3
   gamma: 1.25
   xi: 0.3
-  num_iters: 5
-  actions_per_plan: 1
+  num_iters: 3
+  actions_per_plan: 3
