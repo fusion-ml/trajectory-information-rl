@@ -13,7 +13,7 @@ import random
 from matplotlib import pyplot as plt
 
 from bax.models.gpfs_gp import BatchMultiGpfsGp
-from bax.models.stan_gp import get_stangp_hypers_from_data
+from bax.models.gpflow_gp import get_gpflow_hypers_from_data
 from bax.acq.acquisition import MultiBaxAcqFunction, MCAcqFunction
 from bax.acq.acqoptimize import AcqOptimizer
 from bax.alg.mpc import MPC
@@ -31,6 +31,9 @@ tf.compat.v1.logging.set_verbosity(tf.compat.v1.logging.ERROR)
 
 @hydra.main(config_path='cfg', config_name='config')
 def main(config):
+    # ==============================================
+    #   Define and configure
+    # ==============================================
     dumper = Dumper(config.name)
 
     # Set plot settings
@@ -43,12 +46,10 @@ def main(config):
     np.random.seed(seed)
     tf.random.set_seed(seed)
 
+    # Check fixed_start_obs and num_samples_mc compatability
     assert (not config.fixed_start_obs) or config.num_samples_mc == 1, f"Need to have a fixed start obs ({config.fixed_start_obs}) or only 1 mc sample ({config.num_samples_mc})"  # NOQA
 
-    # -------------
-    # Start Script
-    # -------------
-    # Set black-box function
+    # Set black-box functions
     env = gym.make(config.env.name)
     env.seed(seed)
     obs_dim = env.observation_space.low.size
@@ -68,8 +69,12 @@ def main(config):
         f = get_f_batch_mpc(plan_env, use_info_delta=config.teleport)
     update_fn = make_update_obs_fn(env, teleport=config.teleport)
 
+    # Set start obs
     start_obs = env.reset() if config.fixed_start_obs else None
     logging.info(f"Start obs: {start_obs}")
+
+    # set plot fn
+    plot_fn = partial(plotters[config.env.name], env=plan_env)
 
     # Set domain
     low = np.concatenate([env.observation_space.low, env.action_space.low])
@@ -99,10 +104,17 @@ def main(config):
     )
     algo = algo_class(algo_params)
 
-    # Set data
+    # Set initial data
     data = Namespace()
     data.x = unif_random_sample_domain(domain, config.num_init_data)
     data.y = f(data.x)
+
+    # Plot initial data
+    ax_obs_init, fig_obs_init = plot_fn(path=None, domain=domain)
+    x_obs = [xi[0] for xi in data.x]
+    y_obs = [xi[1] for xi in data.x]
+    ax_obs_init.plot(x_obs, y_obs, 'o', color='k', ms=1)
+    neatplot.save_figure(str(dumper.expdir / f'mpc_obs_init'), 'png', fig=fig_obs_init)
 
     # Make a test set for model evalution separate from the controller
     test_data = Namespace()
@@ -110,8 +122,16 @@ def main(config):
     test_data.y = f(test_data.x)
 
     # Set model
-    gp_params = {'ls': config.env.gp.ls, 'alpha': config.env.gp.alpha, 'sigma': config.env.gp.sigma, 'n_dimx': obs_dim +
-                 action_dim}
+    gp_params = {
+        'ls': config.env.gp.ls,
+        'alpha': config.env.gp.alpha,
+        'sigma': config.env.gp.sigma,
+        'n_dimx': obs_dim + action_dim
+    }
+    if config.env.gp.periodic:
+        gp_params['kernel_str'] = 'rbf_periodic'
+        gp_params['periodic_dims'] = env.periodic_dimensions
+        gp_params['period'] = config.env.gp.period
     multi_gp_params = {'n_dimy': obs_dim, 'gp_params': gp_params}
     gp_model_class = BatchMultiGpfsGp
 
@@ -119,66 +139,110 @@ def main(config):
     acqfn_params = {'n_path': config.n_paths, 'crop': True}
     acqfn_class = MultiBaxAcqFunction
 
-    # Compute true path and associated test set
+    # ==============================================
+    #   Computing groundtruth trajectories
+    # ==============================================
+    # Instantiate true algo and axes/figures
     true_algo = algo_class(algo_params)
-    full_path, output = true_algo.run_algorithm_on_f(f)
-    true_path = true_algo.get_exe_path_crop()
-    true_planning_data = list(zip(true_algo.exe_path.x, true_algo.exe_path.y))
-    test_points = random.sample(true_planning_data, config.test_set_size)
-    test_mpc_data = Namespace()
-    test_mpc_data.x = [tp[0] for tp in test_points]
-    test_mpc_data.y = [tp[1] for tp in test_points]
+    ax_gt, fig_gt = None, None
 
-    # Optionally: print fit for GP hyperparameters (only prints; still uses hypers in config)
-    if config.fit_hypers:
-        print('***** Fitting GP hyperparameters *****')
-        fit_data = test_mpc_data
-        print(f'Number of observations in fit_data: {len(fit_data.x)}')
-        assert len(fit_data.x) <= 3000, "fit_data larger than preset limit (can cause memory issues)"
-        for idx in range(len(data.y[0])):
-            data_fit = Namespace(x=fit_data.x, y=[yi[idx] for yi in fit_data.y])
-            gp_params = get_stangp_hypers_from_data(data_fit)
-        return
-
-    # set plot fn
-    plot_fn = partial(plotters[config.env.name], env=plan_env)
-
-    ax = None
     # Compute and plot true path (on true function) multiple times
     full_paths = []
+    true_paths = []
     returns = []
     path_lengths = []
+    test_mpc_data = Namespace(x=[], y=[])
     pbar = trange(config.num_eval_trials)
-    for _ in pbar:
+    for i in pbar:
+        # Run algorithm and extract paths
         full_path, output = true_algo.run_algorithm_on_f(f)
         full_paths.append(full_path)
-        tp = true_algo.get_exe_path_crop()
         path_lengths.append(len(full_path.x))
-        ax = plot_fn(tp, ax, domain, 'true')
+        true_path = true_algo.get_exe_path_crop()
+        true_paths.append(true_path)
+
+        # Extract fraction of planning data for test_mpc_data
+        true_planning_data = list(zip(true_algo.exe_path.x, true_algo.exe_path.y))
+        test_points = random.sample(true_planning_data, int(config.test_set_size/config.num_eval_trials))
+        new_x = [test_pt[0] for test_pt in test_points]
+        new_y = [test_pt[1] for test_pt in test_points]
+        test_mpc_data.x.extend(new_x)
+        test_mpc_data.y.extend(new_y)
+
+        # Plot groundtruth paths and print info
+        ax_gt, fig_gt = plot_fn(true_path, ax_gt, fig_gt, domain, 'samp')
         returns.append(compute_return(output[2], 1))
         stats = {"Mean Return": np.mean(returns), "Std Return:": np.std(returns)}
         pbar.set_postfix(stats)
+
+    # Log and dump
     returns = np.array(returns)
     dumper.add('GT Returns', returns)
     path_lengths = np.array(path_lengths)
-    logging.info(f"GT Results: returns.mean()={returns.mean()} returns.std()={returns.std()}")
+    logging.info(f"GT Returns: returns{returns}")
+    logging.info(f"GT Returns: mean={returns.mean()} std={returns.std()}")
     logging.info(f"GT Execution: path_lengths.mean()={path_lengths.mean()} path_lengths.std()={path_lengths.std()}")
     all_x = []
     for fp in full_paths:
         all_x += fp.x
     all_x = np.array(all_x)
-    print(f"{all_x.min(axis=0)=}")
-    print(f"{all_x.max(axis=0)=}")
-    neatplot.save_figure(str(dumper.expdir / 'mpc_gt'), 'png')
+    print(f"all_x.shape = {all_x.shape}")
+    print(f"all_x.min(axis=0) = {all_x.min(axis=0)}")
+    print(f"all_x.max(axis=0) = {all_x.max(axis=0)}")
+    print(f"all_x.mean(axis=0) = {all_x.mean(axis=0)}")
+    print(f"all_x.var(axis=0) = {all_x.var(axis=0)}")
+
+    # Save groundtruth paths plot
+    neatplot.save_figure(str(dumper.expdir / 'mpc_gt'), 'png', fig=fig_gt)
+
+    # ==============================================
+    #   Optionally: fit GP hyperparameters (then exit)
+    # ==============================================
+    if config.fit_hypers:
+        # Use test_mpc_data to fit hyperparameters
+        fit_data = test_mpc_data
+        assert len(fit_data.x) <= 3000, "fit_data larger than preset limit (can cause memory issues)"
+
+        logging.info('\n'+'='*60+'\n Fitting Hyperparameters\n'+'='*60)
+        logging.info(f'Number of observations in fit_data: {len(fit_data.x)}')
+
+        # Plot hyper fitting data
+        ax_obs_hyper_fit, fig_obs_hyper_fit = plot_fn(path=None, domain=domain)
+        x_obs = [xi[0] for xi in fit_data.x]
+        y_obs = [xi[1] for xi in fit_data.x]
+        ax_obs_hyper_fit.plot(x_obs, y_obs, 'o', color='k', ms=1)
+        neatplot.save_figure(str(dumper.expdir / f'mpc_obs_hyper_fit'), 'png', fig=fig_obs_hyper_fit)
+
+        # Perform hyper fitting
+        for idx in range(len(data.y[0])):
+            data_fit = Namespace(x=fit_data.x, y=[yi[idx] for yi in fit_data.y])
+            gp_params = get_gpflow_hypers_from_data(data_fit, print_fit_hypers=True)
+            logging.info(f'gp_params for output {idx} = {gp_params}')
+
+        # End script if hyper fitting bc need to include in config
+        return
+
+    # ==============================================
+    #   Run main algorithm loop
+    # ==============================================
+
+    # Set current_obs as fixed start_obs or reset plan_env
     if config.alg.rollout_sampling:
         current_obs = start_obs.copy() if config.fixed_start_obs else plan_env.reset()
         current_t = 0
+
     posterior_returns = None
+
     for i in range(config.num_iters):
         logging.info('---' * 5 + f' Start iteration i={i} ' + '---' * 5)
         logging.info(f'Length of data.x: {len(data.x)}')
         logging.info(f'Length of data.y: {len(data.y)}')
-        ax = None
+
+        # Initialize various axes and figures
+        ax_all, fig_all = plot_fn(path=None, domain=domain)
+        ax_postmean, fig_postmean = plot_fn(path=None, domain=domain)
+        ax_samp, fig_samp = plot_fn(path=None, domain=domain)
+        ax_obs, fig_obs = plot_fn(path=None, domain=domain)
 
         # Set model
         model = gp_model_class(multi_gp_params, data)
@@ -202,19 +266,24 @@ def main(config):
             dumper.add('Acquisition Function Value', acq_val)
 
             # Plot true path and posterior path samples
-            ax = plot_fn(true_path, ax, domain, 'true')
-            if ax is not None:
+            ax_all, fig_all = plot_fn(true_path, ax_all, fig_all, domain, 'true')
+            if ax_all is not None:
                 # Plot observations
                 x_obs = [xi[0] for xi in data.x]
                 y_obs = [xi[1] for xi in data.x]
-                ax.scatter(x_obs, y_obs, color='grey', s=5, alpha=0.1)  # small grey dots
-                # ax.scatter(x_obs, y_obs, color='k', s=120)             # big black dots
+                ax_all.scatter(x_obs, y_obs, color='grey', s=5, alpha=0.1)
+                ax_obs.plot(x_obs, y_obs, 'o', color='k', ms=1)
 
+                # Plot execution path posterior samples
                 for path in acqfn.exe_path_list:
-                    ax = plot_fn(path, ax, domain, 'samp')
+                    ax_all, fig_all = plot_fn(path, ax_all, fig_all, domain, 'samp')
+                    ax_samp, fig_samp = plot_fn(path, ax_samp, fig_samp, domain, 'samp')
 
                 # Plot x_next
-                ax.scatter(x_next[0], x_next[1], color='deeppink', s=120, zorder=100)
+                ax_all.scatter(x_next[0], x_next[1], facecolors='deeppink', edgecolors='k', s=120, zorder=100)
+                ax_obs.plot(x_next[0], x_next[1], 'o', mfc='deeppink', mec='k', ms=12, zorder=100)
+
+            # Store returns of posterior samples
             posterior_returns = [compute_return(output[2], 1) for output in acqfn.output_list]
             dumper.add('Posterior Returns', posterior_returns)
         else:
@@ -224,10 +293,14 @@ def main(config):
             action = policy(current_obs)
             x_next = np.concatenate([current_obs, action])
 
-        save_figure = False
+
+        # ==============================================
+        #   Periodically run evaluation and plot
+        # ==============================================
         if i % config.eval_frequency == 0 or i + 1 == config.num_iters:
             if posterior_returns:
-                logging.info(f"Current posterior returns: {np.mean(posterior_returns)}, std: {np.std(posterior_returns)}")
+                logging.info(f"Current posterior returns: {posterior_returns}")
+                logging.info(f"Current posterior returns: mean={np.mean(posterior_returns)}, std={np.std(posterior_returns)}")
             with Timer("Evaluate the current MPC policy"):
                 # execute the best we can
                 # this is required to delete the current execution path
@@ -245,7 +318,8 @@ def main(config):
                     real_returns.append(real_return)
                     real_path_mpc = Namespace()
                     real_path_mpc.x = real_obs
-                    ax = plot_fn(real_path_mpc, ax, domain, 'postmean')
+                    ax_all, fig_all = plot_fn(real_path_mpc, ax_all, fig_all, domain, 'postmean')
+                    ax_postmean, fig_postmean = plot_fn(real_path_mpc, ax_postmean, fig_postmean, domain, 'samp')
                     mses.append(rollout_mse(algo.old_exe_paths[-1], f))
                     stats = {"Mean Return": np.mean(real_returns), "Std Return:": np.std(real_returns),
                              "Model MSE": np.mean(mses)}
@@ -255,6 +329,7 @@ def main(config):
                 dumper.add('Eval Returns', real_returns)
                 dumper.add('Eval ndata', len(data.x))
                 logging.info(f"Eval Results: real_returns={real_returns}")
+                logging.info(f"Eval Results: mean={np.mean(real_returns)}, std={np.std(real_returns)}")
                 current_mpc_mse = np.mean(mses)
                 test_y_hat = postmean_fn(test_data.x)
                 random_mse = mse(test_data.y, test_y_hat)
@@ -267,9 +342,13 @@ def main(config):
                 logging.info(f"Random MSE: {random_mse:.3f}")
                 logging.info(f"GT MPC MSE: {gt_mpc_mse:.3f}")
 
-            save_figure = True
-        if save_figure:
-            neatplot.save_figure(str(dumper.expdir / f'mpc_{i}'), 'png')
+            # Save figure at end of evaluation
+            neatplot.save_figure(str(dumper.expdir / f'mpc_all_{i}'), 'png', fig=fig_all)
+            neatplot.save_figure(str(dumper.expdir / f'mpc_postmean_{i}'), 'png', fig=fig_postmean)
+            neatplot.save_figure(str(dumper.expdir / f'mpc_samp_{i}'), 'png', fig=fig_samp)
+            neatplot.save_figure(str(dumper.expdir / f'mpc_obs_{i}'), 'png', fig=fig_obs)
+
+        # Dumper save
         dumper.save()
 
         # Query function, update data
