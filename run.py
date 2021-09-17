@@ -219,7 +219,7 @@ def main(config):
             gp_params = get_gpflow_hypers_from_data(data_fit, print_fit_hypers=True)
             logging.info(f'gp_params for output {idx} = {gp_params}')
 
-        # End script
+        # End script if hyper fitting bc need to include in config
         return
 
     # ==============================================
