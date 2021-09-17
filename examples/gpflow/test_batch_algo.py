@@ -3,14 +3,16 @@ Testing algorithms that can make batch query steps.
 """
 
 from argparse import Namespace
+import logging
+import sys
 import numpy as np
 import matplotlib.pyplot as plt
 import tensorflow as tf
 
-from bax.models.gpfs_gp import MultiGpfsGp
+from bax.models.gpfs_gp import BatchMultiGpfsGp
 from bax.acq.acquisition import MultiBaxAcqFunction
 from bax.acq.acqoptimize import AcqOptimizer
-from bax.alg.algorithms import Algorithm
+from bax.alg.algorithms import BatchAlgorithm
 from bax.util.misc_util import dict_to_namespace
 from bax.util.domain_util import unif_random_sample_domain, project_to_domain
 import neatplot
@@ -21,6 +23,8 @@ neatplot.set_style()
 neatplot.update_rc('figure.dpi', 120)
 neatplot.update_rc('text.usetex', False)
 
+# Logging config
+logging.basicConfig(stream=sys.stdout, level=logging.INFO)
 
 # Set random seed
 seed = 11
@@ -32,9 +36,10 @@ DEFAULT_F_IS_DIFF = True
 LONG_PATH = True
 
 
-class NStep(Algorithm):
+class NBatchStep(BatchAlgorithm):
     """
-    An algorithm that takes n steps through a state space (and touches n+1 states).
+    An algorithm that takes n batches of steps through a state space, where each batch
+    is fixed at a size of 2.
     """
 
     def set_params(self, params):
@@ -42,35 +47,44 @@ class NStep(Algorithm):
         super().set_params(params)
         params = dict_to_namespace(params)
 
-        self.params.name = getattr(params, 'name', 'NStep')
+        self.params.name = getattr(params, 'name', 'NBatchStep')
         self.params.n = getattr(params, 'n', 10)
         self.params.f_is_diff = getattr(params, 'f_is_diff', DEFAULT_F_IS_DIFF)
         self.params.init_x = getattr(params, 'init_x', [0.0, 0.0])
         self.params.project_to_domain = getattr(params, 'project_to_domain', True)
         self.params.domain = getattr(params, 'domain', [[0.0, 10.0], [0.0, 10.0]])
 
-    def get_next_x(self):
+    def get_next_x_batch(self):
         """
         Given the current execution path, return the next x in the execution path. If
         the algorithm is complete, return None.
         """
         len_path = len(self.exe_path.x)
         if len_path == 0:
-            next_x = self.params.init_x
+            next_x_batch = [self.params.init_x] * 2
         elif len_path >= self.params.n + 1:
-            next_x = None
+            next_x_batch = []
         else:
             if self.params.f_is_diff:
-                zip_path_end = zip(self.exe_path.x[-1], self.exe_path.y[-1])
-                next_x = [xi + yi for xi, yi in zip_path_end]
+                zip_path_end_1 = zip(self.exe_path.x[-2], self.exe_path.y[-2])
+                next_x_1 = [xi + yi for xi, yi in zip_path_end_1]
+                next_x_1[-1] = next_x_1[-1] + self.exe_path.y[-1][-1]
+
+                zip_path_end_2 = zip(self.exe_path.x[-1], self.exe_path.y[-1])
+                next_x_2 = [xi + yi for xi, yi in zip_path_end_2]
+                next_x_2[0] = next_x_2[0] + self.exe_path.y[-1][0]
+
+                next_x_batch = [next_x_1, next_x_2]
             else:
-                next_x = self.exe_path.y[-1]
+                raise NotImplementedError("Not implemented!")
 
             if self.params.project_to_domain:
                 # Optionally, project to domain
-                next_x = project_to_domain(next_x, self.params.domain)
+                next_x_batch = [
+                    project_to_domain(x, self.params.domain) for x in next_x_batch
+                ]
 
-        return next_x
+        return next_x_batch
 
     def get_output(self):
         """Return output based on self.exe_path."""
@@ -96,10 +110,12 @@ def plot_path_2d(path, ax=None, true_path=False):
     y_plot = [xi[1] for xi in path.x]
 
     if true_path:
-        ax.plot(x_plot, y_plot, 'k--', linewidth=3)
+        ax.plot(x_plot[1::2], y_plot[1::2], 'k--', linewidth=3)
+        ax.plot(x_plot[::2], y_plot[::2], 'k--', linewidth=3)
         ax.plot(x_plot, y_plot, '*', color='k', markersize=15)
     else:
-        ax.plot(x_plot, y_plot, 'k--', linewidth=1, alpha=0.3)
+        ax.plot(x_plot[1::2], y_plot[1::2], 'k--', linewidth=1, alpha=0.3)
+        ax.plot(x_plot[::2], y_plot[::2], 'k--', linewidth=1, alpha=0.3)
         ax.plot(x_plot, y_plot, 'o', alpha=0.3)
 
 
@@ -109,19 +125,28 @@ def plot_path_2d(path, ax=None, true_path=False):
 # Set black-box function
 f = step_northwest
 
+# Set batch version of black-box function (for running BatchAlgorithm on f)
+def f_batch(x_list): return [f(x) for x in x_list]
+
 # Set domain
 domain = [[0, 23], [0, 23]] if LONG_PATH else [[0, 10], [0, 10]]
 
 # Set algorithm
-algo_class = NStep
+algo_class = NBatchStep
 n_steps = 40 if LONG_PATH else 15
 algo_params = {'n': n_steps, 'init_x': [0.5, 0.5], 'domain': domain}
 algo = algo_class(algo_params)
 
 # Set model
-gp_params = {'ls': 8.0, 'alpha': 5.0, 'sigma': 1e-2, 'n_dimx': 2}
+#gp_params = {'ls': 8.0, 'alpha': 5.0, 'sigma': 1e-2, 'n_dimx': 2}
+gp_params = {
+    'ls': [[10.0, 8.0], [15.0, 10.0]],
+    'alpha': [5.0, 6.0],
+    'sigma': 1e-2,
+    'n_dimx': 2
+}
 multi_gp_params = {'n_dimy': 2, 'gp_params': gp_params}
-gp_model_class = MultiGpfsGp
+gp_model_class = BatchMultiGpfsGp
 
 # Set data
 data = Namespace()
@@ -136,7 +161,7 @@ n_rand_acqopt = 1000
 
 # Compute true path
 true_algo = algo_class(algo_params)
-true_path, _ = algo.run_algorithm_on_f(f)
+true_path, _ = algo.run_algorithm_on_f(f_batch)
 
 # Run BAX loop
 n_iter = 25
@@ -145,7 +170,7 @@ for i in range(n_iter):
     print('---' * 5 + f' Start iteration i={i} ' + '---' * 5)
 
     # Set model
-    model = gp_model_class(multi_gp_params, data)
+    model = gp_model_class(multi_gp_params, data, verbose=True)
 
     # Set and optimize acquisition function
     acqfn = acqfn_class(acqfn_params, model, algo)
@@ -180,6 +205,7 @@ for i in range(n_iter):
 
     save_figure = True
     if save_figure: neatplot.save_figure(f'bax_multi_{i}', 'png')
+    plt.close()
 
     # Query function, update data
     print(f'Length of data.x: {len(data.x)}')

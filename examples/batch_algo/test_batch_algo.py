@@ -164,9 +164,10 @@ for i in range(n_iter):
 
     # Set and optimize acquisition function
     acqfn = acqfn_class(acqfn_params, model, algo)
+    acqopt = AcqOptimizer()
+    acqopt.initialize(acqfn)
     x_test = unif_random_sample_domain(domain, n=n_rand_acqopt)
-    acqopt = AcqOptimizer({"x_batch": x_test})
-    x_next, x_next_val = acqopt.optimize(acqfn)
+    x_next, x_next_val = acqopt.optimize(x_test)
 
     # Plot
     fig, ax = plt.subplots(1, 1, figsize=(5, 5))
