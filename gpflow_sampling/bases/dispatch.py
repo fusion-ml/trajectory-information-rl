@@ -9,9 +9,11 @@ from typing import Union
 from gpflow import kernels as gpflow_kernels
 from gpflow.base import TensorType
 from gpflow.utilities import Dispatcher
+from gpflow.kernels.base import Product
+from gpflow.kernels.periodic import Periodic
 from gpflow.inducing_variables import InducingVariables
 from gpflow_sampling import kernels
-from gpflow_sampling.bases import fourier_bases
+from gpflow_sampling.bases import fourier_bases, periodic_bases
 from gpflow_sampling.bases.core import KernelBasis
 
 
@@ -58,3 +60,13 @@ def _fourier_conv2d_transposed(kern: kernels.Conv2dTranspose, **kwargs):
 @fourier_basis.register(kernels.DepthwiseConv2d)
 def _fourier_depthwise_conv2d(kern: kernels.DepthwiseConv2d, **kwargs):
   return fourier_bases.DepthwiseConv2d(kernel=kern, **kwargs)
+
+
+@fourier_basis.register(Periodic)
+def _fourier_periodic(kern: Periodic, **kwargs):
+  return periodic_bases.PeriodicBasis(kernel=kern, **kwargs)
+
+
+@fourier_basis.register(Product)
+def _fourier_periodic(kern: Product, **kwargs):
+  return periodic_bases.ProductBasis(kernel=kern, **kwargs)

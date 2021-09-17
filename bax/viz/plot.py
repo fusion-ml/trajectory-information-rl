@@ -2,7 +2,7 @@ from matplotlib import pyplot as plt
 import numpy as np
 from bax.envs.pilco_cartpole import get_pole_pos, CartPoleSwingUpEnv
 
-def plot_pendulum(path, ax=None, domain=None, path_str="samp", env=None):
+def plot_pendulum(path, ax=None, fig=None, domain=None, path_str="samp", env=None):
     """Plot a path through an assumed two-dimensional state space."""
     assert path_str in ["samp", "true", "postmean"]
     if ax is None:
@@ -14,6 +14,8 @@ def plot_pendulum(path, ax=None, domain=None, path_str="samp", env=None):
             xlabel='$\\theta$',
             ylabel='$\\dot{\\theta}$',
         )
+        if path is None:
+            return ax, fig
 
 
     x_plot = [xi[0] for xi in path.x]
@@ -25,10 +27,17 @@ def plot_pendulum(path, ax=None, domain=None, path_str="samp", env=None):
     elif path_str == "postmean":
         ax.plot(x_plot, y_plot, 'r--', linewidth=3)
         ax.plot(x_plot, y_plot, '*', color='r', markersize=5)
+    #elif path_str == "samp":
+        #ax.plot(x_plot, y_plot, 'k--', linewidth=1, alpha=0.3)
+        #ax.plot(x_plot, y_plot, 'o', alpha=0.3)
     elif path_str == "samp":
-        ax.plot(x_plot, y_plot, 'k--', linewidth=1, alpha=0.3)
-        ax.plot(x_plot, y_plot, 'o', alpha=0.3)
-    return ax
+        lines2d = ax.plot(x_plot, y_plot, '--', linewidth=1, alpha=0.3)
+        ax.plot(x_plot, y_plot, 'o', color=lines2d[0].get_color(), alpha=0.3)
+
+    # Also plot small indicator of start-of-path
+    ax.plot(x_plot[0], y_plot[0], '<', markersize=2, color='k', alpha=0.5)
+
+    return ax, fig
 
 
 def plot_trig_pendulum(path, ax=None, domain=None, path_str="samp", env=None):
@@ -60,7 +69,7 @@ def plot_trig_pendulum(path, ax=None, domain=None, path_str="samp", env=None):
     return ax
 
 
-def plot_pilco_cartpole(path, ax=None, domain=None, path_str="samp", env=None):
+def plot_pilco_cartpole(path, ax=None, fig=None, domain=None, path_str="samp", env=None):
     """Plot a path through an assumed two-dimensional state space."""
     assert path_str in ["samp", "true", "postmean"]
     if ax is None:
@@ -72,6 +81,8 @@ def plot_pilco_cartpole(path, ax=None, domain=None, path_str="samp", env=None):
             xlabel='$x$',
             ylabel='$y$',
         )
+        if path is None:
+            return ax, fig
 
 
     xall = np.array(path.x)[:, :-1]
@@ -89,10 +100,17 @@ def plot_pilco_cartpole(path, ax=None, domain=None, path_str="samp", env=None):
     elif path_str == "postmean":
         ax.plot(x_plot, y_plot, 'r--', linewidth=3)
         ax.plot(x_plot, y_plot, '*', color='r', markersize=5)
+    #elif path_str == "samp":
+        #ax.plot(x_plot, y_plot, 'k--', linewidth=1, alpha=0.3)
+        #ax.plot(x_plot, y_plot, 'o', alpha=0.3)
     elif path_str == "samp":
-        ax.plot(x_plot, y_plot, 'k--', linewidth=1, alpha=0.3)
-        ax.plot(x_plot, y_plot, 'o', alpha=0.3)
-    return ax
+        lines2d = ax.plot(x_plot, y_plot, '--', linewidth=1, alpha=0.3)
+        ax.plot(x_plot, y_plot, 'o', color=lines2d[0].get_color(), alpha=0.3)
+
+    # Also plot small indicator of start-of-path
+    ax.plot(x_plot[0], y_plot[0], '<', markersize=2, color='k', alpha=0.5)
+
+    return ax, fig
 
 
 def plot_trig_pilco_cartpole(path, ax=None, domain=None, path_str="samp", env=None):

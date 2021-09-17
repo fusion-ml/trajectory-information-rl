@@ -4,10 +4,18 @@ Code for Gaussian processes.
 
 from argparse import Namespace
 import copy
+import collections.abc
 import numpy as np
 
-from .gp.gp_utils import kern_exp_quad, sample_mvn, gp_post
-from .gp.gp_utils import solve_lower_triangular, solve_upper_triangular, get_cholesky_decomp
+from .gp.gp_utils import (
+    kern_exp_quad_ard,
+    kern_exp_quad_ard_per,
+    sample_mvn,
+    gp_post,
+    solve_lower_triangular,
+    solve_upper_triangular,
+    get_cholesky_decomp,
+)
 from ..util.base import Base
 from ..util.misc_util import dict_to_namespace
 
@@ -37,10 +45,35 @@ class SimpleGp(Base):
         params = dict_to_namespace(params)
 
         self.params.name = getattr(params, 'name', 'SimpleGp')
+        self.params.n_dimx = getattr(params, 'n_dimx', 2)
         self.params.ls = getattr(params, 'ls', 3.7)
         self.params.alpha = getattr(params, 'alpha', 1.85)
         self.params.sigma = getattr(params, 'sigma', 1e-2)
-        self.params.kernel = getattr(params, 'kernel', kern_exp_quad)
+
+        # Format lengthscale
+        if not isinstance(self.params.ls, collections.abc.Sequence):
+            self.params.ls = [self.params.ls for _ in range(self.params.n_dimx)]
+        self.params.ls = np.array(self.params.ls).reshape(-1)
+
+        # Set kernel
+        self.set_kernel(params)
+
+    def set_kernel(self, params):
+        """Set self.params.kernel."""
+        self.params.kernel_str = getattr(params, 'kernel_str', 'rbf')
+
+        if self.params.kernel_str == 'rbf':
+            self.params.kernel = kern_exp_quad_ard
+
+        elif self.params.kernel_str == 'rbf_periodic':
+            pdims = params.periodic_dims
+            period = params.period
+
+            def kern(xmat1, xmat2, ls, alpha):
+                """Periodic rbf ard kernel with standardized format."""
+                return kern_exp_quad_ard_per(xmat1, xmat2, ls, alpha, pdims=pdims, period=period)
+
+            self.params.kernel = kern
 
     def set_data(self, data):
         """Set self.data."""
