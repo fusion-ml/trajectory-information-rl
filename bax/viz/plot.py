@@ -180,8 +180,8 @@ def plot_acrobot(path, ax=None, domain=None, path_str="samp", env=None):
     return ax
 
 
-def noop(*args, **kwargs):
-    pass
+def noop(*args, ax=None, fig=None, **kwargs):
+    return ax, fig,
 
 
 def make_plot_obs(data, env, normalized):

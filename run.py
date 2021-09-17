@@ -119,8 +119,9 @@ def main(config):
     ax_obs_init, fig_obs_init = plot_fn(path=None, domain=domain)
     x_obs = [xi[0] for xi in data.x]
     y_obs = [xi[1] for xi in data.x]
-    ax_obs_init.plot(x_obs, y_obs, 'o', color='k', ms=1)
-    neatplot.save_figure(str(dumper.expdir / f'mpc_obs_init'), 'png', fig=fig_obs_init)
+    if ax_obs_init:
+        ax_obs_init.plot(x_obs, y_obs, 'o', color='k', ms=1)
+        neatplot.save_figure(str(dumper.expdir / f'mpc_obs_init'), 'png', fig=fig_obs_init)
 
     # Make a test set for model evalution separate from the controller
     test_data = Namespace()
@@ -216,8 +217,9 @@ def main(config):
         ax_obs_hyper_fit, fig_obs_hyper_fit = plot_fn(path=None, domain=domain)
         x_obs = [xi[0] for xi in fit_data.x]
         y_obs = [xi[1] for xi in fit_data.x]
-        ax_obs_hyper_fit.plot(x_obs, y_obs, 'o', color='k', ms=1)
-        neatplot.save_figure(str(dumper.expdir / f'mpc_obs_hyper_fit'), 'png', fig=fig_obs_hyper_fit)
+        if ax_obs_hyper_fit:
+            ax_obs_hyper_fit.plot(x_obs, y_obs, 'o', color='k', ms=1)
+            neatplot.save_figure(str(dumper.expdir / f'mpc_obs_hyper_fit'), 'png', fig=fig_obs_hyper_fit)
 
         # Perform hyper fitting
         for idx in range(len(data.y[0])):
