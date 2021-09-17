@@ -1,5 +1,5 @@
 learn_reward: False
-num_iters: 1000
+num_iters: 4000
 use_acquisition: True
 rollout_sampling: False
-n_rand_acqopt: 500
+n_rand_acqopt: 1000
