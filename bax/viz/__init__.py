@@ -1,4 +1,12 @@
-from bax.viz.plot import plot_pendulum, plot_cartpole, plot_pilco_cartpole, plot_acrobot, noop, plot_lava_path, scatter
+from bax.viz.plot import (
+    plot_pendulum,
+    plot_cartpole,
+    plot_pilco_cartpole,
+    plot_acrobot,
+    noop,
+    plot_lava_path,
+    make_plot_obs,
+    )
 plotters = {
         'bacpendulum-v0': plot_pendulum,
         'bacpendulum-tight-v0': plot_pendulum,
