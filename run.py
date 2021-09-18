@@ -225,7 +225,8 @@ def main(config):
         # Perform hyper fitting
         for idx in range(len(data.y[0])):
             data_fit = Namespace(x=fit_data.x, y=[yi[idx] for yi in fit_data.y])
-            gp_params = get_gpflow_hypers_from_data(data_fit, print_fit_hypers=True, opt_max_iter=cfg.env.gp.opt_max_iter)
+            gp_params = get_gpflow_hypers_from_data(data_fit, print_fit_hypers=True,
+                                                    opt_max_iter=config.env.gp.opt_max_iter)
             logging.info(f'gp_params for output {idx} = {gp_params}')
 
         # End script if hyper fitting bc need to include in config
