@@ -3,5 +3,5 @@
 
 from gpflow_sampling.bases.dispatch import (
   kernel_basis as kernel,
-  fourier_basis as fourier
+  fourier_basis as fourier,
 )

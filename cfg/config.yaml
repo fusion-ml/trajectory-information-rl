@@ -11,6 +11,8 @@ env:
     sample_exe: False
     trig_angles: False
     project_to_domain: False
+    gp:
+      periodic: False
 
 num_iters: ${alg.num_iters}
 seed: 13
