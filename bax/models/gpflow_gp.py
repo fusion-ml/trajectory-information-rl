@@ -192,7 +192,7 @@ class GpflowGp(SimpleGp):
         return mu, cov
 
 
-def get_gpflow_hypers_from_data(data, print_fit_hypers=False):
+def get_gpflow_hypers_from_data(data, print_fit_hypers=False, opt_max_iter=1000):
     """
     Return hypers fit by GPflow, using data Namespace (with fields x and y). Assumes y
     is a list of scalars (i.e. 1 dimensional output).
@@ -200,7 +200,7 @@ def get_gpflow_hypers_from_data(data, print_fit_hypers=False):
     data = dict_to_namespace(data)
 
     # Fit params with StanGp on data
-    model_params = dict(print_fit_hypers=print_fit_hypers)
+    model_params = dict(print_fit_hypers=print_fit_hypers, opt_max_iter=opt_max_iter)
     model = GpflowGp(params=model_params, data=data)
     model.fit_hypers()
     gp_hypers = {
