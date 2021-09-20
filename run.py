@@ -254,10 +254,11 @@ def main(config):
         ax_samp, fig_samp = plot_fn(path=None, domain=domain)
         ax_obs, fig_obs = plot_fn(path=None, domain=domain)
 
-        # Set model
-        model = gp_model_class(multi_gp_params, data)
+        # Set model as None, instantiate when needed
+        model = None
 
         if config.alg.use_acquisition:
+            model = gp_model_class(multi_gp_params, data)
             # Set and optimize acquisition function
             acqfn_base = acqfn_class(acqfn_params, model, algo)
             acqfn = MCAcqFunction(acqfn_base, {"num_samples_mc": config.num_samples_mc})
@@ -298,6 +299,10 @@ def main(config):
             posterior_returns = [compute_return(output[2], 1) for output in acqfn.output_list]
             dumper.add('Posterior Returns', posterior_returns)
         elif config.alg.use_mpc:
+<<<<<<< HEAD
+            model = gp_model_class(multi_gp_params, data)
+=======
+>>>>>>> 407dcf8270af54bc6d560e69ab7f8e970b813bcc
             algo.initialize()
 
             policy = partial(algo.execute_mpc, f=make_postmean_fn(model))
@@ -311,6 +316,8 @@ def main(config):
         #   Periodically run evaluation and plot
         # ==============================================
         if i % config.eval_frequency == 0 or i + 1 == config.num_iters:
+            if model is None:
+                model = gp_model_class(multi_gp_params, data)
             if posterior_returns:
                 logging.info(f"Current posterior returns: {posterior_returns}")
                 logging.info(f"Current posterior returns: mean={np.mean(posterior_returns)}, std={np.std(posterior_returns)}")
