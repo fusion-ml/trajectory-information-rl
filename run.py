@@ -297,7 +297,7 @@ def main(config):
             # Store returns of posterior samples
             posterior_returns = [compute_return(output[2], 1) for output in acqfn.output_list]
             dumper.add('Posterior Returns', posterior_returns)
-        else:
+        elif config.alg.use_mpc:
             algo.initialize()
 
             policy = partial(algo.execute_mpc, f=make_postmean_fn(model))
