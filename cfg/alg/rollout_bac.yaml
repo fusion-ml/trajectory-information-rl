@@ -5,3 +5,4 @@ rollout_all: False
 use_rollout_data: False
 rollout_sampling: True
 n_rand_acqopt: 100
+use_mpc: False

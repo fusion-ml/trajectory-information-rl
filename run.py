@@ -303,6 +303,8 @@ def main(config):
             policy = partial(algo.execute_mpc, f=make_postmean_fn(model))
             action = policy(current_obs)
             x_next = np.concatenate([current_obs, action])
+        else:
+            x_next = unif_random_sample_domain(domain, 1)[0]
 
 
         # ==============================================
