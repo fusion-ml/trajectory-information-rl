@@ -199,7 +199,7 @@ def get_gpflow_hypers_from_data(data, print_fit_hypers=False, opt_max_iter=1000)
     """
     data = dict_to_namespace(data)
 
-    # Fit params with StanGp on data
+    # Fit params with GPflow on data
     model_params = dict(print_fit_hypers=print_fit_hypers, opt_max_iter=opt_max_iter)
     model = GpflowGp(params=model_params, data=data)
     model.fit_hypers()
