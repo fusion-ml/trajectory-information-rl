@@ -1,6 +1,9 @@
 from matplotlib import pyplot as plt
 import numpy as np
 from bax.envs.pilco_cartpole import get_pole_pos, CartPoleSwingUpEnv
+import matplotlib.patches as patches
+from bax.envs.lava_path import LavaPathEnv
+
 
 def plot_pendulum(path, ax=None, fig=None, domain=None, path_str="samp", env=None):
     """Plot a path through an assumed two-dimensional state space."""
@@ -40,7 +43,7 @@ def plot_pendulum(path, ax=None, fig=None, domain=None, path_str="samp", env=Non
     return ax, fig
 
 
-def plot_trig_pendulum(path, ax=None, domain=None, path_str="samp", env=None):
+def plot_lava_path(path, ax=None, domain=None, path_str="samp", env=None):
     """Plot a path through an assumed two-dimensional state space."""
     assert path_str in ["samp", "true", "postmean"]
     if ax is None:
@@ -49,9 +52,16 @@ def plot_trig_pendulum(path, ax=None, domain=None, path_str="samp", env=None):
         ax.set(
             xlim=(domain[0][0], domain[0][1]),
             ylim=(domain[1][0], domain[1][1]),
-            xlabel='$\\sin\\theta$',
-            ylabel='$\\cos\\theta$',
+            xlabel='$x$',
+            ylabel='$y$',
         )
+
+    # Draw left rectangle
+    for lava_pit in LavaPathEnv.lava_pits:
+        delta = lava_pit.high - lava_pit.low
+        patch = patches.Rectangle(lava_pit.low, delta[0], delta[1], fill = True, color = "orange")
+
+        ax.add_patch(patch)
 
 
     x_plot = [xi[0] for xi in path.x]
@@ -66,7 +76,8 @@ def plot_trig_pendulum(path, ax=None, domain=None, path_str="samp", env=None):
     elif path_str == "samp":
         ax.plot(x_plot, y_plot, 'k--', linewidth=1, alpha=0.3)
         ax.plot(x_plot, y_plot, 'o', alpha=0.3)
-    return ax
+    ax.scatter(LavaPathEnv.goal[0], LavaPathEnv.goal[1], color = "green", s=100, zorder=99)
+    return ax, fig
 
 
 def plot_pilco_cartpole(path, ax=None, fig=None, domain=None, path_str="samp", env=None):
@@ -205,5 +216,17 @@ def plot_acrobot(path, ax=None, domain=None, path_str="samp", env=None):
     return ax
 
 
-def noop(*args, **kwargs):
-    pass
+def noop(*args, ax=None, fig=None, **kwargs):
+    return ax, fig,
+
+
+def make_plot_obs(data, env, normalized):
+    obs_dim = env.observation_space.low.size
+    x_data = np.array(data)
+    if normalize_obs:
+        norm_obs = x_data[..., :obs_dim]
+        unnorm_obs = env.unnormalize_obs(norm_obs)
+        x_data = unnorm_obs
+    x_obs = x_data[..., 0]
+    y_obs = x_data[..., 1]
+    return x_obs, y_obs

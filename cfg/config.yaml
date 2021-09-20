@@ -13,6 +13,7 @@ env:
     project_to_domain: False
     gp:
       periodic: False
+      opt_max_iter: 1000
 
 num_iters: ${alg.num_iters}
 seed: 13

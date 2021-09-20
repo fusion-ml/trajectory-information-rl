@@ -1,6 +1,7 @@
 import gym
 from gym.envs.registration import register
 from gym import Env, spaces
+from copy import deepcopy
 import numpy as np
 
 
@@ -216,6 +217,33 @@ def make_normalized_reward_function(norm_env, reward_function):
     return norm_rew_fn
 
 
+def make_normalized_plot_fn(norm_env, plot_fn):
+    obs_dim = norm_env.observation_space.low.size
+    wrapped_env = norm_env.wrapped_env
+    # Set domain
+    low = np.concatenate([wrapped_env.observation_space.low, wrapped_env.action_space.low])
+    high = np.concatenate([wrapped_env.observation_space.high, wrapped_env.action_space.high])
+    unnorm_domain = [elt for elt in zip(low, high)]
+
+    def norm_plot_fn(path, ax=None, domain=None, path_str="samp", env=None):
+        path = deepcopy(path)
+        x = np.array(path.x)
+        norm_obs = x[..., :obs_dim]
+        # action = x[..., obs_dim:]
+        # unnorm_action = norm_env.unnormalize_action(action)
+        unnorm_obs = norm_env.unnormalize_obs(norm_obs)
+        unnorm_x = unnorm_obs
+        path.x = list(unnorm_x)
+        try:
+            y = np.array(path.y)
+            unnorm_y = norm_env.unnormalize_obs(y)
+            path.y = list(unnorm_y)
+        except AttributeError:
+            pass
+        return plot_fn(path, ax=ax, domain=unnorm_domain, path_str=path_str, env=env)
+    return norm_plot_fn
+
+
 def make_update_obs_fn(env, teleport=False):
     periods = []
     obs_dim = env.observation_space.low.size
@@ -358,7 +386,6 @@ def test_trig_wrapper():
     rewards = np.array(rewards)
     rewards_hat = trig_rew_fn(xs, ys)
     assert np.allclose(rewards, rewards_hat)
-
 
 
 if __name__ == "__main__":

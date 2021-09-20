@@ -18,13 +18,14 @@ from bax.acq.acquisition import MultiBaxAcqFunction, MCAcqFunction
 from bax.acq.acqoptimize import AcqOptimizer
 from bax.alg.mpc import MPC
 from bax import envs
-from bax.envs.wrappers import NormalizedEnv, make_normalized_reward_function, make_update_obs_fn, make_trig_reward_function
+from bax.envs.wrappers import NormalizedEnv, make_normalized_reward_function, make_update_obs_fn
+from bax.envs.wrappers import make_trig_reward_function, make_normalized_plot_fn
 from bax.util.misc_util import Dumper, make_postmean_fn
 from bax.util.control_util import get_f_batch_mpc, get_f_batch_mpc_reward, compute_return, evaluate_policy
 from bax.util.control_util import rollout_mse, mse
 from bax.util.domain_util import unif_random_sample_cylinder, unif_random_sample_domain, project_to_domain, project_to_cylinder
 from bax.util.timing import Timer
-from bax.viz import plotters
+from bax.viz import plotters, make_plot_obs
 import neatplot
 
 tf.compat.v1.logging.set_verbosity(tf.compat.v1.logging.ERROR)
@@ -58,6 +59,10 @@ def main(config):
 
     plan_env = gym.make(config.env.name)
     plan_env.seed(seed)
+
+    # set plot fn
+    plot_fn = partial(plotters[config.env.name], env=plan_env)
+
     reward_function = envs.reward_functions[config.env.name] if not config.alg.learn_reward else None
     if config.env.trig_angles:
         reward_function = make_trig_reward_function(env.periodic_dimensions, reward_function)
@@ -66,6 +71,7 @@ def main(config):
         plan_env = NormalizedEnv(plan_env)
         if reward_function is not None:
             reward_function = make_normalized_reward_function(plan_env, reward_function)
+        plot_fn = make_normalized_plot_fn(plan_env, plot_fn)
     if config.alg.learn_reward:
         f = get_f_batch_mpc_reward(plan_env, use_info_delta=config.teleport)
     else:
@@ -131,8 +137,9 @@ def main(config):
     ax_obs_init, fig_obs_init = plot_fn(path=None, domain=domain)
     x_obs = [xi[0] for xi in data.x]
     y_obs = [xi[1] for xi in data.x]
-    ax_obs_init.plot(x_obs, y_obs, 'o', color='k', ms=1)
-    neatplot.save_figure(str(dumper.expdir / f'mpc_obs_init'), 'png', fig=fig_obs_init)
+    if ax_obs_init:
+        ax_obs_init.plot(x_obs, y_obs, 'o', color='k', ms=1)
+        neatplot.save_figure(str(dumper.expdir / f'mpc_obs_init'), 'png', fig=fig_obs_init)
 
     # Make a test set for model evalution separate from the controller
     test_data = Namespace()
@@ -211,7 +218,8 @@ def main(config):
     print(f"all_x.var(axis=0) = {all_x.var(axis=0)}")
 
     # Save groundtruth paths plot
-    neatplot.save_figure(str(dumper.expdir / 'mpc_gt'), 'png', fig=fig_gt)
+    if fig_gt:
+        neatplot.save_figure(str(dumper.expdir / 'mpc_gt'), 'png', fig=fig_gt)
 
     # ==============================================
     #   Optionally: fit GP hyperparameters (then exit)
@@ -228,13 +236,15 @@ def main(config):
         ax_obs_hyper_fit, fig_obs_hyper_fit = plot_fn(path=None, domain=domain)
         x_obs = [xi[0] for xi in fit_data.x]
         y_obs = [xi[1] for xi in fit_data.x]
-        ax_obs_hyper_fit.plot(x_obs, y_obs, 'o', color='k', ms=1)
-        neatplot.save_figure(str(dumper.expdir / f'mpc_obs_hyper_fit'), 'png', fig=fig_obs_hyper_fit)
+        if ax_obs_hyper_fit:
+            ax_obs_hyper_fit.plot(x_obs, y_obs, 'o', color='k', ms=1)
+            neatplot.save_figure(str(dumper.expdir / f'mpc_obs_hyper_fit'), 'png', fig=fig_obs_hyper_fit)
 
         # Perform hyper fitting
         for idx in range(len(data.y[0])):
             data_fit = Namespace(x=fit_data.x, y=[yi[idx] for yi in fit_data.y])
-            gp_params = get_gpflow_hypers_from_data(data_fit, print_fit_hypers=True)
+            gp_params = get_gpflow_hypers_from_data(data_fit, print_fit_hypers=True,
+                                                    opt_max_iter=config.env.gp.opt_max_iter)
             logging.info(f'gp_params for output {idx} = {gp_params}')
 
         # End script if hyper fitting bc need to include in config
@@ -262,10 +272,11 @@ def main(config):
         ax_samp, fig_samp = plot_fn(path=None, domain=domain)
         ax_obs, fig_obs = plot_fn(path=None, domain=domain)
 
-        # Set model
-        model = gp_model_class(multi_gp_params, data)
+        # Set model as None, instantiate when needed
+        model = None
 
         if config.alg.use_acquisition:
+            model = gp_model_class(multi_gp_params, data)
             # Set and optimize acquisition function
             acqfn_base = acqfn_class(acqfn_params, model, algo)
             acqfn = MCAcqFunction(acqfn_base, {"num_samples_mc": config.num_samples_mc})
@@ -282,13 +293,13 @@ def main(config):
                 x_test = sampler(config.n_rand_acqopt)
             x_next, acq_val = acqopt.optimize(x_test)
             dumper.add('Acquisition Function Value', acq_val)
+            dumper.add('x_next', x_next)
 
             # Plot true path and posterior path samples
             ax_all, fig_all = plot_fn(true_path, ax_all, fig_all, domain, 'true')
             if ax_all is not None:
                 # Plot observations
-                x_obs = [xi[0] for xi in data.x]
-                y_obs = [xi[1] for xi in data.x]
+                x_obs, y_obs = make_plot_obs(data.x, env, config.env.normalize_env)
                 ax_all.scatter(x_obs, y_obs, color='grey', s=5, alpha=0.1)
                 ax_obs.plot(x_obs, y_obs, 'o', color='k', ms=1)
 
@@ -298,6 +309,7 @@ def main(config):
                     ax_samp, fig_samp = plot_fn(path, ax_samp, fig_samp, domain, 'samp')
 
                 # Plot x_next
+                x, y = make_plot_obs(x_next, env, config.env.normalize_env)
                 ax_all.scatter(x_next[0], x_next[1], facecolors='deeppink', edgecolors='k', s=120, zorder=100)
                 ax_obs.plot(x_next[0], x_next[1], 'o', mfc='deeppink', mec='k', ms=12, zorder=100)
 
@@ -305,6 +317,7 @@ def main(config):
             posterior_returns = [compute_return(output[2], 1) for output in acqfn.output_list]
             dumper.add('Posterior Returns', posterior_returns)
         elif config.alg.use_mpc:
+            model = gp_model_class(multi_gp_params, data)
             algo.initialize()
 
             policy = partial(algo.execute_mpc, f=make_postmean_fn(model))
@@ -318,6 +331,8 @@ def main(config):
         #   Periodically run evaluation and plot
         # ==============================================
         if i % config.eval_frequency == 0 or i + 1 == config.num_iters:
+            if model is None:
+                model = gp_model_class(multi_gp_params, data)
             if posterior_returns:
                 logging.info(f"Current posterior returns: {posterior_returns}")
                 logging.info(f"Current posterior returns: mean={np.mean(posterior_returns)}, std={np.std(posterior_returns)}")

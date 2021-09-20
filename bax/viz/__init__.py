@@ -1,5 +1,13 @@
-from bax.viz.plot import plot_pendulum, plot_cartpole, plot_pilco_cartpole, plot_acrobot, noop, plot_trig_pendulum
-from bax.viz.plot import plot_trig_pilco_cartpole
+from bax.viz.plot import (
+    plot_pendulum,
+    plot_cartpole,
+    plot_pilco_cartpole,
+    plot_trig_pilco_cartpole,
+    plot_acrobot,
+    noop,
+    plot_lava_path,
+    make_plot_obs,
+    )
 plotters = {
         'bacpendulum-v0': plot_pendulum,
         'bacpendulum-tight-v0': plot_pendulum,
@@ -12,4 +20,5 @@ plotters = {
         'bacswimmer-v0': noop,
         'bacreacher-v0': noop,
         'bacreacher-trig-v0': noop,
+        'lavapath-v0': plot_lava_path,
         }

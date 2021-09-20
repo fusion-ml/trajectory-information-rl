@@ -5,7 +5,7 @@ from gpflow import kernels
 from gpflow.config import default_float as floatx
 import tensorflow as tf
 from gpflow_sampling.models import PathwiseGPR
-from periodic import Periodic
+from bax.models.gpfs.periodic import Periodic
 
 
 # Set random seed
