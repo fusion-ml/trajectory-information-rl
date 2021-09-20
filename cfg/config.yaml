@@ -3,7 +3,7 @@ defaults:
   - env: pendulum
   - alg: bac
 name: "default"
-num_eval_trials: 3
+num_eval_trials: 5
 eval_frequency: 50
 env:
     teleport: True
@@ -11,6 +11,7 @@ env:
     sample_exe: False
     gp:
       periodic: False
+      opt_max_iter: 1000
 
 num_iters: ${alg.num_iters}
 seed: 13
