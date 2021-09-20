@@ -11,7 +11,7 @@ from bax.viz.plot import (
 plotters = {
         'bacpendulum-v0': plot_pendulum,
         'bacpendulum-tight-v0': plot_pendulum,
-        'bacpendulum-trig-v0': plot_trig_pendulum,
+        # 'bacpendulum-trig-v0': plot_trig_pendulum,
         'bacpendulum-medium-v0': plot_pendulum,
         'petscartpole-v0': plot_cartpole,
         'pilcocartpole-v0': plot_pilco_cartpole,
