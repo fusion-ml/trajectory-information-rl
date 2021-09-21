@@ -299,10 +299,7 @@ def main(config):
             posterior_returns = [compute_return(output[2], 1) for output in acqfn.output_list]
             dumper.add('Posterior Returns', posterior_returns)
         elif config.alg.use_mpc:
-<<<<<<< HEAD
             model = gp_model_class(multi_gp_params, data)
-=======
->>>>>>> 407dcf8270af54bc6d560e69ab7f8e970b813bcc
             algo.initialize()
 
             policy = partial(algo.execute_mpc, f=make_postmean_fn(model))
