@@ -52,8 +52,8 @@ class BACReacherEnv(mujoco_env.MujocoEnv, utils.EzPickle):
             + self.init_qpos
         )
         if self.tight:
-            goal_low = -0.2
-            goal_high = -0.15
+            goal_low = -0.05
+            goal_high = -0.03
         else:
             goal_low = -0.2
             goal_high = 0.2
