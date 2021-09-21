@@ -30,7 +30,6 @@ class BACReacherEnv(mujoco_env.MujocoEnv, utils.EzPickle):
         return ob, reward, done, dict(reward_dist=reward_dist, reward_ctrl=reward_ctrl, delta_obs=delta_obs)
 
     def reset(self, obs=None):
-        breakpoint()
         old_obs = super().reset()
         if obs is None:
             return old_obs
