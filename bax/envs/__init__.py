@@ -72,6 +72,10 @@ try:
         id='bacreacher-v0',
         entry_point=BACReacherEnv,
         )
+    register(
+        id='bacreacher-tight-v0',
+        entry_point=BACReacherEnv,
+        )
     reward_functions['bacswimmer-v0'] = swimmer_reward
     reward_functions['bacreacher-v0'] = reacher_reward
 except:

@@ -5,7 +5,7 @@ from gym.envs.mujoco import mujoco_env
 
 
 class BACReacherEnv(mujoco_env.MujocoEnv, utils.EzPickle):
-    def __init__(self):
+    def __init__(self, tight=False):
         utils.EzPickle.__init__(self)
         self.horizon = 50
         self.periodic_dimensions = [0, 1]
@@ -14,6 +14,7 @@ class BACReacherEnv(mujoco_env.MujocoEnv, utils.EzPickle):
         low = np.array([-np.pi, -np.pi, -0.3, -0.3, -50, -40, -0.5, -0.5])
         high = np.array([np.pi, np.pi, 0.3, 0.3, 50, 40, 0.5, 0.5])
         self.observation_space = spaces.Box(low=low, high=high)
+        self.tight = tight
 
     def step(self, a):
         old_obs = self._get_obs()
@@ -29,6 +30,7 @@ class BACReacherEnv(mujoco_env.MujocoEnv, utils.EzPickle):
         return ob, reward, done, dict(reward_dist=reward_dist, reward_ctrl=reward_ctrl, delta_obs=delta_obs)
 
     def reset(self, obs=None):
+        breakpoint()
         old_obs = super().reset()
         if obs is None:
             return old_obs
@@ -44,12 +46,20 @@ class BACReacherEnv(mujoco_env.MujocoEnv, utils.EzPickle):
         self.viewer.cam.trackbodyid = 0
 
     def reset_model(self):
+        qpos_max = 0.1
+        qpos_min = 0.07 if self.tight else -0.1
         qpos = (
-            self.np_random.uniform(low=-0.1, high=0.1, size=self.model.nq)
+            self.np_random.uniform(low=qpos_min, high=qpos_max, size=self.model.nq)
             + self.init_qpos
         )
+        if self.tight:
+            goal_low = -0.2
+            goal_high = -0.15
+        else:
+            goal_low = -0.2
+            goal_high = 0.2
         while True:
-            self.goal = self.np_random.uniform(low=-0.2, high=0.2, size=2)
+            self.goal = self.np_random.uniform(low=goal_low, high=goal_high, size=2)
             if np.linalg.norm(self.goal) < 0.2:
                 break
         qpos[-2:] = self.goal
@@ -89,7 +99,6 @@ class BACReacherEnv(mujoco_env.MujocoEnv, utils.EzPickle):
             return obs, unnorm_obs
         else:
             return obs
-
 
 
 def reacher_reward(x, next_obs):
