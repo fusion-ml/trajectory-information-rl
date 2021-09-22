@@ -76,7 +76,7 @@ class BetaTrackingModelEnv(EnvModel):
             high=3 * np.ones(self.obs_dim),
             dtype=np.float32,
         )
-        self._action_space = gym.spaces.Box(low=-1, high=-1,
+        self._action_space = gym.spaces.Box(low=-1, high=1,
                                            dtype=np.float32, shape=(1,))
 
     def unroll(self, start_states, policy, horizon, actions=None):
@@ -280,7 +280,7 @@ class BetaTrackingGymEnv(gym.Env):
             action = np.array([action])
         result = self._model_env.multi_step(self._state, action)
         self._state = result['state']
-        rew = self._model_env._compute_rew(self._state, targets=self._target)
+        rew = self._model_env._compute_rew(self._state, targets=None)
         return result['obs'].flatten(), float(rew), False, {}
 
     @property
@@ -302,27 +302,32 @@ def beta_tracking_rew(x, next_obs, target=2):
 
 
 def test_beta_tracking_env():
+    num_trials = 50
     env = BetaTrackingGymEnv()
-    obs = env.reset()
-    observations = []
-    actions = []
-    rewards = []
-    next_observations = []
-    for _ in range(env.horizon):
-        action = env.action_space.sample()
-        next_obs, rew, done, info = env.step(action)
-        observations.append(obs)
-        next_observations.append(next_obs)
-        rewards.append(rew)
-        actions.append(action)
-        obs = next_obs
-    observations = np.array(observations)
-    action = np.array(actions)
-    next_observations = np.array(next_observations)
-    x = np.concatenate([observations, actions], axis=1)
-    pred_rewards = beta_tracking_rew(x, next_observations)
-    # test reward function
-    assert np.allclose(pred_rewards, rewards)
+    returns = []
+    for trial in range(num_trials):
+        obs = env.reset()
+        observations = []
+        actions = []
+        rewards = []
+        next_observations = []
+        for _ in range(env.horizon):
+            action = env.action_space.sample()
+            next_obs, rew, done, info = env.step(action)
+            observations.append(obs)
+            next_observations.append(next_obs)
+            rewards.append(rew)
+            actions.append(action)
+            obs = next_obs
+        observations = np.array(observations)
+        action = np.array(actions)
+        next_observations = np.array(next_observations)
+        x = np.concatenate([observations, actions], axis=1)
+        pred_rewards = beta_tracking_rew(x, next_observations)
+        # test reward function
+        assert np.allclose(pred_rewards, rewards)
+        returns.append(np.sum(rewards))
+    print(f"Random actions give {np.mean(returns)} return +- {np.std(returns)}")
 
 
     # test reset to state
