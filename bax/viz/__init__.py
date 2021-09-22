@@ -18,4 +18,5 @@ plotters = {
         'bacreacher-v0': noop,
         'bacreacher-tight-v0': noop,
         'lavapath-v0': plot_lava_path,
+        'betatracking-v0': noop,
         }

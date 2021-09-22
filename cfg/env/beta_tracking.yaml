@@ -1,15 +1,19 @@
 name: "betatracking-v0"
+teleport: False
 gp:
-  ls: [[2.27, 7.73, 138.94], [0.84, 288.15, 11.05]]
-  alpha: [0.54, 0.22]
+  ls: [[0.10, 0.26, 0.222, 3745.9, 5683.2],
+       [0.086, 0.132, 3.364, 1.e-6, 568],  # the 1.e-6 is actually 4.17e-10 but I don't want to put that
+       [4978.8, 3136.2, 0.1056, 2710.8, 8531.1],
+       [37662., 30359., 0.169, 0.266, 61679.2]]
+  alpha: [0.0814, 0.052, 0.109, 0.193]
   sigma: 0.01
   periodic: False
 mpc:
   nsamps: 25
-  planning_horizon: 20
+  planning_horizon: 15
   n_elites: 3
   beta: 3
   gamma: 1.25
   xi: 0.3
   num_iters: 3
-  actions_per_plan: 6
+  actions_per_plan: 2

@@ -52,7 +52,7 @@ register(
     )
 register(
     id='betatracking-v0',
-    entry_points=BetaTrackingGymEnv,
+    entry_point=BetaTrackingGymEnv,
     )
 reward_functions = {
         'bacpendulum-v0': pendulum_reward,
