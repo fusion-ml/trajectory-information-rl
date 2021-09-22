@@ -5,6 +5,7 @@ from bax.envs.goddard import GoddardEnv, goddard_reward
 # from bax.util.envs.pets_cartpole import PETSCartpoleEnv, cartpole_reward
 from bax.envs.acrobot import AcrobotEnv, acrobot_reward
 from bax.envs.lava_path import LavaPathEnv, lava_path_reward
+from bax.envs.beta_tracking_env import BetaTrackingGymEnv, beta_tracking_rew
 
 # register each environment we wanna use
 register(
@@ -49,6 +50,10 @@ register(
     id='lavapath-v0',
     entry_point=LavaPathEnv,
     )
+register(
+    id='betatracking-v0',
+    entry_points=BetaTrackingGymEnv,
+    )
 reward_functions = {
         'bacpendulum-v0': pendulum_reward,
         'bacpendulum-tight-v0': pendulum_reward,
@@ -59,6 +64,7 @@ reward_functions = {
         'pilcocartpole-trig-v0': pilco_cartpole_reward,
         'bacrobot-v0': acrobot_reward,
         'lavapath-v0': lava_path_reward,
+        'betatracking-v0': beta_tracking_rew,
         }
 # mujoco stuff
 try:
