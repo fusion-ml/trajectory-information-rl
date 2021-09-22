@@ -259,7 +259,7 @@ class BetaTrackingGymEnv(gym.Env):
 
         self._start_selector = BetaTrackingStartSelector(start_data_path,
                                                          shuffle=True,
-                                                         test_shots=True)
+                                                         test_shots=False)
 
         self._state = None
         self._target = None
@@ -321,7 +321,14 @@ def test_beta_tracking_env():
     next_observations = np.array(next_observations)
     x = np.concatenate([observations, actions], axis=1)
     pred_rewards = beta_tracking_rew(x, next_observations)
+    # test reward function
     assert np.allclose(pred_rewards, rewards)
+
+
+    # test reset to state
+    for obs in observations:
+        reset_obs = env.reset(obs)
+        assert np.allclose(reset_obs, obs)
 
 
 if __name__ == '__main__':
