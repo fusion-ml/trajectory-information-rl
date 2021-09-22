@@ -42,7 +42,7 @@ def plot_pendulum(path, ax=None, fig=None, domain=None, path_str="samp", env=Non
     return ax, fig
 
 
-def plot_lava_path(path, ax=None, domain=None, path_str="samp", env=None):
+def plot_lava_path(path, ax=None, fig=None, domain=None, path_str="samp", env=None):
     """Plot a path through an assumed two-dimensional state space."""
     assert path_str in ["samp", "true", "postmean"]
     if ax is None:
@@ -61,7 +61,8 @@ def plot_lava_path(path, ax=None, domain=None, path_str="samp", env=None):
         patch = patches.Rectangle(lava_pit.low, delta[0], delta[1], fill = True, color = "orange")
 
         ax.add_patch(patch)
-
+    if path is None:
+        return ax, fig
 
     x_plot = [xi[0] for xi in path.x]
     y_plot = [xi[1] for xi in path.x]
@@ -76,7 +77,7 @@ def plot_lava_path(path, ax=None, domain=None, path_str="samp", env=None):
         ax.plot(x_plot, y_plot, 'k--', linewidth=1, alpha=0.3)
         ax.plot(x_plot, y_plot, 'o', alpha=0.3)
     ax.scatter(LavaPathEnv.goal[0], LavaPathEnv.goal[1], color = "green", s=100, zorder=99)
-    return ax
+    return ax, fig
 
 
 def plot_pilco_cartpole(path, ax=None, fig=None, domain=None, path_str="samp", env=None):
