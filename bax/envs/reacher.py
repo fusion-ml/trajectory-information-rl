@@ -18,12 +18,12 @@ class BACReacherEnv(mujoco_env.MujocoEnv, utils.EzPickle):
 
     def step(self, a):
         old_obs = self._get_obs()
+        self.do_simulation(a, self.frame_skip)
         vec = self.get_body_com("fingertip") - self.get_body_com("target")
         vec = vec[:2]
         reward_dist = -np.linalg.norm(vec)
         reward_ctrl = -np.square(a).sum()
         reward = reward_dist + reward_ctrl
-        self.do_simulation(a, self.frame_skip)
         ob, unnorm_obs = self._get_obs(return_unnorm_obs=True)
         delta_obs = unnorm_obs - old_obs
         done = False
@@ -103,7 +103,7 @@ class BACReacherEnv(mujoco_env.MujocoEnv, utils.EzPickle):
 def reacher_reward(x, next_obs):
     action_dim = 2
     start_obs = x[..., :-action_dim]
-    vec = start_obs[..., -2:]
+    vec = next_obs[..., -2:]
     action = x[..., -action_dim:]
     reward_dist = -np.linalg.norm(vec, axis=-1)
     reward_ctrl = -np.square(action).sum(axis=-1)
