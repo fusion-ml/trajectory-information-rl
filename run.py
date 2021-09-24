@@ -30,6 +30,7 @@ import neatplot
 
 tf.compat.v1.logging.set_verbosity(tf.compat.v1.logging.ERROR)
 
+
 @hydra.main(config_path='cfg', config_name='config')
 def main(config):
     # ==============================================
@@ -79,9 +80,6 @@ def main(config):
     start_obs = env.reset() if config.fixed_start_obs else None
     logging.info(f"Start obs: {start_obs}")
 
-    # set plot fn
-    plot_fn = partial(plotters[config.env.name], env=plan_env)
-
     # Set domain
     low = np.concatenate([env.observation_space.low, env.action_space.low])
     high = np.concatenate([env.observation_space.high, env.action_space.high])
@@ -121,7 +119,7 @@ def main(config):
     y_obs = [xi[1] for xi in data.x]
     if ax_obs_init:
         ax_obs_init.plot(x_obs, y_obs, 'o', color='k', ms=1)
-        neatplot.save_figure(str(dumper.expdir / f'mpc_obs_init'), 'png', fig=fig_obs_init)
+        neatplot.save_figure(str(dumper.expdir / 'mpc_obs_init'), 'png', fig=fig_obs_init)
 
     # Make a test set for model evalution separate from the controller
     test_data = Namespace()
@@ -220,7 +218,7 @@ def main(config):
         y_obs = [xi[1] for xi in fit_data.x]
         if ax_obs_hyper_fit:
             ax_obs_hyper_fit.plot(x_obs, y_obs, 'o', color='k', ms=1)
-            neatplot.save_figure(str(dumper.expdir / f'mpc_obs_hyper_fit'), 'png', fig=fig_obs_hyper_fit)
+            neatplot.save_figure(str(dumper.expdir / 'mpc_obs_hyper_fit'), 'png', fig=fig_obs_hyper_fit)
 
         # Perform hyper fitting
         for idx in range(len(data.y[0])):
@@ -282,7 +280,7 @@ def main(config):
             if ax_all is not None:
                 # Plot observations
                 x_obs, y_obs = make_plot_obs(data.x, env, config.env.normalize_env)
-                ax_all.scatter(x_obs, y_obs, color='grey', s=5, alpha=0.1)
+                ax_all.scatter(x_obs, y_obs, color='grey', s=10, alpha=0.3)
                 ax_obs.plot(x_obs, y_obs, 'o', color='k', ms=1)
 
                 # Plot execution path posterior samples
@@ -292,8 +290,8 @@ def main(config):
 
                 # Plot x_next
                 x, y = make_plot_obs(x_next, env, config.env.normalize_env)
-                ax_all.scatter(x_next[0], x_next[1], facecolors='deeppink', edgecolors='k', s=120, zorder=100)
-                ax_obs.plot(x_next[0], x_next[1], 'o', mfc='deeppink', mec='k', ms=12, zorder=100)
+                ax_all.scatter(x, y, facecolors='deeppink', edgecolors='k', s=120, zorder=100)
+                ax_obs.plot(x, x, 'o', mfc='deeppink', mec='k', ms=12, zorder=100)
 
             # Store returns of posterior samples
             posterior_returns = [compute_return(output[2], 1) for output in acqfn.output_list]
@@ -307,7 +305,6 @@ def main(config):
             x_next = np.concatenate([current_obs, action])
         else:
             x_next = unif_random_sample_domain(domain, 1)[0]
-
 
         # ==============================================
         #   Periodically run evaluation and plot
