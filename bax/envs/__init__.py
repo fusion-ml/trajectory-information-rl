@@ -1,3 +1,4 @@
+import logging
 from gym.envs.registration import register
 from bax.envs.pendulum import PendulumEnv, pendulum_reward
 from bax.envs.pilco_cartpole import CartPoleSwingUpEnv, pilco_cartpole_reward
@@ -81,7 +82,7 @@ try:
     reward_functions['bacreacher-v0'] = reacher_reward
     reward_functions['bacreacher-tight-v0'] = reacher_reward
 except:
-    print('mujoco not found, skipping those envs')
+    logging.info('mujoco not found, skipping those envs')
 try:
     from bax.envs.beta_tracking_env import BetaTrackingGymEnv, beta_tracking_rew
     register(
@@ -90,4 +91,4 @@ try:
         )
     reward_functions['betatracking-v0'] = beta_tracking_rew
 except:
-    print('fusion dependencies not found, skipping')
+    logging.info('fusion dependencies not found, skipping')
