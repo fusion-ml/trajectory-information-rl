@@ -44,7 +44,7 @@ def plot_pendulum(path, ax=None, fig=None, domain=None, path_str="samp", env=Non
 
 def plot_lava_path(path, ax=None, fig=None, domain=None, path_str="samp", env=None):
     """Plot a path through an assumed two-dimensional state space."""
-    assert path_str in ["samp", "true", "postmean"]
+    assert path_str in ["samp", "true", "postmean"], f"path_str is {path_str}"
     if ax is None:
         assert domain is not None
         fig, ax = plt.subplots(1, 1, figsize=(5, 5))
@@ -58,7 +58,7 @@ def plot_lava_path(path, ax=None, fig=None, domain=None, path_str="samp", env=No
     # Draw left rectangle
     for lava_pit in LavaPathEnv.lava_pits:
         delta = lava_pit.high - lava_pit.low
-        patch = patches.Rectangle(lava_pit.low, delta[0], delta[1], fill = True, color = "orange")
+        patch = patches.Rectangle(lava_pit.low, delta[0], delta[1], fill = True, color = "orange", zorder=-100)
 
         ax.add_patch(patch)
     if path is None:
