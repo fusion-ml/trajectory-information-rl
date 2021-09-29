@@ -1,4 +1,5 @@
 name: "bacreacher-tight-v0"
+sample_exe: True
 gp:
   ls: [[4362., 4561., 2139., 2071., 7.43, 3124., 3691.,3544., 127.7, 3584.],
        [31049., 2.69, 10345., 9436., 20172., 2.23, 21368., 21591., 24413., 29.9],
@@ -13,9 +14,9 @@ gp:
   period: 2.0
   opt_max_iter: 500
 mpc:
-  nsamps: 30
+  nsamps: 100
   planning_horizon: 15
-  n_elites: 6
+  n_elites: 15
   beta: 3
   gamma: 1.25
   xi: 0.3
