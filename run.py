@@ -267,10 +267,13 @@ def main(config):
             elif config.sample_exe:
                 all_x = []
                 for path in acqfn.exe_path_full_list:
-                    all_x += path.x + np.random.randn(path.x.shape) * config.path_sampling_noise
+                    all_x += path.x
                 n_path = int(config.n_rand_acqopt * config.path_sampling_fraction)
                 n_rand = config.n_rand_acqopt - n_path
                 x_test = random.sample(all_x, n_path)
+                x_test = np.array(x_test)
+                x_test += np.random.randn(*x_test.shape)
+                x_test = list(x_test)
                 x_test += unif_random_sample_domain(domain, n=n_rand)
             else:
                 x_test = unif_random_sample_domain(domain, n=config.n_rand_acqopt)
