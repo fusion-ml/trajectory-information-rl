@@ -1,4 +1,5 @@
 name: "bacreacher-v0"
+sample_exe: True
 gp:
   ls: [[286950., 253061., 325172., 277677., 5.33, 171941., 241700., 213581., 84., 222984.],
        [2341., 1485., 2476., 2092., 1467., 6.86, 1913., 1714., 1576., 73.76],
@@ -13,9 +14,9 @@ gp:
   period: 2.0
   opt_max_iter: 500
 mpc:
-  nsamps: 30
+  nsamps: 100
   planning_horizon: 15
-  n_elites: 6
+  n_elites: 15
   beta: 3
   gamma: 1.25
   xi: 0.3
