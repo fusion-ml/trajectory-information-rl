@@ -112,6 +112,9 @@ def main(config):
     data = Namespace()
     data.x = unif_random_sample_domain(domain, config.num_init_data)
     data.y = f(data.x)
+    for x, y in zip(data.x, data.y):
+        dumper.add('x', data.x)
+        dumper.add('y', data.y)
 
     # Plot initial data
     ax_obs_init, fig_obs_init = plot_fn(path=None, domain=domain)
@@ -368,13 +371,13 @@ def main(config):
             neatplot.save_figure(str(dumper.expdir / f'mpc_samp_{i}'), 'png', fig=fig_samp)
             neatplot.save_figure(str(dumper.expdir / f'mpc_obs_{i}'), 'png', fig=fig_obs)
 
-        # Dumper save
-        dumper.save()
 
         # Query function, update data
         y_next = f([x_next])[0]
         data.x.append(x_next)
         data.y.append(y_next)
+        dumper.add('x', x_next)
+        dumper.add('y', y_next)
         if config.alg.rollout_sampling:
             current_t += 1
             if current_t > env.horizon:
@@ -382,6 +385,8 @@ def main(config):
                 current_obs = start_obs.copy() if config.fixed_start_obs else plan_env.reset()
             else:
                 current_obs += y_next[-obs_dim:]
+        # Dumper save
+        dumper.save()
         plt.close('all')
 
 
