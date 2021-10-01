@@ -19,7 +19,7 @@ class AcqFunction(Base):
     Class for computing acquisition functions.
     """
 
-    def __init__(self, params=None, model=None, verbose=True):
+    def __init__(self, params=None, model=None, verbose=True, **kwargs):
         """
         Parameters
         ----------
@@ -733,3 +733,46 @@ class MCAcqFunction(AcqFunction):
         for fn in self.acq_function_copies:
             lists.append(fn(x_list))
         return list(np.mean(lists, axis=0))
+
+
+class UncertaintySamplingAcqFunction(AcqFunction):
+    """
+    Class for computing BAX acquisition functions.
+    """
+    def initialize(self):
+        self.exe_path_list = []
+        self.output_list = []
+
+    def set_params(self, params):
+        """Set self.params, the parameters for the AcqFunction."""
+        super().set_params(params)
+
+        params = dict_to_namespace(params)
+        self.params.name = getattr(params, 'name', 'UncertaintySamplingAcqFunction')
+
+    def get_acq_list_batch(self, x_list):
+        """Return acquisition function for a batch of inputs x_list."""
+
+        # Compute posterior, and post given each execution path sample, for x_list
+        with Timer(f"Compute acquisition function for a batch of {len(x_list)} points"):
+            # NOTE: self.model is multimodel so the following returns a list of mus and
+            # a list of stds
+            mus, stds = self.model.get_post_mu_cov(x_list, full_cov=False)
+            assert isinstance(mus, list)
+            assert isinstance(stds, list)
+
+
+
+        # Package and store acq_vars
+        self.acq_vars = {
+            "mus": mus,
+            "stds": stds,
+        }
+
+        # Return list of acquisition function on x in x_list
+        return stds
+
+    def __call__(self, x_list):
+        """Class is callable and returns acquisition function on x_list."""
+        acq_list = self.get_acq_list_batch(x_list)
+        return acq_list

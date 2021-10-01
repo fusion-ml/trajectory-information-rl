@@ -12,6 +12,8 @@ env:
     gp:
       periodic: False
       opt_max_iter: 1000
+alg:
+    uncertainty_sampling: False
 
 num_iters: ${alg.num_iters}
 seed: 13

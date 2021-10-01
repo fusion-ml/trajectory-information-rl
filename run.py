@@ -14,7 +14,7 @@ from matplotlib import pyplot as plt
 
 from bax.models.gpfs_gp import BatchMultiGpfsGp
 from bax.models.gpflow_gp import get_gpflow_hypers_from_data
-from bax.acq.acquisition import MultiBaxAcqFunction, MCAcqFunction
+from bax.acq.acquisition import MultiBaxAcqFunction, MCAcqFunction, UncertaintySamplingAcqFunction
 from bax.acq.acqoptimize import AcqOptimizer
 from bax.alg.mpc import MPC
 from bax import envs
@@ -145,7 +145,7 @@ def main(config):
 
     # Set acqfunction
     acqfn_params = {'n_path': config.n_paths, 'crop': True}
-    acqfn_class = MultiBaxAcqFunction
+    acqfn_class = MultiBaxAcqFunction if not config.alg.uncertainty_sampling else UncertaintySamplingAcqFunction
 
     # ==============================================
     #   Computing groundtruth trajectories
@@ -261,7 +261,7 @@ def main(config):
         if config.alg.use_acquisition:
             model = gp_model_class(multi_gp_params, data)
             # Set and optimize acquisition function
-            acqfn_base = acqfn_class(acqfn_params, model, algo)
+            acqfn_base = acqfn_class(params=acqfn_params, model=model, algo=algo)
             acqfn = MCAcqFunction(acqfn_base, {"num_samples_mc": config.num_samples_mc})
             acqopt = AcqOptimizer()
             acqopt.initialize(acqfn)
