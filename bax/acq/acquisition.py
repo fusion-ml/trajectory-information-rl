@@ -742,6 +742,7 @@ class UncertaintySamplingAcqFunction(AcqFunction):
     def initialize(self):
         self.exe_path_list = []
         self.output_list = []
+        self.exe_path_full_list = []
 
     def set_params(self, params):
         """Set self.params, the parameters for the AcqFunction."""
@@ -749,6 +750,32 @@ class UncertaintySamplingAcqFunction(AcqFunction):
 
         params = dict_to_namespace(params)
         self.params.name = getattr(params, 'name', 'UncertaintySamplingAcqFunction')
+
+    def entropy_given_normal_std(self, std_arr):
+        """Return entropy given an array of 1D normal standard deviations."""
+        entropy = np.log(std_arr) + np.log(np.sqrt(2 * np.pi)) + 0.5
+        return entropy
+
+    def entropy_given_normal_std_list(self, std_arr_list):
+        """
+        Return entropy given a list of arrays, where each is an array of 1D normal
+        standard deviations.
+        """
+        entropy_list = [
+            self.entropy_given_normal_std(std_arr) for std_arr in std_arr_list
+        ]
+        entropy = np.sum(entropy_list, 0)
+        return entropy
+
+    def acq_exe_normal(self, post_stds):
+        """
+        Execution-path-based acquisition function: EIG on the execution path, via
+        predictive entropy, for normal posterior predictive distributions.
+        """
+
+        # Compute entropies for posterior predictive
+        h_post = self.entropy_given_normal_std_list(post_stds)
+        return h_post
 
     def get_acq_list_batch(self, x_list):
         """Return acquisition function for a batch of inputs x_list."""
@@ -761,16 +788,18 @@ class UncertaintySamplingAcqFunction(AcqFunction):
             assert isinstance(mus, list)
             assert isinstance(stds, list)
 
-
+            # Compute acq_list, the acqfunction value for each x in x_list
+            acq_list = self.acq_exe_normal(stds)
 
         # Package and store acq_vars
         self.acq_vars = {
             "mus": mus,
             "stds": stds,
+            "acq_list": acq_list,
         }
 
         # Return list of acquisition function on x in x_list
-        return stds
+        return acq_list
 
     def __call__(self, x_list):
         """Class is callable and returns acquisition function on x_list."""
