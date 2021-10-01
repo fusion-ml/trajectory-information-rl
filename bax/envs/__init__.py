@@ -85,10 +85,15 @@ except:
     logging.info('mujoco not found, skipping those envs')
 try:
     from bax.envs.beta_tracking_env import BetaTrackingGymEnv, beta_tracking_rew
+    from bax.envs.tracking_env import TrackingGymEnv, tracking_rew
     register(
         id='betatracking-v0',
         entry_point=BetaTrackingGymEnv,
         )
-    reward_functions['betatracking-v0'] = beta_tracking_rew
+    register(
+        id='plasmatracking-v0',
+        entry_point=TrackingGymEnv,
+        )
+    reward_functions['plasmatracking-v0'] = tracking_rew
 except:
     logging.info('fusion dependencies not found, skipping')
