@@ -1,4 +1,5 @@
 name: "plasmatracking-v0"
+sample_exe: True
 teleport: False
 gp:
   ls: [[0.2894, 0.1735, 0.215, 0.0845, 0.1323, 0.1544, 0.1406, 0.147, 0.552, 0.637],
