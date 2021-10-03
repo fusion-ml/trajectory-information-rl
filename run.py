@@ -267,7 +267,7 @@ def main(config):
             acqopt.initialize(acqfn)
             if config.alg.rollout_sampling:
                 x_test = [np.concatenate([current_obs, env.action_space.sample()]) for _ in range(config.n_rand_acqopt)]
-            elif config.sample_exe:
+            elif config.sample_exe and not config.alg.uncertainty_sampling:
                 all_x = []
                 for path in acqfn.exe_path_full_list:
                     all_x += path.x
