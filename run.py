@@ -267,7 +267,7 @@ def main(config):
             acqopt.initialize(acqfn)
             if config.alg.rollout_sampling:
                 x_test = [np.concatenate([current_obs, env.action_space.sample()]) for _ in range(config.n_rand_acqopt)]
-            elif config.sample_exe:
+            elif config.sample_exe and not config.alg.uncertainty_sampling:
                 all_x = []
                 for path in acqfn.exe_path_full_list:
                     all_x += path.x
@@ -275,7 +275,7 @@ def main(config):
                 n_rand = config.n_rand_acqopt - n_path
                 x_test = random.sample(all_x, n_path)
                 x_test = np.array(x_test)
-                x_test += np.random.randn(*x_test.shape)
+                x_test += np.random.randn(*x_test.shape) * 0.01
                 x_test = list(x_test)
                 x_test += unif_random_sample_domain(domain, n=n_rand)
             else:

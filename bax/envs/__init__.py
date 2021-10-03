@@ -95,5 +95,6 @@ try:
         entry_point=TrackingGymEnv,
         )
     reward_functions['plasmatracking-v0'] = tracking_rew
+    reward_functions['betatracking-v0'] = beta_tracking_rew
 except:
     logging.info('fusion dependencies not found, skipping')
