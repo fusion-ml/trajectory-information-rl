@@ -61,7 +61,7 @@ class AcrobotEnv(core.Env):
         see the AcrobotLegacy class.
 
 
-        UPDATE (Viraj Mehta): we adjust the reward function and termination condition to make this amenable to
+        UPDATE (Mehta): we adjust the reward function and termination condition to make this amenable to
         MPC-based solving--obviously this changes the problem, but the dynamics are the same.
     """
 
