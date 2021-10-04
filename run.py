@@ -113,7 +113,7 @@ def main(config):
     data.x = unif_random_sample_domain(domain, config.num_init_data)
     data.y = f(data.x)
     for x, y in zip(data.x, data.y):
-        dumper.add('x', x))
+        dumper.add('x', x)
         dumper.add('y', y)
 
     # Plot initial data
