@@ -307,7 +307,7 @@ class BatchGpfsGp(GpfsGp):
         x_batch_list_new, max_n_batch = self.reformat_x_batch_list(x_batch_list)
 
         # Only re-initialize fsl_xvars if max_n_batch is larger than self.max_n_batch
-        # Viraj: I observerd that this doesn't work -- it still crashes if you pass in a batch that is smaller than
+        # note: I observerd that this doesn't work -- it still crashes if you pass in a batch that is smaller than
         # self.max_n_batch. So I'm changing this to !=
         if max_n_batch != getattr(self, "max_n_batch", 0):
             self.max_n_batch = max_n_batch
