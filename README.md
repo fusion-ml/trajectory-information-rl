@@ -1,32 +1,18 @@
-# bayesian-active-control
-Bayesian active control with BAX
-
+# Bayesian Active Reinforcement Learning
 
 ## Installation
 
-To install dependencies for BAX, `cd` into this repo directory and run:
+To install dependencies for this code, make a virtual environment with a modern
+Python version and run
 ```bash
-$ pip install -r requirements/requirements_bax.txt
-$ pip install -r requirements/requirements_bax_gpfs.txt
+$ pip install -r requirements.txt
 ```
 
-For some functionality, you'll need to compile a [Stan](https://mc-stan.org/) model by
-running:
+## Running Experiments
+We have script files inside the `shell/` directory that reproduce the experiments built off of this codebase.
+Those are the methods BARL, MPC, EIG_T from the paper. We will release a separate repository that uses the environments in this one
+inside `bax/envs/` but runs PETS, SAC, and PPO.
+To reproduce these, run
 ```bash
-$ python bax/models/stan/compile_models.py
-```
-
-## Running Examples
-
-Willie is in the process of adding more examples. For now, see
-`examples/es/00_bax_viz2d_simple_demo.py`.
-
-First make sure this repo directory is on the PYTHONPATH, e.g. by running:
-```bash
-$ source shell/add_pwd_to_pythonpath.sh
-```
-
-And then run:
-```bash
-$ python examples/es/00_bax_viz2d_simple_demo.py
+./shell/{exp_name}_expts.sh
 ```
