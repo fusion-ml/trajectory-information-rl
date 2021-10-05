@@ -14,5 +14,5 @@ Those are the methods BARL, MPC, EIG_T from the paper. We will release a separat
 inside `bax/envs/` but runs PETS, SAC, and PPO.
 To reproduce these, run
 ```bash
-./shell/{exp_name}_expts.sh
+$ ./shell/{exp_name}_expts.sh
 ```
