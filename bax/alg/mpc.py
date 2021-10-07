@@ -233,7 +233,7 @@ class MPC(BatchAlgorithm):
         # since we don't have the start state in this list, we have to subtract 1 here
         # this should be where the current plan leaves us
         self.current_obs = best_obs[self.params.actions_per_plan - 1, :]
-        return self.shift_samples(all_returns, all_states, all_actions, all_rewards)
+        return self.shift_samples(all_returns, all_actions)
 
     def reset_CEM(self, shift_actions=[]):
         self.mean = np.concatenate([self.mean[self.params.actions_per_plan:],
@@ -261,7 +261,7 @@ class MPC(BatchAlgorithm):
         self.best_obs = None
         self.best_rewards = None
 
-    def shift_samples(self, all_returns, all_states, all_actions, all_rewards):
+    def shift_samples(self, all_returns, all_actions):
         n_keep = ceil(self.params.xi * self.params.n_elites)
         keep_indices = np.argsort(all_returns)[-n_keep:]
         short_shifted_actions = all_actions[keep_indices, self.params.actions_per_plan:, :]
@@ -318,6 +318,137 @@ class MPC(BatchAlgorithm):
         exe_path, output = self.run_algorithm_on_f(f)
         self.is_test = False
         action = output[1][0]
+        self.params.env_horizon = old_horizon
+        self.params.start_obs = old_start_obs
+        self.params.actions_per_plan = old_app
+        if not return_samps:
+            return action
+        else:
+            # get the samples of good actions you'd want for the next iteration
+            samples = self.shifted_actions
+            return action, samples
+
+
+class StochasticMPC(MPC):
+    def set_params(self, params):
+        super().set_params(params)
+        self.params.name = getattr(params, "name", "StochasticMPC")
+        self.params.num_particles = getattr(params, "num_particles", 1)
+
+    def initialize(self, samples_to_pass=[]):
+        super().initialize(samples_to_pass)
+        self.traj_samples = np.repeat(self.traj_samples, self.params.num_particles, axis=0)
+
+    def resample_iCEM(self):
+        self.iter_num += 1
+        nsamps = int(max(self.params.base_nsamps * (self.params.gamma ** -self.iter_num), 2 * self.params.n_elites))
+        traj_rewards = np.array(self.traj_rewards).T
+        real_nsamps = traj_rewards.shape[0] // self.params.num_particles
+        traj_avg_reward = traj_rewards.reshape((real_nsamps, self.params.num_particles, -1)).mean(axis=1)
+        traj_samples_dedup = self.traj_samples[::self.params.num_particles, ...]
+        if len(self.saved_rewards) > 0:
+            all_rewards = np.concatenate([traj_avg_reward, np.array(self.saved_rewards)], axis=0)
+            all_actions = np.concatenate([traj_samples_dedup, self.saved_actions], axis=0)
+        else:
+            all_rewards = traj_avg_reward
+            all_actions = traj_samples_dedup
+
+        all_returns = compute_return(all_rewards, self.params.discount_factor)
+        best_idx = np.argmax(all_returns)
+        best_current_return = all_returns[best_idx]
+        if best_current_return > self.best_return:
+            self.best_return = best_current_return
+            self.best_actions = all_actions[best_idx, ...]
+        elite_idx = np.argsort(all_returns)[-self.params.n_elites:]
+        elites = all_actions[elite_idx, ...]
+        mean = np.mean(elites, axis=0)
+        var = np.var(elites, axis=0)
+        samples = iCEM_generate_samples(nsamps, self.params.planning_horizon, self.params.beta, mean, var,
+                                        self.params.action_lower_bound, self.params.action_upper_bound)
+        n_save_elites = ceil(self.params.n_elites * self.params.xi)
+        save_idx = elite_idx[-n_save_elites:]
+        self.saved_actions = all_actions[save_idx, ...]
+        self.saved_rewards = all_rewards[save_idx, ...]
+        if self.iter_num + 1 == self.params.num_iters:
+            samples = np.concatenate([samples, mean[None, :]], axis=0)
+        self.traj_samples = np.repeat(samples, self.params.num_particles, axis=0)
+        self.traj_states = []
+        self.traj_rewards = []
+        self.samples_done = False
+
+    def save_planned_actions(self):
+        traj_rewards = np.array(self.traj_rewards).T
+        real_nsamps = traj_rewards.shape[0] // self.params.num_particles
+        traj_avg_reward = traj_rewards.reshape((real_nsamps, self.params.num_particles, -1)).mean(axis=1)
+        traj_samples_dedup = self.traj_samples[::self.params.num_particles, ...]
+        if self.best_rewards is not None:
+            all_rewards = np.concatenate([traj_avg_reward, np.array(self.saved_rewards),
+                                          self.best_rewards[None, ...]], axis=0)
+            all_actions = np.concatenate([traj_samples_dedup, self.saved_actions, self.best_actions[None, ...]], axis=0)
+        else:
+            all_rewards = traj_avg_reward
+            all_actions = traj_samples_dedup
+        all_returns = compute_return(all_rewards, self.params.discount_factor)
+        best_sample_idx = np.argmax(all_returns)
+        best_actions = all_actions[best_sample_idx, ...]
+        best_rewards = all_rewards[best_sample_idx, ...]
+        for t in range(self.params.actions_per_plan):
+            self.planned_actions.append(best_actions[t])
+            self.planned_rewards.append(best_rewards[t])
+        self.current_t += self.params.actions_per_plan
+        # since we don't have the start state in this list, we have to subtract 1 here
+        # this should be where the current plan leaves us
+        return self.shift_samples(all_returns, all_actions)
+
+    def reset_CEM(self, shift_actions=[]):
+        self.mean = np.concatenate([self.mean[self.params.actions_per_plan:],
+                                    np.zeros((self.params.actions_per_plan, self.params.action_dim))])
+        self.var = np.ones_like(self.mean) * ((self.params.action_upper_bound - self.params.action_lower_bound) /
+                                              self.params.initial_variance_divisor) ** 2
+        self.iter_num = 0
+        initial_nsamps = int(max(self.params.base_nsamps * (self.params.gamma ** -1), 2 * self.params.n_elites))
+        self.traj_samples = iCEM_generate_samples(initial_nsamps,
+                                                  self.params.planning_horizon,
+                                                  self.params.beta,
+                                                  self.mean,
+                                                  self.var,
+                                                  self.params.action_lower_bound,
+                                                  self.params.action_upper_bound)
+        self.traj_samples = np.concatenate([self.traj_samples, shift_actions], axis=0)
+        self.traj_samples = np.repeat(self.traj_samples, self.params.num_particles, axis=0)
+        self.traj_states = []
+        self.traj_rewards = []
+        self.saved_actions = []
+        self.saved_states = []
+        self.saved_rewards = []
+        self.samples_done = False
+        self.best_return = -np.inf
+        self.best_actions = None
+        self.best_obs = None
+        self.best_rewards = None
+
+    def get_output(self):
+        return self.planned_actions
+
+    def get_exe_path_crop(self):
+        return None
+
+    def execute_mpc(self, obs, f, samples_to_pass=[], return_samps=False):
+        """Run MPC on a state, returns the optimal action."""
+        old_horizon = self.params.env_horizon
+        old_start_obs = self.params.start_obs
+        old_app = self.params.actions_per_plan
+        self.params.actions_per_plan = 1
+        self.params.env_horizon = 1
+        self.params.start_obs = obs
+        if len(self.exe_path.x) > 0:
+            self.old_exe_paths.append(self.exe_path)
+        self.initialize(samples_to_pass=samples_to_pass)
+        # this doesn't do anything rn but maybe will in future (it did in debugging too)
+        self.is_test = True
+        exe_path, output = self.run_algorithm_on_f(f)
+        self.is_test = False
+        action = output[0]
         self.params.env_horizon = old_horizon
         self.params.start_obs = old_start_obs
         self.params.actions_per_plan = old_app
