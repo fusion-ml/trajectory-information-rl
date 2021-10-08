@@ -104,3 +104,12 @@ def make_postmean_fn(model):
         mu_tup_for_x = list(zip(*mu_list))
         return mu_tup_for_x
     return postmean_fn
+
+
+def make_particle_fn(model):
+    def particle_fn(x):
+        mu_list, std_list = model.get_post_mu_cov(x, full_cov=False)
+        mu_tup_for_x = list(zip(*mu_list))
+        std_tup_for_x = list(zip(*std_list))
+        # TODO add noise
+        return stuf

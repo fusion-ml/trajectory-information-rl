@@ -491,5 +491,39 @@ def test_MPC_algorithm():
     print(f"based on the env it gets {real_return} return")
 
 
+def test_stochastic_MPC_alg():
+    from util.envs.continuous_cartpole import ContinuousCartPoleEnv, continuous_cartpole_reward
+    from util.control_util import ResettableEnv, get_f_mpc
+    env = ContinuousCartPoleEnv()
+    plan_env = ResettableEnv(ContinuousCartPoleEnv())
+    f = get_f_mpc(plan_env)
+    start_obs = env.reset()
+    params = dict(
+            start_obs=start_obs,
+            env=plan_env,
+            reward_function=continuous_cartpole_reward,
+            num_particles=1,
+            )
+    mpc = StochasticMPC(params)
+    mpc.initialize()
+    path, output = mpc.run_algorithm_on_f(f)
+    observations, actions, rewards = output
+    total_return = sum(rewards)
+    print(f"MPC gets {total_return} return with {len(path.x)} queries based on itself")
+    done = False
+    rewards = []
+    for i, action in enumerate(actions):
+        next_obs, rew, done, info = env.step(action)
+        if (next_obs != observations[i + 1]).any():
+            error = np.linalg.norm(next_obs - observations[i + 1])
+            print(f"i={i}, error={error}")
+        rewards.append(rew)
+        if done:
+            break
+    real_return = compute_return(rewards, 1.)
+    print(f"based on the env it gets {real_return} return")
+
+
 if __name__ == '__main__':
+    test_stochastic_MPC_alg()
     test_MPC_algorithm()

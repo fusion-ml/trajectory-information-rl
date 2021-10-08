@@ -16,7 +16,7 @@ from bax.models.gpfs_gp import BatchMultiGpfsGp
 from bax.models.gpflow_gp import get_gpflow_hypers_from_data
 from bax.acq.acquisition import MultiBaxAcqFunction, MCAcqFunction, UncertaintySamplingAcqFunction
 from bax.acq.acqoptimize import AcqOptimizer
-from bax.alg.mpc import MPC
+from bax.alg.mpc import MPC, StochasticMPC
 from bax import envs
 from bax.envs.wrappers import NormalizedEnv, make_normalized_reward_function, make_update_obs_fn
 from bax.envs.wrappers import make_normalized_plot_fn
@@ -105,8 +105,14 @@ def main(config):
             action_upper_bound=env.action_space.high,
             crop_to_domain=config.crop_to_domain,
             update_fn=update_fn,
+            num_particles=config.mpc.num_particles,
     )
     algo = algo_class(algo_params)
+    if config.mpc.use_particles:
+        test_algo_class = StochasticMPC
+    else:
+        test_algo_class = algo_class
+    test_algo = test_algo_class(algo_params)
 
     # Set initial data
     data = Namespace()
@@ -307,9 +313,9 @@ def main(config):
             dumper.add('Posterior Returns', posterior_returns)
         elif config.alg.use_mpc:
             model = gp_model_class(multi_gp_params, data)
-            algo.initialize()
+            test_algo.initialize()
 
-            policy = partial(algo.execute_mpc, f=make_postmean_fn(model))
+            policy = partial(test_algo.execute_mpc, f=make_postmean_fn(model))
             action = policy(current_obs)
             x_next = np.concatenate([current_obs, action])
         else:
@@ -327,10 +333,11 @@ def main(config):
             with Timer("Evaluate the current MPC policy"):
                 # execute the best we can
                 # this is required to delete the current execution path
-                algo.initialize()
+                test_algo.initialize()
 
                 postmean_fn = make_postmean_fn(model)
-                policy = partial(algo.execute_mpc, f=postmean_fn)
+                # TODO, possibly make this function random
+                policy = partial(test_algo.execute_mpc, f=postmean_fn)
                 real_returns = []
                 mses = []
                 pbar = trange(config.num_eval_trials)
@@ -343,12 +350,12 @@ def main(config):
                     real_path_mpc.x = real_obs
                     ax_all, fig_all = plot_fn(real_path_mpc, ax_all, fig_all, domain, 'postmean')
                     ax_postmean, fig_postmean = plot_fn(real_path_mpc, ax_postmean, fig_postmean, domain, 'samp')
-                    mses.append(rollout_mse(algo.old_exe_paths[-1], f))
+                    mses.append(rollout_mse(test_algo.old_exe_paths[-1], f))
                     stats = {"Mean Return": np.mean(real_returns), "Std Return:": np.std(real_returns),
                              "Model MSE": np.mean(mses)}
                     pbar.set_postfix(stats)
                 real_returns = np.array(real_returns)
-                algo.old_exe_paths = []
+                test_algo.old_exe_paths = []
                 dumper.add('Eval Returns', real_returns)
                 dumper.add('Eval ndata', len(data.x))
                 logging.info(f"Eval Results: real_returns={real_returns}")
@@ -370,7 +377,6 @@ def main(config):
             neatplot.save_figure(str(dumper.expdir / f'mpc_postmean_{i}'), 'png', fig=fig_postmean)
             neatplot.save_figure(str(dumper.expdir / f'mpc_samp_{i}'), 'png', fig=fig_samp)
             neatplot.save_figure(str(dumper.expdir / f'mpc_obs_{i}'), 'png', fig=fig_obs)
-
 
         # Query function, update data
         y_next = f([x_next])[0]

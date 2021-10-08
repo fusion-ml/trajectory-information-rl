@@ -12,6 +12,9 @@ env:
     gp:
       periodic: False
       opt_max_iter: 1000
+    mpc:
+      use_particles: False
+      num_particles: 10
 alg:
     uncertainty_sampling: False
 
