@@ -110,7 +110,10 @@ def main(config):
 
     # Set initial data
     data = Namespace()
-    data.x = unif_random_sample_domain(domain, config.num_init_data)
+    if config.sample_init_initially:
+        data.x = [np.concatenate([env.reset(), env.action_space.sample()]) for _ in range(config.num_init_data)]
+    else:
+        data.x = unif_random_sample_domain(domain, config.num_init_data)
     data.y = f(data.x)
     for x, y in zip(data.x, data.y):
         dumper.add('x', x)
@@ -194,11 +197,11 @@ def main(config):
     for fp in full_paths:
         all_x += fp.x
     all_x = np.array(all_x)
-    print(f"all_x.shape = {all_x.shape}")
-    print(f"all_x.min(axis=0) = {all_x.min(axis=0)}")
-    print(f"all_x.max(axis=0) = {all_x.max(axis=0)}")
-    print(f"all_x.mean(axis=0) = {all_x.mean(axis=0)}")
-    print(f"all_x.var(axis=0) = {all_x.var(axis=0)}")
+    logging.info(f"all_x.shape = {all_x.shape}")
+    logging.info(f"all_x.min(axis=0) = {all_x.min(axis=0)}")
+    logging.info(f"all_x.max(axis=0) = {all_x.max(axis=0)}")
+    logging.info(f"all_x.mean(axis=0) = {all_x.mean(axis=0)}")
+    logging.info(f"all_x.var(axis=0) = {all_x.var(axis=0)}")
 
     # Save groundtruth paths plot
     if fig_gt:
