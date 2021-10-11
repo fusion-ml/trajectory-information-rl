@@ -31,8 +31,8 @@ class BACSwimmerEnv(mujoco_env.MujocoEnv, utils.EzPickle):
         self.periodic_dimensions = []
         mujoco_env.MujocoEnv.__init__(self, '%s/assets/swimmer.xml' % dir_path, 4)
         # TODO: set real obs spaces
-        low = np.array([-0.2, -4, 0, -0.5, -1., -2, -3, -3, -5.])
-        high = np.array([1.5, 0, 2, 2, 2, 3, 2, 6, 6])
+        low = np.array([-0.5, -3, -2, -2, -5, -4, -4, -9, -9])
+        high = np.array([2, 3, 2, 2, 4, 4, 4, 8, 8])
         self.observation_space = spaces.Box(low=low, high=high)
 
     def control_cost(self, action):
