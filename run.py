@@ -20,7 +20,7 @@ from bax.alg.mpc import MPC, StochasticMPC
 from bax import envs
 from bax.envs.wrappers import NormalizedEnv, make_normalized_reward_function, make_update_obs_fn
 from bax.envs.wrappers import make_normalized_plot_fn
-from bax.util.misc_util import Dumper, make_postmean_fn
+from bax.util.misc_util import Dumper, make_postmean_fn, make_particle_fn
 from bax.util.control_util import get_f_batch_mpc, get_f_batch_mpc_reward, compute_return, evaluate_policy
 from bax.util.control_util import rollout_mse, mse
 from bax.util.domain_util import unif_random_sample_domain
@@ -313,9 +313,10 @@ def main(config):
             dumper.add('Posterior Returns', posterior_returns)
         elif config.alg.use_mpc:
             model = gp_model_class(multi_gp_params, data)
+            f = make_particle_fn(model) if config.mpc.use_particles else make_postmean_fn(model)
             test_algo.initialize()
 
-            policy = partial(test_algo.execute_mpc, f=make_postmean_fn(model))
+            policy = partial(test_algo.execute_mpc, f=f)
             action = policy(current_obs)
             x_next = np.concatenate([current_obs, action])
         else:
@@ -335,9 +336,9 @@ def main(config):
                 # this is required to delete the current execution path
                 test_algo.initialize()
 
+                f = make_particle_fn(model) if config.mpc.use_particles else make_postmean_fn(model)
                 postmean_fn = make_postmean_fn(model)
-                # TODO, possibly make this function random
-                policy = partial(test_algo.execute_mpc, f=postmean_fn)
+                policy = partial(test_algo.execute_mpc, f=f)
                 real_returns = []
                 mses = []
                 pbar = trange(config.num_eval_trials)

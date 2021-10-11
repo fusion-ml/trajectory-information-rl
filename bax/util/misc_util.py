@@ -7,6 +7,7 @@ from pathlib import Path
 import os
 import logging
 import pickle
+import numpy as np
 from collections import defaultdict
 
 
@@ -109,7 +110,9 @@ def make_postmean_fn(model):
 def make_particle_fn(model):
     def particle_fn(x):
         mu_list, std_list = model.get_post_mu_cov(x, full_cov=False)
-        mu_tup_for_x = list(zip(*mu_list))
-        std_tup_for_x = list(zip(*std_list))
-        # TODO add noise
-        return stuf
+        mu = np.vstack(mu_list).T
+        std = np.vstack(std_list).T
+        samples = np.random.randn(*mu.shape)
+        data = mu + std * samples
+        return data
+    return particle_fn
