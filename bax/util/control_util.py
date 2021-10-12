@@ -175,11 +175,17 @@ def iCEM(start_obs,
     return best_return, best_obs, best_sample, elites
 
 
-def compute_return(rewards, discount_factor):
-    rewards = np.array(rewards)
-    if rewards.ndim == 2:
-        rewards = rewards.T
-    return np.polynomial.polynomial.polyval(discount_factor, rewards)
+def compute_return(rewards, discount_factor, return_aggregation_method='sum'):
+    if return_aggregation_method == 'sum':
+        rewards = np.array(rewards)
+        if rewards.ndim == 2:
+            rewards = rewards.T
+        return np.polynomial.polynomial.polyval(discount_factor, rewards)
+    elif return_aggregation_method == 'max':
+        rewards = np.array(rewards)
+        return rewards.max(axis=1)
+    else:
+        raise ValueError(f"Return aggregation method {return_aggregation_method} is not supported!")
 
 
 class DynamicsUnroller(ABC):

@@ -49,6 +49,7 @@ class MPC(BatchAlgorithm):
         self.params.num_iters = getattr(params, "num_iters", 3)
         self.params.actions_per_plan = getattr(params, "actions_per_plan", 4)
         self.params.project_to_domain = getattr(params, 'project_to_domain', False)
+        self.params.return_aggregation_method = getattr(params, 'return_aggregation_method', 'sum')
         self.params.domain = params.domain
         self.update_fn = params.update_fn
         self.traj_samples = None
@@ -73,6 +74,14 @@ class MPC(BatchAlgorithm):
         self.best_obs = None
         self.best_rewards = None
         self.is_test = False
+
+    @property
+    def reward_function(self):
+        return self.params.reward_function
+
+    @reward_function.setter
+    def reward_function(self, rew_fn):
+        self.params.reward_function = rew_fn
 
     def initialize(self, samples_to_pass=[]):
         """Initialize algorithm, reset execution path."""
@@ -160,7 +169,7 @@ class MPC(BatchAlgorithm):
             all_states = np.array(self.traj_states).transpose((1, 0, 2))
             all_actions = self.traj_samples
 
-        all_returns = compute_return(all_rewards, self.params.discount_factor)
+        all_returns = compute_return(all_rewards, self.params.discount_factor, self.params.return_aggregation_method)
         best_idx = np.argmax(all_returns)
         best_current_return = all_returns[best_idx]
         if best_current_return > self.best_return:
@@ -220,7 +229,7 @@ class MPC(BatchAlgorithm):
             all_rewards = np.array(self.traj_rewards).T
             all_states = np.array(self.traj_states).transpose((1, 0, 2))
             all_actions = self.traj_samples
-        all_returns = compute_return(all_rewards, self.params.discount_factor)
+        all_returns = compute_return(all_rewards, self.params.discount_factor, self.params.return_aggregation_method)
         best_sample_idx = np.argmax(all_returns)
         best_actions = all_actions[best_sample_idx, ...]
         best_obs = all_states[best_sample_idx, ...]

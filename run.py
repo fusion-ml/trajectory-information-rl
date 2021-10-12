@@ -106,6 +106,11 @@ def main(config):
             crop_to_domain=config.crop_to_domain,
             update_fn=update_fn,
     )
+    # Instantiate true algo, test time algo, and axes/figures
+    test_algo = algo_class(algo_params)
+    true_algo = algo_class(algo_params)
+    # set return aggregation method for data collection algo in case we're using max
+    algo_params['return_aggregation_method'] = config.alg.return_aggregation_method
     algo = algo_class(algo_params)
 
     # Set initial data
@@ -153,8 +158,6 @@ def main(config):
     # ==============================================
     #   Computing groundtruth trajectories
     # ==============================================
-    # Instantiate true algo and axes/figures
-    true_algo = algo_class(algo_params)
     ax_gt, fig_gt = None, None
 
     # Compute and plot true path (on true function) multiple times
@@ -326,14 +329,14 @@ def main(config):
                 model = gp_model_class(multi_gp_params, data)
             if posterior_returns:
                 logging.info(f"Current posterior returns: {posterior_returns}")
-                logging.info(f"Current posterior returns: mean={np.mean(posterior_returns)}, std={np.std(posterior_returns)}")
+                logging.info(f"Current posterior returns: mean={np.mean(posterior_returns)}, std={np.std(posterior_returns)}")  # NOQA
             with Timer("Evaluate the current MPC policy"):
                 # execute the best we can
                 # this is required to delete the current execution path
-                algo.initialize()
+                test_algo.initialize()
 
                 postmean_fn = make_postmean_fn(model)
-                policy = partial(algo.execute_mpc, f=postmean_fn)
+                policy = partial(test_algo.execute_mpc, f=postmean_fn)
                 real_returns = []
                 mses = []
                 pbar = trange(config.num_eval_trials)
@@ -346,12 +349,12 @@ def main(config):
                     real_path_mpc.x = real_obs
                     ax_all, fig_all = plot_fn(real_path_mpc, ax_all, fig_all, domain, 'postmean')
                     ax_postmean, fig_postmean = plot_fn(real_path_mpc, ax_postmean, fig_postmean, domain, 'samp')
-                    mses.append(rollout_mse(algo.old_exe_paths[-1], f))
+                    mses.append(rollout_mse(test_algo.old_exe_paths[-1], f))
                     stats = {"Mean Return": np.mean(real_returns), "Std Return:": np.std(real_returns),
                              "Model MSE": np.mean(mses)}
                     pbar.set_postfix(stats)
                 real_returns = np.array(real_returns)
-                algo.old_exe_paths = []
+                test_algo.old_exe_paths = []
                 dumper.add('Eval Returns', real_returns)
                 dumper.add('Eval ndata', len(data.x))
                 logging.info(f"Eval Results: real_returns={real_returns}")
@@ -373,7 +376,6 @@ def main(config):
             neatplot.save_figure(str(dumper.expdir / f'mpc_postmean_{i}'), 'png', fig=fig_postmean)
             neatplot.save_figure(str(dumper.expdir / f'mpc_samp_{i}'), 'png', fig=fig_samp)
             neatplot.save_figure(str(dumper.expdir / f'mpc_obs_{i}'), 'png', fig=fig_obs)
-
 
         # Query function, update data
         y_next = f([x_next])[0]
