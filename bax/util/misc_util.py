@@ -5,6 +5,7 @@ Miscellaneous utilities.
 from argparse import Namespace
 from pathlib import Path
 import os
+import numpy as np
 import logging
 import pickle
 from collections import defaultdict
@@ -98,9 +99,22 @@ def batch_function(f):
         return y_list
     return batched_f
 
+
 def make_postmean_fn(model):
     def postmean_fn(x):
         mu_list, std_list = model.get_post_mu_cov(x, full_cov=False)
         mu_tup_for_x = list(zip(*mu_list))
         return mu_tup_for_x
     return postmean_fn
+
+
+def make_reward_fn(acqfn):
+    def rew_fn(x, next_state):
+        initial_ndim = x.ndim
+        x = list(np.atleast_2d(x))
+        acq_list = acqfn(x)
+        acqvals = np.array(acq_list)
+        if initial_ndim == 1:
+            acqvals = acqvals[0, :]
+        return acqvals
+    return rew_fn
