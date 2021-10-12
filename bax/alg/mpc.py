@@ -76,10 +76,10 @@ class MPC(BatchAlgorithm):
         self.is_test = False
 
     @property
-    def reward_function(self):
+    def reward_fn(self):
         return self.params.reward_function
 
-    @reward_function.setter
+    @reward_fn.setter
     def reward_function(self, rew_fn):
         self.params.reward_function = rew_fn
 
