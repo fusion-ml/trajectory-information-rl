@@ -20,7 +20,7 @@ from bax.alg.mpc import MPC
 from bax import envs
 from bax.envs.wrappers import NormalizedEnv, make_normalized_reward_function, make_update_obs_fn
 from bax.envs.wrappers import make_normalized_plot_fn
-from bax.util.misc_util import Dumper, make_postmean_fn
+from bax.util.misc_util import Dumper, make_postmean_fn, make_reward_fn
 from bax.util.control_util import get_f_batch_mpc, get_f_batch_mpc_reward, compute_return, evaluate_policy
 from bax.util.control_util import rollout_mse, mse
 from bax.util.domain_util import unif_random_sample_domain
@@ -266,14 +266,17 @@ def main(config):
 
         if config.alg.use_acquisition:
             model = gp_model_class(multi_gp_params, data)
-            # Set and optimize acquisition function
-            acqfn_base = acqfn_class(params=acqfn_params, model=model, algorithm=algo)
+            # Set and optimize acquisition function (BARL and EIG_T)
+            acqfn_base = acqfn_class(params=acqfn_params, model=model, algorithm=test_algo)
             acqfn = MCAcqFunction(acqfn_base, {"num_samples_mc": config.num_samples_mc})
             acqopt = AcqOptimizer()
             acqopt.initialize(acqfn)
             if config.alg.rollout_sampling:
+                # BARL-MPC naive version
                 x_test = [np.concatenate([current_obs, env.action_space.sample()]) for _ in range(config.n_rand_acqopt)]
+                x_next, acq_val = acqopt.optimize(x_test)
             elif config.sample_exe and not config.alg.uncertainty_sampling:
+                # sample paths for BARL in high dimensions
                 all_x = []
                 for path in acqfn.exe_path_full_list:
                     all_x += path.x
@@ -284,9 +287,21 @@ def main(config):
                 x_test += np.random.randn(*x_test.shape) * 0.01
                 x_test = list(x_test)
                 x_test += unif_random_sample_domain(domain, n=n_rand)
+                x_next, acq_val = acqopt.optimize(x_test)
+            elif config.alg.rollout_planning:
+                # BARL-MPC smarter version
+                ig_rew_fn = make_reward_fn(acqfn)
+                # TODO: didn't check this case if we are predicting the reward function
+                old_reward_fn = algo.reward_fn
+                algo.reward_fn = ig_rew_fn
+                policy = partial(algo.execute_mpc, f=make_postmean_fn(model))
+                action = policy(current_obs)
+                x_next = np.concatenate([current_obs, action])
+                algo.reward_fn = old_reward_fn
             else:
+                # uniform sampling for BARL in low dimensions and EIG_T
                 x_test = unif_random_sample_domain(domain, n=config.n_rand_acqopt)
-            x_next, acq_val = acqopt.optimize(x_test)
+                x_next, acq_val = acqopt.optimize(x_test)
             dumper.add('Acquisition Function Value', acq_val)
             dumper.add('x_next', x_next)
 
@@ -312,6 +327,7 @@ def main(config):
             posterior_returns = [compute_return(output[2], 1) for output in acqfn.output_list]
             dumper.add('Posterior Returns', posterior_returns)
         elif config.alg.use_mpc:
+            # MPC on the mean for exploration
             model = gp_model_class(multi_gp_params, data)
             algo.initialize()
 
@@ -319,6 +335,7 @@ def main(config):
             action = policy(current_obs)
             x_next = np.concatenate([current_obs, action])
         else:
+            # RQMPC: completely random queries
             x_next = unif_random_sample_domain(domain, 1)[0]
 
         # ==============================================
@@ -383,7 +400,7 @@ def main(config):
         data.y.append(y_next)
         dumper.add('x', x_next)
         dumper.add('y', y_next)
-        if config.alg.rollout_sampling:
+        if config.alg.rollout_sampling or config.alg.rollout_planning:
             current_t += 1
             if current_t > env.horizon:
                 current_t = 0

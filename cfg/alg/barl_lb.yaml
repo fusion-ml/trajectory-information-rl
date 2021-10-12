@@ -1,0 +1,8 @@
+learn_reward: False
+num_iters: 4000
+use_acquisition: True
+rollout_sampling: False
+rollout_planning: True
+return_aggregation_method: "max"
+n_rand_acqopt: 1000
+use_mpc: False

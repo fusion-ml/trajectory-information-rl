@@ -15,6 +15,7 @@ env:
 alg:
     uncertainty_sampling: False
     return_aggregation_method: "sum"
+    rollout_planning: False
 
 num_iters: ${alg.num_iters}
 seed: 13
