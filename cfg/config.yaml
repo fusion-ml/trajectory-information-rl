@@ -26,6 +26,7 @@ n_paths: 15
 sample_exe: ${env.sample_exe}
 path_sampling_fraction: 0.8
 path_sampling_noise: 0.01
+sample_init_initially: False
 normalize_env: ${env.normalize_env}
 n_rand_acqopt: ${alg.n_rand_acqopt}
 crop_to_domain: True
