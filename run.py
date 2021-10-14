@@ -313,10 +313,10 @@ def main(config):
             dumper.add('Posterior Returns', posterior_returns)
         elif config.alg.use_mpc:
             model = gp_model_class(multi_gp_params, data)
-            f = make_particle_fn(model) if config.mpc.use_particles else make_postmean_fn(model)
+            f_plan = make_particle_fn(model) if config.mpc.use_particles else make_postmean_fn(model)
             test_algo.initialize()
 
-            policy = partial(test_algo.execute_mpc, f=f)
+            policy = partial(test_algo.execute_mpc, f=f_plan)
             action = policy(current_obs)
             x_next = np.concatenate([current_obs, action])
         else:
@@ -336,9 +336,9 @@ def main(config):
                 # this is required to delete the current execution path
                 test_algo.initialize()
 
-                f = make_particle_fn(model) if config.mpc.use_particles else make_postmean_fn(model)
+                f_plan = make_particle_fn(model) if config.mpc.use_particles else make_postmean_fn(model)
                 postmean_fn = make_postmean_fn(model)
-                policy = partial(test_algo.execute_mpc, f=f)
+                policy = partial(test_algo.execute_mpc, f=f_plan)
                 real_returns = []
                 mses = []
                 pbar = trange(config.num_eval_trials)
