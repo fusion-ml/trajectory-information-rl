@@ -244,7 +244,7 @@ def main(config):
     # ==============================================
 
     # Set current_obs as fixed start_obs or reset plan_env
-    if config.alg.rollout_sampling:
+    if config.alg.rollout_sampling or config.alg.rollout_planning:
         current_obs = start_obs.copy() if config.fixed_start_obs else plan_env.reset()
         current_t = 0
 
@@ -291,11 +291,12 @@ def main(config):
             elif config.alg.rollout_planning:
                 # BARL-MPC smarter version
                 ig_rew_fn = make_reward_fn(acqfn)
-                # TODO: didn't check this case if we are predicting the reward function
+                # TODO: didn't check this case if we are predicting the reward function instead of given it
+                algo.initialize()
                 old_reward_fn = algo.reward_fn
                 algo.reward_fn = ig_rew_fn
-                policy = partial(algo.execute_mpc, f=make_postmean_fn(model))
-                action = policy(current_obs)
+                policy = partial(algo.execute_mpc, f=make_postmean_fn(model), return_ret=True)
+                action, acq_val = policy(current_obs)
                 x_next = np.concatenate([current_obs, action])
                 algo.reward_fn = old_reward_fn
             else:

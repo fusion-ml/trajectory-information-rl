@@ -80,7 +80,7 @@ class MPC(BatchAlgorithm):
         return self.params.reward_function
 
     @reward_fn.setter
-    def reward_function(self, rew_fn):
+    def reward_fn(self, rew_fn):
         self.params.reward_function = rew_fn
 
     def initialize(self, samples_to_pass=[]):
@@ -311,8 +311,9 @@ class MPC(BatchAlgorithm):
                 break
         return exe_path_crop
 
-    def execute_mpc(self, obs, f, samples_to_pass=[], return_samps=False):
+    def execute_mpc(self, obs, f, samples_to_pass=[], return_samps=False, return_ret=False):
         """Run MPC on a state, returns the optimal action."""
+        assert not (return_samps and return_ret)
         old_horizon = self.params.env_horizon
         old_start_obs = self.params.start_obs
         old_app = self.params.actions_per_plan
@@ -325,17 +326,20 @@ class MPC(BatchAlgorithm):
         # this doesn't do anything rn but maybe will in future (it did in debugging too)
         self.is_test = True
         exe_path, output = self.run_algorithm_on_f(f)
+        ret = output[2][0]
         self.is_test = False
         action = output[1][0]
         self.params.env_horizon = old_horizon
         self.params.start_obs = old_start_obs
         self.params.actions_per_plan = old_app
-        if not return_samps:
+        if not return_samps and not return_ret:
             return action
-        else:
+        elif return_samps:
             # get the samples of good actions you'd want for the next iteration
             samples = self.shifted_actions
             return action, samples
+        else:
+            return action, ret
 
 
 def test_MPC_algorithm():
