@@ -70,6 +70,11 @@ try:
         entry_point=BACSwimmerEnv,
         )
     register(
+        id='bacswimmer-rew-v0',
+        entry_point=BACSwimmerEnv,
+        kwargs={'concat_reward': True}
+        )
+    register(
         id='bacreacher-v0',
         entry_point=BACReacherEnv,
         )
@@ -80,6 +85,7 @@ try:
         )
     reward_functions['bacswimmer-v0'] = swimmer_reward
     reward_functions['bacreacher-v0'] = reacher_reward
+    reward_functions['bacswimmer-rew-v0'] = swimmer_reward
     reward_functions['bacreacher-tight-v0'] = reacher_reward
 except:
     logging.info('mujoco not found, skipping those envs')

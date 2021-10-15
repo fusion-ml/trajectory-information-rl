@@ -14,6 +14,7 @@ class BACSwimmerEnv(mujoco_env.MujocoEnv, utils.EzPickle):
         ctrl_cost_weight=1e-4,
         reset_noise_scale=0.1,
         exclude_current_positions_from_observation=False,
+        concat_reward=False,
     ):
         utils.EzPickle.__init__(**locals())
 
@@ -27,12 +28,15 @@ class BACSwimmerEnv(mujoco_env.MujocoEnv, utils.EzPickle):
         )
 
         dir_path = os.path.dirname(os.path.realpath(__file__))
+        self.concat_reward = concat_reward
         self.horizon = 200
         self.periodic_dimensions = []
         mujoco_env.MujocoEnv.__init__(self, '%s/assets/swimmer.xml' % dir_path, 4)
-        # TODO: set real obs spaces
         low = np.array([-0.5, -3, -2, -2, -5, -4, -4, -9, -9])
         high = np.array([2, 3, 2, 2, 4, 4, 4, 8, 8])
+        if self.concat_reward:
+            low = np.concatenate([low, [-np.inf]])
+            high = np.concatenate([high, [np.inf]])
         self.observation_space = spaces.Box(low=low, high=high)
 
     def control_cost(self, action):
@@ -53,6 +57,8 @@ class BACSwimmerEnv(mujoco_env.MujocoEnv, utils.EzPickle):
 
         observation = self._get_obs()
         reward = forward_reward - ctrl_cost
+        if self.concat_reward:
+            observation = np.concatenate([observation, [reward]])
         done = False
         info = {
             "reward_fwd": forward_reward,
@@ -82,6 +88,8 @@ class BACSwimmerEnv(mujoco_env.MujocoEnv, utils.EzPickle):
     def reset(self, obs=None):
         old_obs = super().reset()
         if obs is None:
+            if self.concat_reward:
+                old_obs = np.concatenate([old_obs, [0]])
             return old_obs
         if self._exclude_current_positions_from_observation:
             position = np.zeros(2)
@@ -93,6 +101,7 @@ class BACSwimmerEnv(mujoco_env.MujocoEnv, utils.EzPickle):
         self.set_state(qpos, qvel)
         check_obs = self._get_obs()
         assert np.allclose(check_obs, obs), f"Obs: {obs} not equal to check_obs {check_obs}"
+        assert not self.concat_reward, f"Didn't implement the concat_reward functionality for resets"
         return check_obs
 
     def reset_model(self):
