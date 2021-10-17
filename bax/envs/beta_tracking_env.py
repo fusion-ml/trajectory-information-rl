@@ -39,7 +39,7 @@ class BetaTrackingModelEnv(EnvModel):
             # These default bounds are roughly the 0.05-0.95 interval.
             scaled_pinj_bounds=(-1, 1.5),
             # scaled_pinj_dt_bounds=None,
-            scaled_pinj_dt_bounds=(-0.5,0.5),
+            scaled_pinj_dt_bounds=(-0.5, 0.5),
             action_is_change=True,
             # It is assumed state space will be ordered like ...
             # (signalX, signalX_prev_delta, ...., pinj, pinj_prev_delta)
@@ -249,7 +249,8 @@ class BetaTrackingGymEnv(gym.Env):
                  model_path=DEFAULT_MODEL_PATH,
                  model_info_path=DEFAULT_MODEL_INFO_PATH,
                  start_data_path=DEFAULT_START_DATA_PATH,
-                 target=2):
+                 target=2,
+                 shuffle=True):
         self._model_env = BetaTrackingModelEnv(model_path,
                                                model_info_path,
                                                action_is_change=True,
@@ -258,7 +259,7 @@ class BetaTrackingGymEnv(gym.Env):
 
 
         self._start_selector = BetaTrackingStartSelector(start_data_path,
-                                                         shuffle=True,
+                                                         shuffle=shuffle,
                                                          test_shots=False)
 
         self._state = None

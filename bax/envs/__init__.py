@@ -97,6 +97,11 @@ try:
         entry_point=BetaTrackingGymEnv,
         )
     register(
+        id='betatracking-fixed-v0',
+        entry_point=BetaTrackingGymEnv,
+        kwargs={"shuffle": False},
+        )
+    register(
         id='plasmatracking-v0',
         entry_point=TrackingGymEnv,
         )
