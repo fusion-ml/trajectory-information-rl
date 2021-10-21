@@ -1,11 +1,11 @@
 import logging
 from gym.envs.registration import register
-from bax.envs.pendulum import PendulumEnv, pendulum_reward
-from bax.envs.pilco_cartpole import CartPoleSwingUpEnv, pilco_cartpole_reward
-from bax.envs.goddard import GoddardEnv, goddard_reward
-# from bax.util.envs.pets_cartpole import PETSCartpoleEnv, cartpole_reward
-from bax.envs.acrobot import AcrobotEnv, acrobot_reward
-from bax.envs.lava_path import LavaPathEnv, lava_path_reward
+from barl.envs.pendulum import PendulumEnv, pendulum_reward
+from barl.envs.pilco_cartpole import CartPoleSwingUpEnv, pilco_cartpole_reward
+from barl.envs.goddard import GoddardEnv, goddard_reward
+# from barl.util.envs.pets_cartpole import PETSCartpoleEnv, cartpole_reward
+from barl.envs.acrobot import AcrobotEnv, acrobot_reward
+from barl.envs.lava_path import LavaPathEnv, lava_path_reward
 
 # register each environment we wanna use
 register(
@@ -63,8 +63,8 @@ reward_functions = {
         }
 # mujoco stuff
 try:
-    from bax.envs.swimmer import BACSwimmerEnv, swimmer_reward
-    from bax.envs.reacher import BACReacherEnv, reacher_reward
+    from barl.envs.swimmer import BACSwimmerEnv, swimmer_reward
+    from barl.envs.reacher import BACReacherEnv, reacher_reward
     register(
         id='bacswimmer-v0',
         entry_point=BACSwimmerEnv,
@@ -90,8 +90,8 @@ try:
 except:
     logging.info('mujoco not found, skipping those envs')
 try:
-    from bax.envs.beta_tracking_env import BetaTrackingGymEnv, beta_tracking_rew
-    from bax.envs.tracking_env import TrackingGymEnv, tracking_rew
+    from barl.envs.beta_tracking_env import BetaTrackingGymEnv, beta_tracking_rew
+    from barl.envs.tracking_env import TrackingGymEnv, tracking_rew
     register(
         id='betatracking-v0',
         entry_point=BetaTrackingGymEnv,

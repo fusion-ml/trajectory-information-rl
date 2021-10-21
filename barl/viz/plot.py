@@ -1,8 +1,8 @@
 from matplotlib import pyplot as plt
 import numpy as np
-from bax.envs.pilco_cartpole import get_pole_pos
+from barl.envs.pilco_cartpole import get_pole_pos
 import matplotlib.patches as patches
-from bax.envs.lava_path import LavaPathEnv
+from barl.envs.lava_path import LavaPathEnv
 
 def plot_pendulum(path, ax=None, fig=None, domain=None, path_str="samp", env=None):
     """Plot a path through an assumed two-dimensional state space."""
