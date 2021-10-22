@@ -87,7 +87,7 @@ def get_initial_data(config, env, f, domain, dumper, plot_fn):
     return data
 
 
-def get_model(config, obs_dim, action_dim):
+def get_model(config, env, obs_dim, action_dim):
     gp_params = {
         'ls': config.env.gp.ls,
         'alpha': config.env.gp.alpha,
@@ -101,6 +101,29 @@ def get_model(config, obs_dim, action_dim):
     multi_gp_params = {'n_dimy': obs_dim, 'gp_params': gp_params}
     gp_model_class = BatchMultiGpfsGp
     return gp_model_class, multi_gp_params
+
+
+def fit_hypers(config, fit_data, plot_fn, domain, expdir):
+    # Use test_mpc_data to fit hyperparameters
+    assert len(fit_data.x) <= 3000, "fit_data larger than preset limit (can cause memory issues)"
+
+    logging.info('\n'+'='*60+'\n Fitting Hyperparameters\n'+'='*60)
+    logging.info(f'Number of observations in fit_data: {len(fit_data.x)}')
+
+    # Plot hyper fitting data
+    ax_obs_hyper_fit, fig_obs_hyper_fit = plot_fn(path=None, domain=domain)
+    x_obs = [xi[0] for xi in fit_data.x]
+    y_obs = [xi[1] for xi in fit_data.x]
+    if ax_obs_hyper_fit:
+        ax_obs_hyper_fit.plot(x_obs, y_obs, 'o', color='k', ms=1)
+        neatplot.save_figure(str(expdir / 'mpc_obs_hyper_fit'), 'png', fig=fig_obs_hyper_fit)
+
+    # Perform hyper fitting
+    for idx in range(len(fit_data.y[0])):
+        data_fit = Namespace(x=fit_data.x, y=[yi[idx] for yi in fit_data.y])
+        gp_params = get_gpflow_hypers_from_data(data_fit, print_fit_hypers=True,
+                                                opt_max_iter=config.env.gp.opt_max_iter)
+        logging.info(f'gp_params for output {idx} = {gp_params}')
 
 
 @hydra.main(config_path='cfg', config_name='config')
@@ -157,7 +180,7 @@ def main(config):
     test_data.y = f(test_data.x)
 
     # Set model
-    gp_model_class, multi_gp_params = get_model(config, obs_dim, action_dim)
+    gp_model_class, multi_gp_params = get_model(config, env, obs_dim, action_dim)
 
     # Set acqfunction
     acqfn_params = {'n_path': config.n_paths, 'crop': True}
@@ -221,28 +244,7 @@ def main(config):
     #   Optionally: fit GP hyperparameters (then exit)
     # ==============================================
     if config.fit_hypers:
-        # Use test_mpc_data to fit hyperparameters
-        fit_data = test_mpc_data
-        assert len(fit_data.x) <= 3000, "fit_data larger than preset limit (can cause memory issues)"
-
-        logging.info('\n'+'='*60+'\n Fitting Hyperparameters\n'+'='*60)
-        logging.info(f'Number of observations in fit_data: {len(fit_data.x)}')
-
-        # Plot hyper fitting data
-        ax_obs_hyper_fit, fig_obs_hyper_fit = plot_fn(path=None, domain=domain)
-        x_obs = [xi[0] for xi in fit_data.x]
-        y_obs = [xi[1] for xi in fit_data.x]
-        if ax_obs_hyper_fit:
-            ax_obs_hyper_fit.plot(x_obs, y_obs, 'o', color='k', ms=1)
-            neatplot.save_figure(str(dumper.expdir / 'mpc_obs_hyper_fit'), 'png', fig=fig_obs_hyper_fit)
-
-        # Perform hyper fitting
-        for idx in range(len(data.y[0])):
-            data_fit = Namespace(x=fit_data.x, y=[yi[idx] for yi in fit_data.y])
-            gp_params = get_gpflow_hypers_from_data(data_fit, print_fit_hypers=True,
-                                                    opt_max_iter=config.env.gp.opt_max_iter)
-            logging.info(f'gp_params for output {idx} = {gp_params}')
-
+        fit_hypers(config, test_mpc_data, plot_fn, domain, dumper.expdir)
         # End script if hyper fitting bc need to include in config
         return
 
