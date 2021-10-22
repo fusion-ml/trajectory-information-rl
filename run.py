@@ -115,9 +115,8 @@ def main(config):
     else:
         data.x = unif_random_sample_domain(domain, config.num_init_data)
     data.y = f(data.x)
-    for x, y in zip(data.x, data.y):
-        dumper.add('x', x)
-        dumper.add('y', y)
+    dumper.extend('x', data.x)
+    dumper.extend('y', data.y)
 
     # Plot initial data
     ax_obs_init, fig_obs_init = plot_fn(path=None, domain=domain)
@@ -188,11 +187,8 @@ def main(config):
 
     # Log and dump
     returns = np.array(returns)
-    dumper.add('GT Returns', returns)
-    path_lengths = np.array(path_lengths)
-    logging.info(f"GT Returns: returns{returns}")
-    logging.info(f"GT Returns: mean={returns.mean()} std={returns.std()}")
-    logging.info(f"GT Execution: path_lengths.mean()={path_lengths.mean()} path_lengths.std()={path_lengths.std()}")
+    dumper.add('GT Returns', returns, log_mean_std=True)
+    dumper.add('Path Lengths', path_lengths, log_mean_std=True)
     all_x = []
     for fp in full_paths:
         all_x += fp.x
@@ -285,7 +281,6 @@ def main(config):
                 x_test = unif_random_sample_domain(domain, n=config.n_rand_acqopt)
             x_next, acq_val = acqopt.optimize(x_test)
             dumper.add('Acquisition Function Value', acq_val)
-            dumper.add('x_next', x_next)
 
             # Plot true path and posterior path samples
             ax_all, fig_all = plot_fn(true_path, ax_all, fig_all, domain, 'true')
@@ -307,7 +302,7 @@ def main(config):
 
             # Store returns of posterior samples
             posterior_returns = [compute_return(output[2], 1) for output in acqfn.output_list]
-            dumper.add('Posterior Returns', posterior_returns)
+            dumper.add('Posterior Returns', posterior_returns, verbose=(i % config.eval_frequency == 0))
         elif config.alg.use_mpc:
             model = gp_model_class(multi_gp_params, data)
             algo.initialize()
@@ -324,9 +319,6 @@ def main(config):
         if i % config.eval_frequency == 0 or i + 1 == config.num_iters:
             if model is None:
                 model = gp_model_class(multi_gp_params, data)
-            if posterior_returns:
-                logging.info(f"Current posterior returns: {posterior_returns}")
-                logging.info(f"Current posterior returns: mean={np.mean(posterior_returns)}, std={np.std(posterior_returns)}")
             with Timer("Evaluate the current MPC policy"):
                 # execute the best we can
                 # this is required to delete the current execution path
@@ -352,10 +344,8 @@ def main(config):
                     pbar.set_postfix(stats)
                 real_returns = np.array(real_returns)
                 algo.old_exe_paths = []
-                dumper.add('Eval Returns', real_returns)
+                dumper.add('Eval Returns', real_returns, log_mean_std=True)
                 dumper.add('Eval ndata', len(data.x))
-                logging.info(f"Eval Results: real_returns={real_returns}")
-                logging.info(f"Eval Results: mean={np.mean(real_returns)}, std={np.std(real_returns)}")
                 current_mpc_mse = np.mean(mses)
                 test_y_hat = postmean_fn(test_data.x)
                 random_mse = mse(test_data.y, test_y_hat)
@@ -364,9 +354,6 @@ def main(config):
                 dumper.add('Model MSE (current MPC)', current_mpc_mse)
                 dumper.add('Model MSE (random test set)', random_mse)
                 dumper.add('Model MSE (GT MPC)', gt_mpc_mse)
-                logging.info(f"Current MPC MSE: {current_mpc_mse:.3f}")
-                logging.info(f"Random MSE: {random_mse:.3f}")
-                logging.info(f"GT MPC MSE: {gt_mpc_mse:.3f}")
 
             # Save figure at end of evaluation
             neatplot.save_figure(str(dumper.expdir / f'mpc_all_{i}'), 'png', fig=fig_all)

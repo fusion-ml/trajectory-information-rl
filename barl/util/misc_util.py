@@ -5,6 +5,7 @@ Miscellaneous utilities.
 from argparse import Namespace
 from pathlib import Path
 import os
+import numpy as np
 import logging
 import pickle
 from collections import defaultdict
@@ -64,25 +65,28 @@ class suppress_stdout_stderr:
 class Dumper:
     def __init__(self, experiment_name):
         cwd = Path.cwd()
-        # while cwd.name != 'bayesian-active-control':
-            # cwd = cwd.parent
         # this should be the root of the repo
         self.expdir = cwd
         logging.info(f'Dumper dumping to {cwd}')
-        # if self.expdir.exists() and overwrite:
-            # shutil.rmtree(self.expdir)
-        # self.expdir.mkdir(parents=True)
         self.info = defaultdict(list)
         self.info_path = self.expdir / 'info.pkl'
-        # args = vars(args)
-        # print('Run with the following args:')
-        # pprint(args)
-        # args_path = self.expdir / 'args.json'
-        # with args_path.open('w') as f:
-            # json.dump(args, f, indent=4)
 
-    def add(self, name, val):
+    def add(self, name, val, verbose=True, log_mean_std=False):
+        if verbose:
+            try:
+                val = float(val)
+                logging.info(f"{name}: {val:.3f}")
+            except TypeError:
+                logging.info(f"{name}: {val}")
+            if log_mean_std:
+                valarray = np.array(val)
+                logging.info(f"{name}: mean={valarray.mean():.3f} std={valarray.std():.3f}")
         self.info[name].append(val)
+
+    def extend(self, name, vals, verbose=False):
+        if verbose:
+            logging.info(f"{name}: {vals}")
+        self.info[name].extend(vals)
 
     def save(self):
         with self.info_path.open('wb') as f:
@@ -97,6 +101,7 @@ def batch_function(f):
             y_list.append(f(x))
         return y_list
     return batched_f
+
 
 def make_postmean_fn(model):
     def postmean_fn(x):
