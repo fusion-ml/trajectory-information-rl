@@ -1,5 +1,5 @@
 """
-Testing MultiGpfsGp and MultibaxAcqFunction classes
+Main File for BARL and associated code.
 """
 from argparse import Namespace
 import logging
@@ -46,20 +46,9 @@ def configure(config):
     assert (not config.fixed_start_obs) or config.num_samples_mc == 1, f"Need to have a fixed start obs ({config.fixed_start_obs}) or only 1 mc sample ({config.num_samples_mc})"  # NOQA
 
 
-@hydra.main(config_path='cfg', config_name='config')
-def main(config):
-    # ==============================================
-    #   Define and configure
-    # ==============================================
-    dumper = Dumper(config.name)
-    configure(config)
-
-    # Set black-box functions
+def get_env(config):
     env = gym.make(config.env.name)
     env.seed(config.seed)
-    obs_dim = env.observation_space.low.size
-    action_dim = env.action_space.low.size
-
     # set plot fn
     plot_fn = partial(plotters[config.env.name], env=env)
 
@@ -75,6 +64,57 @@ def main(config):
     else:
         f = get_f_batch_mpc(env, use_info_delta=config.teleport)
     update_fn = make_update_obs_fn(env, teleport=config.teleport)
+    return env, f, plot_fn, reward_function, update_fn
+
+
+def get_initial_data(config, env, f, domain, dumper, plot_fn):
+    data = Namespace()
+    if config.sample_init_initially:
+        data.x = [np.concatenate([env.reset(), env.action_space.sample()]) for _ in range(config.num_init_data)]
+    else:
+        data.x = unif_random_sample_domain(domain, config.num_init_data)
+    data.y = f(data.x)
+    dumper.extend('x', data.x)
+    dumper.extend('y', data.y)
+
+    # Plot initial data (TODO, refactor plotting)
+    ax_obs_init, fig_obs_init = plot_fn(path=None, domain=domain)
+    x_obs = [xi[0] for xi in data.x]
+    y_obs = [xi[1] for xi in data.x]
+    if ax_obs_init:
+        ax_obs_init.plot(x_obs, y_obs, 'o', color='k', ms=1)
+        neatplot.save_figure(str(dumper.expdir / 'mpc_obs_init'), 'png', fig=fig_obs_init)
+    return data
+
+
+def get_model(config, obs_dim, action_dim):
+    gp_params = {
+        'ls': config.env.gp.ls,
+        'alpha': config.env.gp.alpha,
+        'sigma': config.env.gp.sigma,
+        'n_dimx': obs_dim + action_dim
+    }
+    if config.env.gp.periodic:
+        gp_params['kernel_str'] = 'rbf_periodic'
+        gp_params['periodic_dims'] = env.periodic_dimensions
+        gp_params['period'] = config.env.gp.period
+    multi_gp_params = {'n_dimy': obs_dim, 'gp_params': gp_params}
+    gp_model_class = BatchMultiGpfsGp
+    return gp_model_class, multi_gp_params
+
+
+@hydra.main(config_path='cfg', config_name='config')
+def main(config):
+    # ==============================================
+    #   Define and configure
+    # ==============================================
+    dumper = Dumper(config.name)
+    configure(config)
+
+    # Instantiate environment and create functions for dynamics, plotting, rewards, state updates
+    env, f, plot_fn, reward_function, update_fn = get_env(config)
+    obs_dim = env.observation_space.low.size
+    action_dim = env.action_space.low.size
 
     # Set start obs
     start_obs = env.reset() if config.fixed_start_obs else None
@@ -109,22 +149,7 @@ def main(config):
     algo = algo_class(algo_params)
 
     # Set initial data
-    data = Namespace()
-    if config.sample_init_initially:
-        data.x = [np.concatenate([env.reset(), env.action_space.sample()]) for _ in range(config.num_init_data)]
-    else:
-        data.x = unif_random_sample_domain(domain, config.num_init_data)
-    data.y = f(data.x)
-    dumper.extend('x', data.x)
-    dumper.extend('y', data.y)
-
-    # Plot initial data
-    ax_obs_init, fig_obs_init = plot_fn(path=None, domain=domain)
-    x_obs = [xi[0] for xi in data.x]
-    y_obs = [xi[1] for xi in data.x]
-    if ax_obs_init:
-        ax_obs_init.plot(x_obs, y_obs, 'o', color='k', ms=1)
-        neatplot.save_figure(str(dumper.expdir / 'mpc_obs_init'), 'png', fig=fig_obs_init)
+    data = get_initial_data(config, env, f, domain, dumper, plot_fn)
 
     # Make a test set for model evalution separate from the controller
     test_data = Namespace()
@@ -132,18 +157,7 @@ def main(config):
     test_data.y = f(test_data.x)
 
     # Set model
-    gp_params = {
-        'ls': config.env.gp.ls,
-        'alpha': config.env.gp.alpha,
-        'sigma': config.env.gp.sigma,
-        'n_dimx': obs_dim + action_dim
-    }
-    if config.env.gp.periodic:
-        gp_params['kernel_str'] = 'rbf_periodic'
-        gp_params['periodic_dims'] = env.periodic_dimensions
-        gp_params['period'] = config.env.gp.period
-    multi_gp_params = {'n_dimy': obs_dim, 'gp_params': gp_params}
-    gp_model_class = BatchMultiGpfsGp
+    gp_model_class, multi_gp_params = get_model(config, obs_dim, action_dim)
 
     # Set acqfunction
     acqfn_params = {'n_path': config.n_paths, 'crop': True}
