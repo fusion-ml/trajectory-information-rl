@@ -31,13 +31,7 @@ import neatplot
 tf.compat.v1.logging.set_verbosity(tf.compat.v1.logging.ERROR)
 
 
-@hydra.main(config_path='cfg', config_name='config')
-def main(config):
-    # ==============================================
-    #   Define and configure
-    # ==============================================
-    dumper = Dumper(config.name)
-
+def configure(config):
     # Set plot settings
     neatplot.set_style()
     neatplot.update_rc('figure.dpi', 120)
@@ -51,29 +45,35 @@ def main(config):
     # Check fixed_start_obs and num_samples_mc compatability
     assert (not config.fixed_start_obs) or config.num_samples_mc == 1, f"Need to have a fixed start obs ({config.fixed_start_obs}) or only 1 mc sample ({config.num_samples_mc})"  # NOQA
 
+
+@hydra.main(config_path='cfg', config_name='config')
+def main(config):
+    # ==============================================
+    #   Define and configure
+    # ==============================================
+    dumper = Dumper(config.name)
+    configure(config)
+
     # Set black-box functions
     env = gym.make(config.env.name)
-    env.seed(seed)
+    env.seed(config.seed)
     obs_dim = env.observation_space.low.size
     action_dim = env.action_space.low.size
 
-    plan_env = gym.make(config.env.name)
-    plan_env.seed(seed)
-
     # set plot fn
-    plot_fn = partial(plotters[config.env.name], env=plan_env)
+    plot_fn = partial(plotters[config.env.name], env=env)
 
     reward_function = envs.reward_functions[config.env.name] if not config.alg.learn_reward else None
     if config.normalize_env:
         env = NormalizedEnv(env)
-        plan_env = NormalizedEnv(plan_env)
+        env = NormalizedEnv(env)
         if reward_function is not None:
-            reward_function = make_normalized_reward_function(plan_env, reward_function)
-        plot_fn = make_normalized_plot_fn(plan_env, plot_fn)
+            reward_function = make_normalized_reward_function(env, reward_function)
+        plot_fn = make_normalized_plot_fn(env, plot_fn)
     if config.alg.learn_reward:
-        f = get_f_batch_mpc_reward(plan_env, use_info_delta=config.teleport)
+        f = get_f_batch_mpc_reward(env, use_info_delta=config.teleport)
     else:
-        f = get_f_batch_mpc(plan_env, use_info_delta=config.teleport)
+        f = get_f_batch_mpc(env, use_info_delta=config.teleport)
     update_fn = make_update_obs_fn(env, teleport=config.teleport)
 
     # Set start obs
@@ -89,7 +89,7 @@ def main(config):
     algo_class = MPC
     algo_params = dict(
             start_obs=start_obs,
-            env=plan_env,
+            env=env,
             reward_function=reward_function,
             project_to_domain=False,
             base_nsamps=config.mpc.nsamps,
@@ -236,9 +236,9 @@ def main(config):
     #   Run main algorithm loop
     # ==============================================
 
-    # Set current_obs as fixed start_obs or reset plan_env
+    # Set current_obs as fixed start_obs or reset env
     if config.alg.rollout_sampling:
-        current_obs = start_obs.copy() if config.fixed_start_obs else plan_env.reset()
+        current_obs = start_obs.copy() if config.fixed_start_obs else env.reset()
         current_t = 0
 
     posterior_returns = None
@@ -361,7 +361,6 @@ def main(config):
             neatplot.save_figure(str(dumper.expdir / f'mpc_samp_{i}'), 'png', fig=fig_samp)
             neatplot.save_figure(str(dumper.expdir / f'mpc_obs_{i}'), 'png', fig=fig_obs)
 
-
         # Query function, update data
         y_next = f([x_next])[0]
         data.x.append(x_next)
@@ -372,7 +371,7 @@ def main(config):
             current_t += 1
             if current_t > env.horizon:
                 current_t = 0
-                current_obs = start_obs.copy() if config.fixed_start_obs else plan_env.reset()
+                current_obs = start_obs.copy() if config.fixed_start_obs else env.reset()
             else:
                 current_obs += y_next[-obs_dim:]
         # Dumper save
