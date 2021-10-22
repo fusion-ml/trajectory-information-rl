@@ -85,7 +85,8 @@ class Dumper:
 
     def extend(self, name, vals, verbose=False):
         if verbose:
-            logging.info(f"{name}: {vals}")
+            disp_vals = [f"{val:.3f}" for val in vals]
+            logging.info(f"{name}: {disp_vals}")
         self.info[name].extend(vals)
 
     def save(self):

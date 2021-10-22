@@ -11,7 +11,7 @@ class PendulumEnv(gym.Env):
         'video.frames_per_second': 30
     }
 
-    def __init__(self, g=10.0, seed=None, tight_start=False, medium_start=False):
+    def __init__(self, g=10.0, seed=None, tight_start=False, medium_start=False, test_case=False):
 
         # Set gym env seed
         assert not (tight_start and medium_start)
@@ -28,6 +28,10 @@ class PendulumEnv(gym.Env):
         self.periodic_dimensions = [0]
         self.tight_start = tight_start
         self.medium_start = medium_start
+        if test_case:
+            self.tight_start = True
+            self.medium_start = False
+            self.horizon = 20
 
         high = np.array([np.pi, self.max_speed], dtype=np.float32)
         self.action_space = spaces.Box(

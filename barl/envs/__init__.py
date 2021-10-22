@@ -14,15 +14,21 @@ register(
     )
 
 register(
+    id='bacpendulum-test-v0',
+    entry_point=PendulumEnv,
+    kwargs={'test_case': True},
+    )
+
+register(
     id='bacpendulum-tight-v0',
     entry_point=PendulumEnv,
-    kwargs={'tight_start': True}
+    kwargs={'tight_start': True},
     )
 
 register(
     id='bacpendulum-medium-v0',
     entry_point=PendulumEnv,
-    kwargs={'medium_start': True}
+    kwargs={'medium_start': True},
     )
 
 register(
@@ -52,6 +58,7 @@ register(
     )
 reward_functions = {
         'bacpendulum-v0': pendulum_reward,
+        'bacpendulum-test-v0': pendulum_reward,
         'bacpendulum-tight-v0': pendulum_reward,
         'bacpendulum-medium-v0': pendulum_reward,
         'goddard-v0': goddard_reward,
