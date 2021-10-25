@@ -69,6 +69,11 @@ def mse(y, y_hat):
     y_hat = np.array(y_hat)
     return np.mean(np.sum(np.square(y_hat - y), axis=1))
 
+def norm_mse(y, y_hat):
+    y = np.array(y)
+    y_hat = np.array(y_hat)
+    return np.mean(np.square(y - y_hat) / np.square(y))
+
 
 def CEM(start_obs,
         action_dim,
