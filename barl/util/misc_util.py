@@ -9,6 +9,7 @@ import numpy as np
 import logging
 import pickle
 from collections import defaultdict
+from scipy.stats import norm
 
 
 def dict_to_namespace(params):
@@ -110,3 +111,28 @@ def make_postmean_fn(model):
         mu_tup_for_x = list(zip(*mu_list))
         return mu_tup_for_x
     return postmean_fn
+
+
+def mse(y, y_hat):
+    y = np.array(y)
+    y_hat = np.array(y_hat)
+    return np.mean(np.sum(np.square(y_hat - y), axis=1))
+
+
+def model_likelihood(model, x, y):
+    '''
+    assume x is list of n d_x-dim ndarrays
+    and y is list of n d_y-dim ndarrays
+    '''
+    # mu should be list of d_y n-dim ndarrays
+    # cov should be list of d_y n-dim ndarrays
+    n = len(x)
+    mu, cov = model.get_post_mu_cov(x)
+    y = np.array(y).flatten()
+    mu = np.array(mu).T.flatten()
+    cov = np.array(cov).T.flatten()
+    white_y = (y - mu) / np.sqrt(cov)
+    logpdfs = norm.logpdf(white_y)
+    logpdfs = logpdfs.reshape((n, -1))
+    avg_likelihood = logpdfs.sum(axis=1).mean()
+    return avg_likelihood

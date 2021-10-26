@@ -20,9 +20,8 @@ from barl.alg.mpc import MPC
 from barl import envs
 from barl.envs.wrappers import NormalizedEnv, make_normalized_reward_function, make_update_obs_fn
 from barl.envs.wrappers import make_normalized_plot_fn
-from barl.util.misc_util import Dumper, make_postmean_fn
+from barl.util.misc_util import Dumper, make_postmean_fn, mse, model_likelihood
 from barl.util.control_util import get_f_batch_mpc, get_f_batch_mpc_reward, compute_return, evaluate_policy
-from barl.util.control_util import mse, norm_mse
 from barl.util.domain_util import unif_random_sample_domain
 from barl.util.timing import Timer
 from barl.viz import plotters, make_plot_obs
@@ -344,7 +343,9 @@ def main(config):
                 policy = partial(algo.execute_mpc, f=postmean_fn)
                 real_returns = []
                 mses = []
-                norm_mses = []
+                all_x_mpc = []
+                all_y_hat_mpc = []
+                all_y_mpc = []
                 pbar = trange(config.num_eval_trials)
                 for j in pbar:
                     real_obs, real_actions, real_rewards = evaluate_policy(env, policy, start_obs=start_obs,
@@ -356,21 +357,21 @@ def main(config):
                     ax_all, fig_all = plot_fn(real_path_mpc, ax_all, fig_all, domain, 'postmean')
                     ax_postmean, fig_postmean = plot_fn(real_path_mpc, ax_postmean, fig_postmean, domain, 'samp')
                     plan_set_size = sum([len(path.x) for path in algo.old_exe_paths])
-                    mpc_sample_indices = np.random.choice(plan_set_size, config.test_set_size, replace=False)
+                    mpc_sample_indices = random.sample(range(plan_set_size), config.test_set_size)
                     x_mpc = []
-                    y_mpc = []
+                    y_hat_mpc = []
                     for path in algo.old_exe_paths:
                         x_mpc.extend(path.x)
-                        y_mpc.extend(path.y)
-                    x_mpc = np.array(x_mpc)[mpc_sample_indices, :]
-                    y_hat_mpc = np.array(y_mpc)[mpc_sample_indices, :]
-                    y_mpc = f(list(x_mpc))
+                        y_hat_mpc.extend(path.y)
+                    x_mpc = [x_mpc[i] for i in mpc_sample_indices]
+                    y_hat_mpc = [y_hat_mpc[i] for i in mpc_sample_indices]
+                    all_x_mpc.extend(x_mpc)
+                    all_y_hat_mpc.extend(y_hat_mpc)
+                    y_mpc = f(x_mpc)
+                    all_y_mpc.extend(y_mpc)
                     mses.append(mse(y_mpc, y_hat_mpc))
-                    norm_mses.append(norm_mse(y_mpc, y_hat_mpc))
                     stats = {"Mean Return": np.mean(real_returns), "Std Return:": np.std(real_returns),
-                             "Model MSE": np.mean(mses),
-                             "Normalized Model MSE": np.mean(norm_mses),
-                            }
+                             "Model MSE": np.mean(mses)}
 
                     pbar.set_postfix(stats)
                 real_returns = np.array(real_returns)
@@ -378,20 +379,20 @@ def main(config):
                 dumper.add('Eval Returns', real_returns, log_mean_std=True)
                 dumper.add('Eval ndata', len(data.x))
                 current_mpc_mse = np.mean(mses)
-                current_norm_mpc_mse = np.mean(norm_mses)
+                current_mpc_likelihood = model_likelihood(model, all_x_mpc, all_y_mpc)
                 test_y_hat = postmean_fn(test_data.x)
                 random_mse = mse(test_data.y, test_y_hat)
+                random_likelihood = model_likelihood(model, test_data.x, test_data.y)
                 # TODO: consider doing likelihood in addition to MSE
-                norm_random_mse = norm_mse(test_data.y, test_y_hat)
                 gt_mpc_y_hat = postmean_fn(test_mpc_data.x)
                 gt_mpc_mse = mse(test_mpc_data.y, gt_mpc_y_hat)
-                gt_mpc_norm_mse = norm_mse(test_mpc_data.y, gt_mpc_y_hat)
+                gt_mpc_likelihood = model_likelihood(model, test_mpc_data.x, test_mpc_data.y)
                 dumper.add('Model MSE (current MPC)', current_mpc_mse)
                 dumper.add('Model MSE (random test set)', random_mse)
                 dumper.add('Model MSE (GT MPC)', gt_mpc_mse)
-                dumper.add('Normalized Model MSE (current MPC)', current_norm_mpc_mse)
-                dumper.add('Normalized Model MSE (random test set)', norm_random_mse)
-                dumper.add('Normalized Model MSE (GT MPC)', gt_mpc_norm_mse)
+                dumper.add('Model Likelihood (current MPC)', current_mpc_likelihood)
+                dumper.add('Model Likelihood (random test set)', random_likelihood)
+                dumper.add('Model Likelihood (GT MPC)', gt_mpc_likelihood)
 
             # Save figure at end of evaluation
             neatplot.save_figure(str(dumper.expdir / f'mpc_all_{i}'), 'png', fig=fig_all)
