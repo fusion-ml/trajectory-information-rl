@@ -179,11 +179,69 @@ def execute_gt_mpc(config, algo_class, algo_params, f, dumper, domain, plot_fn):
     return true_path, test_mpc_data
 
 
+def get_next_point(
+        i,
+        config,
+        algo,
+        domain,
+        current_obs,
+        action_space,
+        gp_model_class,
+        multi_gp_params,
+        acqfn_class,
+        acqfn_params,
+        data,
+        dumper,
+        ):
+    exe_path_list = []
+    if config.alg.use_acquisition:
+        model = gp_model_class(multi_gp_params, data)
+        # Set and optimize acquisition function
+        acqfn_base = acqfn_class(params=acqfn_params, model=model, algorithm=algo)
+        acqfn = MCAcqFunction(acqfn_base, {"num_samples_mc": config.num_samples_mc})
+        acqopt = AcqOptimizer()
+        acqopt.initialize(acqfn)
+        if config.alg.rollout_sampling:
+            x_test = [np.concatenate([current_obs, action_space.sample()]) for _ in range(config.n_rand_acqopt)]
+        elif config.sample_exe and not config.alg.uncertainty_sampling:
+            all_x = []
+            for path in acqfn.exe_path_full_list:
+                all_x += path.x
+            n_path = int(config.n_rand_acqopt * config.path_sampling_fraction)
+            n_rand = config.n_rand_acqopt - n_path
+            x_test = random.sample(all_x, n_path)
+            x_test = np.array(x_test)
+            x_test += np.random.randn(*x_test.shape) * 0.01
+            x_test = list(x_test)
+            x_test += unif_random_sample_domain(domain, n=n_rand)
+        else:
+            x_test = unif_random_sample_domain(domain, n=config.n_rand_acqopt)
+        x_next, acq_val = acqopt.optimize(x_test)
+        dumper.add('Acquisition Function Value', acq_val)
+
+        exe_path_list = acqfn.exe_path_list
+
+        # Store returns of posterior samples
+        posterior_returns = [compute_return(output[2], 1) for output in acqfn.output_list]
+        dumper.add('Posterior Returns', posterior_returns, verbose=(i % config.eval_frequency == 0))
+    elif config.alg.use_mpc:
+        model = gp_model_class(multi_gp_params, data)
+        algo.initialize()
+
+        policy = partial(algo.execute_mpc, f=make_postmean_fn(model))
+        action = policy(current_obs)
+        x_next = np.concatenate([current_obs, action])
+    else:
+        x_next = unif_random_sample_domain(domain, 1)[0]
+    return x_next, exe_path_list
+
+
 @hydra.main(config_path='cfg', config_name='config')
 def main(config):
     # ==============================================
     #   Define and configure
     # ==============================================
+    # TODO: should we make the dumper some kind of global thing?
     dumper = Dumper(config.name)
     configure(config)
 
@@ -257,11 +315,8 @@ def main(config):
     # ==============================================
 
     # Set current_obs as fixed start_obs or reset env
-    if config.alg.rollout_sampling:
-        current_obs = start_obs.copy() if config.fixed_start_obs else env.reset()
-        current_t = 0
-
-    posterior_returns = None
+    current_obs = start_obs.copy() if config.fixed_start_obs else env.reset()
+    current_t = 0
 
     for i in range(config.num_iters):
         logging.info('---' * 5 + f' Start iteration i={i} ' + '---' * 5)
@@ -277,61 +332,22 @@ def main(config):
         # Set model as None, instantiate when needed
         model = None
 
-        if config.alg.use_acquisition:
-            model = gp_model_class(multi_gp_params, data)
-            # Set and optimize acquisition function
-            acqfn_base = acqfn_class(params=acqfn_params, model=model, algorithm=algo)
-            acqfn = MCAcqFunction(acqfn_base, {"num_samples_mc": config.num_samples_mc})
-            acqopt = AcqOptimizer()
-            acqopt.initialize(acqfn)
-            if config.alg.rollout_sampling:
-                x_test = [np.concatenate([current_obs, env.action_space.sample()]) for _ in range(config.n_rand_acqopt)]
-            elif config.sample_exe and not config.alg.uncertainty_sampling:
-                all_x = []
-                for path in acqfn.exe_path_full_list:
-                    all_x += path.x
-                n_path = int(config.n_rand_acqopt * config.path_sampling_fraction)
-                n_rand = config.n_rand_acqopt - n_path
-                x_test = random.sample(all_x, n_path)
-                x_test = np.array(x_test)
-                x_test += np.random.randn(*x_test.shape) * 0.01
-                x_test = list(x_test)
-                x_test += unif_random_sample_domain(domain, n=n_rand)
-            else:
-                x_test = unif_random_sample_domain(domain, n=config.n_rand_acqopt)
-            x_next, acq_val = acqopt.optimize(x_test)
-            dumper.add('Acquisition Function Value', acq_val)
-
-            # Plot true path and posterior path samples
-            ax_all, fig_all = plot_fn(true_path, ax_all, fig_all, domain, 'true')
-            if ax_all is not None:
-                # Plot observations
-                x_obs, y_obs = make_plot_obs(data.x, env, config.env.normalize_env)
-                ax_all.scatter(x_obs, y_obs, color='grey', s=10, alpha=0.3)
-                ax_obs.plot(x_obs, y_obs, 'o', color='k', ms=1)
-
-                # Plot execution path posterior samples
-                for path in acqfn.exe_path_list:
-                    ax_all, fig_all = plot_fn(path, ax_all, fig_all, domain, 'samp')
-                    ax_samp, fig_samp = plot_fn(path, ax_samp, fig_samp, domain, 'samp')
-
-                # Plot x_next
-                x, y = make_plot_obs(x_next, env, config.env.normalize_env)
-                ax_all.scatter(x, y, facecolors='deeppink', edgecolors='k', s=120, zorder=100)
-                ax_obs.plot(x, x, 'o', mfc='deeppink', mec='k', ms=12, zorder=100)
-
-            # Store returns of posterior samples
-            posterior_returns = [compute_return(output[2], 1) for output in acqfn.output_list]
-            dumper.add('Posterior Returns', posterior_returns, verbose=(i % config.eval_frequency == 0))
-        elif config.alg.use_mpc:
-            model = gp_model_class(multi_gp_params, data)
-            algo.initialize()
-
-            policy = partial(algo.execute_mpc, f=make_postmean_fn(model))
-            action = policy(current_obs)
-            x_next = np.concatenate([current_obs, action])
-        else:
-            x_next = unif_random_sample_domain(domain, 1)[0]
+        # =====================================================
+        #   Figure out what the next point to query should be
+        # =====================================================
+        x_next, exe_path_list = get_next_point(
+                i,
+                config,
+                algo,
+                domain,
+                current_obs,
+                env.action_space,
+                gp_model_class,
+                multi_gp_params,
+                acqfn_class,
+                acqfn_params,
+                data,
+                dumper)
 
         # ==============================================
         #   Periodically run evaluation and plot
@@ -388,7 +404,6 @@ def main(config):
                 test_y_hat = postmean_fn(test_data.x)
                 random_mse = mse(test_data.y, test_y_hat)
                 random_likelihood = model_likelihood(model, test_data.x, test_data.y)
-                # TODO: consider doing likelihood in addition to MSE
                 gt_mpc_y_hat = postmean_fn(test_mpc_data.x)
                 gt_mpc_mse = mse(test_mpc_data.y, gt_mpc_y_hat)
                 gt_mpc_likelihood = model_likelihood(model, test_mpc_data.x, test_mpc_data.y)
@@ -398,12 +413,29 @@ def main(config):
                 dumper.add('Model Likelihood (current MPC)', current_mpc_likelihood)
                 dumper.add('Model Likelihood (random test set)', random_likelihood)
                 dumper.add('Model Likelihood (GT MPC)', gt_mpc_likelihood)
+                # Plot true path and posterior path samples
+                ax_all, fig_all = plot_fn(true_path, ax_all, fig_all, domain, 'true')
+                if ax_all is not None:
+                    # Plot observations
+                    x_obs, y_obs = make_plot_obs(data.x, env, config.env.normalize_env)
+                    ax_all.scatter(x_obs, y_obs, color='grey', s=10, alpha=0.3)
+                    ax_obs.plot(x_obs, y_obs, 'o', color='k', ms=1)
 
-            # Save figure at end of evaluation
-            neatplot.save_figure(str(dumper.expdir / f'mpc_all_{i}'), 'png', fig=fig_all)
-            neatplot.save_figure(str(dumper.expdir / f'mpc_postmean_{i}'), 'png', fig=fig_postmean)
-            neatplot.save_figure(str(dumper.expdir / f'mpc_samp_{i}'), 'png', fig=fig_samp)
-            neatplot.save_figure(str(dumper.expdir / f'mpc_obs_{i}'), 'png', fig=fig_obs)
+                    # Plot execution path posterior samples
+                    for path in exe_path_list:
+                        ax_all, fig_all = plot_fn(path, ax_all, fig_all, domain, 'samp')
+                        ax_samp, fig_samp = plot_fn(path, ax_samp, fig_samp, domain, 'samp')
+
+                    # Plot x_next
+                    x, y = make_plot_obs(x_next, env, config.env.normalize_env)
+                    ax_all.scatter(x, y, facecolors='deeppink', edgecolors='k', s=120, zorder=100)
+                    ax_obs.plot(x, x, 'o', mfc='deeppink', mec='k', ms=12, zorder=100)
+
+                    # Save figure at end of evaluation
+                    neatplot.save_figure(str(dumper.expdir / f'mpc_all_{i}'), 'png', fig=fig_all)
+                    neatplot.save_figure(str(dumper.expdir / f'mpc_postmean_{i}'), 'png', fig=fig_postmean)
+                    neatplot.save_figure(str(dumper.expdir / f'mpc_samp_{i}'), 'png', fig=fig_samp)
+                    neatplot.save_figure(str(dumper.expdir / f'mpc_obs_{i}'), 'png', fig=fig_obs)
 
         # Query function, update data
         y_next = f([x_next])[0]
@@ -417,7 +449,8 @@ def main(config):
                 current_t = 0
                 current_obs = start_obs.copy() if config.fixed_start_obs else env.reset()
             else:
-                current_obs += y_next[-obs_dim:]
+                delta = y_next[-obs_dim:]
+                current_obs = update_fn(current_obs, delta)
         # Dumper save
         dumper.save()
         plt.close('all')
