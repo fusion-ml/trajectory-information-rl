@@ -194,6 +194,7 @@ def get_next_point(
         dumper,
         ):
     exe_path_list = []
+    model = None
     if config.alg.use_acquisition:
         model = gp_model_class(multi_gp_params, data)
         # Set and optimize acquisition function
@@ -233,7 +234,80 @@ def get_next_point(
         x_next = np.concatenate([current_obs, action])
     else:
         x_next = unif_random_sample_domain(domain, 1)[0]
-    return x_next, exe_path_list
+    return x_next, exe_path_list, model
+
+
+def evaluate_mpc(
+        config,
+        algo,
+        model,
+        start_obs,
+        env,
+        f,
+        dumper,
+        data,
+        test_data,
+        test_mpc_data,
+        ):
+    with Timer("Evaluate the current MPC policy"):
+        # execute the best we can
+        # this is required to delete the current execution path
+        algo.initialize()
+
+        postmean_fn = make_postmean_fn(model)
+        policy = partial(algo.execute_mpc, f=postmean_fn)
+        real_returns = []
+        mses = []
+        all_x_mpc = []
+        all_y_hat_mpc = []
+        all_y_mpc = []
+        real_paths_mpc = []
+        pbar = trange(config.num_eval_trials)
+        for j in pbar:
+            real_obs, real_actions, real_rewards = evaluate_policy(env, policy, start_obs=start_obs,
+                                                                   mpc_pass=True)
+            real_return = compute_return(real_rewards, 1)
+            real_returns.append(real_return)
+            real_path_mpc = Namespace()
+            real_path_mpc.x = real_obs
+            plan_set_size = sum([len(path.x) for path in algo.old_exe_paths])
+            mpc_sample_indices = random.sample(range(plan_set_size), config.test_set_size)
+            x_mpc = []
+            y_hat_mpc = []
+            for path in algo.old_exe_paths:
+                x_mpc.extend(path.x)
+                y_hat_mpc.extend(path.y)
+            x_mpc = [x_mpc[i] for i in mpc_sample_indices]
+            y_hat_mpc = [y_hat_mpc[i] for i in mpc_sample_indices]
+            all_x_mpc.extend(x_mpc)
+            all_y_hat_mpc.extend(y_hat_mpc)
+            y_mpc = f(x_mpc)
+            all_y_mpc.extend(y_mpc)
+            mses.append(mse(y_mpc, y_hat_mpc))
+            stats = {"Mean Return": np.mean(real_returns), "Std Return:": np.std(real_returns),
+                     "Model MSE": np.mean(mses)}
+
+            pbar.set_postfix(stats)
+            real_paths_mpc.append(real_path_mpc)
+        real_returns = np.array(real_returns)
+        algo.old_exe_paths = []
+        dumper.add('Eval Returns', real_returns, log_mean_std=True)
+        dumper.add('Eval ndata', len(data.x))
+        current_mpc_mse = np.mean(mses)
+        current_mpc_likelihood = model_likelihood(model, all_x_mpc, all_y_mpc)
+        test_y_hat = postmean_fn(test_data.x)
+        random_mse = mse(test_data.y, test_y_hat)
+        random_likelihood = model_likelihood(model, test_data.x, test_data.y)
+        gt_mpc_y_hat = postmean_fn(test_mpc_data.x)
+        gt_mpc_mse = mse(test_mpc_data.y, gt_mpc_y_hat)
+        gt_mpc_likelihood = model_likelihood(model, test_mpc_data.x, test_mpc_data.y)
+        dumper.add('Model MSE (current MPC)', current_mpc_mse)
+        dumper.add('Model MSE (random test set)', random_mse)
+        dumper.add('Model MSE (GT MPC)', gt_mpc_mse)
+        dumper.add('Model Likelihood (current MPC)', current_mpc_likelihood)
+        dumper.add('Model Likelihood (random test set)', random_likelihood)
+        dumper.add('Model Likelihood (GT MPC)', gt_mpc_likelihood)
+        return real_paths_mpc
 
 
 @hydra.main(config_path='cfg', config_name='config')
@@ -329,13 +403,12 @@ def main(config):
         ax_samp, fig_samp = plot_fn(path=None, domain=domain)
         ax_obs, fig_obs = plot_fn(path=None, domain=domain)
 
-        # Set model as None, instantiate when needed
-        model = None
-
         # =====================================================
         #   Figure out what the next point to query should be
         # =====================================================
-        x_next, exe_path_list = get_next_point(
+        # exe_path_list can be [] if there are no paths
+        # model can be None if it isn't needed here
+        x_next, exe_path_list, model = get_next_point(
                 i,
                 config,
                 algo,
@@ -355,87 +428,52 @@ def main(config):
         if i % config.eval_frequency == 0 or i + 1 == config.num_iters:
             if model is None:
                 model = gp_model_class(multi_gp_params, data)
-            with Timer("Evaluate the current MPC policy"):
-                # execute the best we can
-                # this is required to delete the current execution path
-                algo.initialize()
+            # =======================================================================
+            #    Evaluate MPC:
+            #       - see how the MPC policy performs on the real env
+            #       - see how well the model fits data from different distributions
+            # =======================================================================
+            real_paths_mpc = evaluate_mpc(
+                    config,
+                    algo,
+                    model,
+                    start_obs,
+                    env,
+                    f,
+                    dumper,
+                    data,
+                    test_data,
+                    test_mpc_data,
+                    )
 
-                postmean_fn = make_postmean_fn(model)
-                policy = partial(algo.execute_mpc, f=postmean_fn)
-                real_returns = []
-                mses = []
-                all_x_mpc = []
-                all_y_hat_mpc = []
-                all_y_mpc = []
-                pbar = trange(config.num_eval_trials)
-                for j in pbar:
-                    real_obs, real_actions, real_rewards = evaluate_policy(env, policy, start_obs=start_obs,
-                                                                           mpc_pass=True)
-                    real_return = compute_return(real_rewards, 1)
-                    real_returns.append(real_return)
-                    real_path_mpc = Namespace()
-                    real_path_mpc.x = real_obs
-                    ax_all, fig_all = plot_fn(real_path_mpc, ax_all, fig_all, domain, 'postmean')
-                    ax_postmean, fig_postmean = plot_fn(real_path_mpc, ax_postmean, fig_postmean, domain, 'samp')
-                    plan_set_size = sum([len(path.x) for path in algo.old_exe_paths])
-                    mpc_sample_indices = random.sample(range(plan_set_size), config.test_set_size)
-                    x_mpc = []
-                    y_hat_mpc = []
-                    for path in algo.old_exe_paths:
-                        x_mpc.extend(path.x)
-                        y_hat_mpc.extend(path.y)
-                    x_mpc = [x_mpc[i] for i in mpc_sample_indices]
-                    y_hat_mpc = [y_hat_mpc[i] for i in mpc_sample_indices]
-                    all_x_mpc.extend(x_mpc)
-                    all_y_hat_mpc.extend(y_hat_mpc)
-                    y_mpc = f(x_mpc)
-                    all_y_mpc.extend(y_mpc)
-                    mses.append(mse(y_mpc, y_hat_mpc))
-                    stats = {"Mean Return": np.mean(real_returns), "Std Return:": np.std(real_returns),
-                             "Model MSE": np.mean(mses)}
+            # Plot true path and posterior path samples
+            ax_all, fig_all = plot_fn(true_path, ax_all, fig_all, domain, 'true')
+            if ax_all is not None:
+                # Plot observations
+                x_obs, y_obs = make_plot_obs(data.x, env, config.env.normalize_env)
+                ax_all.scatter(x_obs, y_obs, color='grey', s=10, alpha=0.3)
+                ax_obs.plot(x_obs, y_obs, 'o', color='k', ms=1)
 
-                    pbar.set_postfix(stats)
-                real_returns = np.array(real_returns)
-                algo.old_exe_paths = []
-                dumper.add('Eval Returns', real_returns, log_mean_std=True)
-                dumper.add('Eval ndata', len(data.x))
-                current_mpc_mse = np.mean(mses)
-                current_mpc_likelihood = model_likelihood(model, all_x_mpc, all_y_mpc)
-                test_y_hat = postmean_fn(test_data.x)
-                random_mse = mse(test_data.y, test_y_hat)
-                random_likelihood = model_likelihood(model, test_data.x, test_data.y)
-                gt_mpc_y_hat = postmean_fn(test_mpc_data.x)
-                gt_mpc_mse = mse(test_mpc_data.y, gt_mpc_y_hat)
-                gt_mpc_likelihood = model_likelihood(model, test_mpc_data.x, test_mpc_data.y)
-                dumper.add('Model MSE (current MPC)', current_mpc_mse)
-                dumper.add('Model MSE (random test set)', random_mse)
-                dumper.add('Model MSE (GT MPC)', gt_mpc_mse)
-                dumper.add('Model Likelihood (current MPC)', current_mpc_likelihood)
-                dumper.add('Model Likelihood (random test set)', random_likelihood)
-                dumper.add('Model Likelihood (GT MPC)', gt_mpc_likelihood)
-                # Plot true path and posterior path samples
-                ax_all, fig_all = plot_fn(true_path, ax_all, fig_all, domain, 'true')
-                if ax_all is not None:
-                    # Plot observations
-                    x_obs, y_obs = make_plot_obs(data.x, env, config.env.normalize_env)
-                    ax_all.scatter(x_obs, y_obs, color='grey', s=10, alpha=0.3)
-                    ax_obs.plot(x_obs, y_obs, 'o', color='k', ms=1)
+                # Plot execution path posterior samples
+                for path in exe_path_list:
+                    ax_all, fig_all = plot_fn(path, ax_all, fig_all, domain, 'samp')
+                    ax_samp, fig_samp = plot_fn(path, ax_samp, fig_samp, domain, 'samp')
 
-                    # Plot execution path posterior samples
-                    for path in exe_path_list:
-                        ax_all, fig_all = plot_fn(path, ax_all, fig_all, domain, 'samp')
-                        ax_samp, fig_samp = plot_fn(path, ax_samp, fig_samp, domain, 'samp')
+                # plot posterior mean paths
+                for path in real_paths_mpc:
+                    ax_all, fig_all = plot_fn(path, ax_all, fig_all, domain, 'postmean')
+                    ax_postmean, fig_postmean = plot_fn(path, ax_postmean, fig_postmean, domain, 'samp')
 
-                    # Plot x_next
-                    x, y = make_plot_obs(x_next, env, config.env.normalize_env)
-                    ax_all.scatter(x, y, facecolors='deeppink', edgecolors='k', s=120, zorder=100)
-                    ax_obs.plot(x, x, 'o', mfc='deeppink', mec='k', ms=12, zorder=100)
+                # Plot x_next
+                x, y = make_plot_obs(x_next, env, config.env.normalize_env)
+                ax_all.scatter(x, y, facecolors='deeppink', edgecolors='k', s=120, zorder=100)
+                ax_obs.plot(x, x, 'o', mfc='deeppink', mec='k', ms=12, zorder=100)
 
-                    # Save figure at end of evaluation
-                    neatplot.save_figure(str(dumper.expdir / f'mpc_all_{i}'), 'png', fig=fig_all)
-                    neatplot.save_figure(str(dumper.expdir / f'mpc_postmean_{i}'), 'png', fig=fig_postmean)
-                    neatplot.save_figure(str(dumper.expdir / f'mpc_samp_{i}'), 'png', fig=fig_samp)
-                    neatplot.save_figure(str(dumper.expdir / f'mpc_obs_{i}'), 'png', fig=fig_obs)
+                # Save figure at end of evaluation
+                neatplot.save_figure(str(dumper.expdir / f'mpc_all_{i}'), 'png', fig=fig_all)
+                neatplot.save_figure(str(dumper.expdir / f'mpc_postmean_{i}'), 'png', fig=fig_postmean)
+                neatplot.save_figure(str(dumper.expdir / f'mpc_samp_{i}'), 'png', fig=fig_samp)
+                neatplot.save_figure(str(dumper.expdir / f'mpc_obs_{i}'), 'png', fig=fig_obs)
 
         # Query function, update data
         y_next = f([x_next])[0]
