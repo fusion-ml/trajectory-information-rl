@@ -310,6 +310,54 @@ def evaluate_mpc(
         return real_paths_mpc
 
 
+def make_plots(
+        plot_fn,
+        domain,
+        true_path,
+        data,
+        env,
+        config,
+        exe_path_list,
+        real_paths_mpc,
+        x_next,
+        dumper,
+        i,
+        ):
+    # Initialize various axes and figures
+    ax_all, fig_all = plot_fn(path=None, domain=domain)
+    ax_postmean, fig_postmean = plot_fn(path=None, domain=domain)
+    ax_samp, fig_samp = plot_fn(path=None, domain=domain)
+    ax_obs, fig_obs = plot_fn(path=None, domain=domain)
+    # Plot true path and posterior path samples
+    ax_all, fig_all = plot_fn(true_path, ax_all, fig_all, domain, 'true')
+    if ax_all is not None:
+        # Plot observations
+        x_obs, y_obs = make_plot_obs(data.x, env, config.env.normalize_env)
+        ax_all.scatter(x_obs, y_obs, color='grey', s=10, alpha=0.3)
+        ax_obs.plot(x_obs, y_obs, 'o', color='k', ms=1)
+
+        # Plot execution path posterior samples
+        for path in exe_path_list:
+            ax_all, fig_all = plot_fn(path, ax_all, fig_all, domain, 'samp')
+            ax_samp, fig_samp = plot_fn(path, ax_samp, fig_samp, domain, 'samp')
+
+        # plot posterior mean paths
+        for path in real_paths_mpc:
+            ax_all, fig_all = plot_fn(path, ax_all, fig_all, domain, 'postmean')
+            ax_postmean, fig_postmean = plot_fn(path, ax_postmean, fig_postmean, domain, 'samp')
+
+        # Plot x_next
+        x, y = make_plot_obs(x_next, env, config.env.normalize_env)
+        ax_all.scatter(x, y, facecolors='deeppink', edgecolors='k', s=120, zorder=100)
+        ax_obs.plot(x, x, 'o', mfc='deeppink', mec='k', ms=12, zorder=100)
+
+        # Save figure at end of evaluation
+        neatplot.save_figure(str(dumper.expdir / f'mpc_all_{i}'), 'png', fig=fig_all)
+        neatplot.save_figure(str(dumper.expdir / f'mpc_postmean_{i}'), 'png', fig=fig_postmean)
+        neatplot.save_figure(str(dumper.expdir / f'mpc_samp_{i}'), 'png', fig=fig_samp)
+        neatplot.save_figure(str(dumper.expdir / f'mpc_obs_{i}'), 'png', fig=fig_obs)
+
+
 @hydra.main(config_path='cfg', config_name='config')
 def main(config):
     # ==============================================
@@ -397,12 +445,6 @@ def main(config):
         logging.info(f'Length of data.x: {len(data.x)}')
         logging.info(f'Length of data.y: {len(data.y)}')
 
-        # Initialize various axes and figures
-        ax_all, fig_all = plot_fn(path=None, domain=domain)
-        ax_postmean, fig_postmean = plot_fn(path=None, domain=domain)
-        ax_samp, fig_samp = plot_fn(path=None, domain=domain)
-        ax_obs, fig_obs = plot_fn(path=None, domain=domain)
-
         # =====================================================
         #   Figure out what the next point to query should be
         # =====================================================
@@ -446,34 +488,26 @@ def main(config):
                     test_mpc_data,
                     )
 
-            # Plot true path and posterior path samples
-            ax_all, fig_all = plot_fn(true_path, ax_all, fig_all, domain, 'true')
-            if ax_all is not None:
-                # Plot observations
-                x_obs, y_obs = make_plot_obs(data.x, env, config.env.normalize_env)
-                ax_all.scatter(x_obs, y_obs, color='grey', s=10, alpha=0.3)
-                ax_obs.plot(x_obs, y_obs, 'o', color='k', ms=1)
-
-                # Plot execution path posterior samples
-                for path in exe_path_list:
-                    ax_all, fig_all = plot_fn(path, ax_all, fig_all, domain, 'samp')
-                    ax_samp, fig_samp = plot_fn(path, ax_samp, fig_samp, domain, 'samp')
-
-                # plot posterior mean paths
-                for path in real_paths_mpc:
-                    ax_all, fig_all = plot_fn(path, ax_all, fig_all, domain, 'postmean')
-                    ax_postmean, fig_postmean = plot_fn(path, ax_postmean, fig_postmean, domain, 'samp')
-
-                # Plot x_next
-                x, y = make_plot_obs(x_next, env, config.env.normalize_env)
-                ax_all.scatter(x, y, facecolors='deeppink', edgecolors='k', s=120, zorder=100)
-                ax_obs.plot(x, x, 'o', mfc='deeppink', mec='k', ms=12, zorder=100)
-
-                # Save figure at end of evaluation
-                neatplot.save_figure(str(dumper.expdir / f'mpc_all_{i}'), 'png', fig=fig_all)
-                neatplot.save_figure(str(dumper.expdir / f'mpc_postmean_{i}'), 'png', fig=fig_postmean)
-                neatplot.save_figure(str(dumper.expdir / f'mpc_samp_{i}'), 'png', fig=fig_samp)
-                neatplot.save_figure(str(dumper.expdir / f'mpc_obs_{i}'), 'png', fig=fig_obs)
+            # ============
+            # Make Plots:
+            #     - Posterior Mean paths
+            #     - Posterior Sample paths
+            #     - Observations
+            #     - All of the above
+            # ============
+            make_plots(
+                    plot_fn,
+                    domain,
+                    true_path,
+                    data,
+                    env,
+                    config,
+                    exe_path_list,
+                    real_paths_mpc,
+                    x_next,
+                    dumper,
+                    i,
+                    )
 
         # Query function, update data
         y_next = f([x_next])[0]
@@ -481,6 +515,9 @@ def main(config):
         data.y.append(y_next)
         dumper.add('x', x_next)
         dumper.add('y', y_next)
+
+        # for some setups we need to update the current state so that the policy / sampling
+        # happens in the right place
         if config.alg.rollout_sampling:
             current_t += 1
             if current_t > env.horizon:
@@ -489,6 +526,7 @@ def main(config):
             else:
                 delta = y_next[-obs_dim:]
                 current_obs = update_fn(current_obs, delta)
+
         # Dumper save
         dumper.save()
         plt.close('all')
