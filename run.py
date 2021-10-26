@@ -30,6 +30,180 @@ import neatplot
 tf.compat.v1.logging.set_verbosity(tf.compat.v1.logging.ERROR)
 
 
+@hydra.main(config_path='cfg', config_name='config')
+def main(config):
+    # ==============================================
+    #   Define and configure
+    # ==============================================
+    # TODO: should we make the dumper some kind of global thing?
+    dumper = Dumper(config.name)
+    configure(config)
+
+    # Instantiate environment and create functions for dynamics, plotting, rewards, state updates
+    env, f, plot_fn, reward_function, update_fn = get_env(config)
+    obs_dim = env.observation_space.low.size
+    action_dim = env.action_space.low.size
+
+    # Set start obs
+    start_obs = env.reset() if config.fixed_start_obs else None
+    logging.info(f"Start obs: {start_obs}")
+
+    # Set domain
+    low = np.concatenate([env.observation_space.low, env.action_space.low])
+    high = np.concatenate([env.observation_space.high, env.action_space.high])
+    domain = [elt for elt in zip(low, high)]
+
+    # Set algorithm
+    algo_class = MPC
+    algo_params = dict(
+            start_obs=start_obs,
+            env=env,
+            reward_function=reward_function,
+            project_to_domain=False,
+            base_nsamps=config.mpc.nsamps,
+            planning_horizon=config.mpc.planning_horizon,
+            n_elites=config.mpc.n_elites,
+            beta=config.mpc.beta,
+            gamma=config.mpc.gamma,
+            xi=config.mpc.xi,
+            num_iters=config.mpc.num_iters,
+            actions_per_plan=config.mpc.actions_per_plan,
+            domain=domain,
+            action_lower_bound=env.action_space.low,
+            action_upper_bound=env.action_space.high,
+            crop_to_domain=config.crop_to_domain,
+            update_fn=update_fn,
+    )
+    algo = algo_class(algo_params)
+
+    # Set initial data
+    data = get_initial_data(config, env, f, domain, dumper, plot_fn)
+
+    # Make a test set for model evalution separate from the controller
+    test_data = Namespace()
+    test_data.x = unif_random_sample_domain(domain, config.test_set_size)
+    test_data.y = f(test_data.x)
+
+    # Set model
+    gp_model_class, multi_gp_params = get_model(config, env, obs_dim, action_dim)
+
+    # Set acqfunction
+    acqfn_params = {'n_path': config.n_paths, 'crop': True}
+    acqfn_class = MultiBaxAcqFunction if not config.alg.uncertainty_sampling else UncertaintySamplingAcqFunction
+
+    # ==============================================
+    #   Computing groundtruth trajectories
+    # ==============================================
+    true_path, test_mpc_data = execute_gt_mpc(config, algo_class, algo_params, f, dumper, domain, plot_fn)
+
+    # ==============================================
+    #   Optionally: fit GP hyperparameters (then exit)
+    # ==============================================
+    if config.fit_hypers:
+        fit_hypers(config, test_mpc_data, plot_fn, domain, dumper.expdir)
+        # End script if hyper fitting bc need to include in config
+        return
+
+    # ==============================================
+    #   Run main algorithm loop
+    # ==============================================
+
+    # Set current_obs as fixed start_obs or reset env
+    current_obs = start_obs.copy() if config.fixed_start_obs else env.reset()
+    current_t = 0
+
+    for i in range(config.num_iters):
+        logging.info('---' * 5 + f' Start iteration i={i} ' + '---' * 5)
+        logging.info(f'Length of data.x: {len(data.x)}')
+        logging.info(f'Length of data.y: {len(data.y)}')
+
+        # =====================================================
+        #   Figure out what the next point to query should be
+        # =====================================================
+        # exe_path_list can be [] if there are no paths
+        # model can be None if it isn't needed here
+        x_next, exe_path_list, model = get_next_point(
+                i,
+                config,
+                algo,
+                domain,
+                current_obs,
+                env.action_space,
+                gp_model_class,
+                multi_gp_params,
+                acqfn_class,
+                acqfn_params,
+                data,
+                dumper)
+
+        # ==============================================
+        #   Periodically run evaluation and plot
+        # ==============================================
+        if i % config.eval_frequency == 0 or i + 1 == config.num_iters:
+            if model is None:
+                model = gp_model_class(multi_gp_params, data)
+            # =======================================================================
+            #    Evaluate MPC:
+            #       - see how the MPC policy performs on the real env
+            #       - see how well the model fits data from different distributions
+            # =======================================================================
+            real_paths_mpc = evaluate_mpc(
+                    config,
+                    algo,
+                    model,
+                    start_obs,
+                    env,
+                    f,
+                    dumper,
+                    data,
+                    test_data,
+                    test_mpc_data,
+                    )
+
+            # ============
+            # Make Plots:
+            #     - Posterior Mean paths
+            #     - Posterior Sample paths
+            #     - Observations
+            #     - All of the above
+            # ============
+            make_plots(
+                    plot_fn,
+                    domain,
+                    true_path,
+                    data,
+                    env,
+                    config,
+                    exe_path_list,
+                    real_paths_mpc,
+                    x_next,
+                    dumper,
+                    i,
+                    )
+
+        # Query function, update data
+        y_next = f([x_next])[0]
+        data.x.append(x_next)
+        data.y.append(y_next)
+        dumper.add('x', x_next)
+        dumper.add('y', y_next)
+
+        # for some setups we need to update the current state so that the policy / sampling
+        # happens in the right place
+        if config.alg.rollout_sampling:
+            current_t += 1
+            if current_t > env.horizon:
+                current_t = 0
+                current_obs = start_obs.copy() if config.fixed_start_obs else env.reset()
+            else:
+                delta = y_next[-obs_dim:]
+                current_obs = update_fn(current_obs, delta)
+
+        # Dumper save
+        dumper.save()
+        plt.close('all')
+
+
 def configure(config):
     # Set plot settings
     neatplot.set_style()
@@ -356,180 +530,6 @@ def make_plots(
         neatplot.save_figure(str(dumper.expdir / f'mpc_postmean_{i}'), 'png', fig=fig_postmean)
         neatplot.save_figure(str(dumper.expdir / f'mpc_samp_{i}'), 'png', fig=fig_samp)
         neatplot.save_figure(str(dumper.expdir / f'mpc_obs_{i}'), 'png', fig=fig_obs)
-
-
-@hydra.main(config_path='cfg', config_name='config')
-def main(config):
-    # ==============================================
-    #   Define and configure
-    # ==============================================
-    # TODO: should we make the dumper some kind of global thing?
-    dumper = Dumper(config.name)
-    configure(config)
-
-    # Instantiate environment and create functions for dynamics, plotting, rewards, state updates
-    env, f, plot_fn, reward_function, update_fn = get_env(config)
-    obs_dim = env.observation_space.low.size
-    action_dim = env.action_space.low.size
-
-    # Set start obs
-    start_obs = env.reset() if config.fixed_start_obs else None
-    logging.info(f"Start obs: {start_obs}")
-
-    # Set domain
-    low = np.concatenate([env.observation_space.low, env.action_space.low])
-    high = np.concatenate([env.observation_space.high, env.action_space.high])
-    domain = [elt for elt in zip(low, high)]
-
-    # Set algorithm
-    algo_class = MPC
-    algo_params = dict(
-            start_obs=start_obs,
-            env=env,
-            reward_function=reward_function,
-            project_to_domain=False,
-            base_nsamps=config.mpc.nsamps,
-            planning_horizon=config.mpc.planning_horizon,
-            n_elites=config.mpc.n_elites,
-            beta=config.mpc.beta,
-            gamma=config.mpc.gamma,
-            xi=config.mpc.xi,
-            num_iters=config.mpc.num_iters,
-            actions_per_plan=config.mpc.actions_per_plan,
-            domain=domain,
-            action_lower_bound=env.action_space.low,
-            action_upper_bound=env.action_space.high,
-            crop_to_domain=config.crop_to_domain,
-            update_fn=update_fn,
-    )
-    algo = algo_class(algo_params)
-
-    # Set initial data
-    data = get_initial_data(config, env, f, domain, dumper, plot_fn)
-
-    # Make a test set for model evalution separate from the controller
-    test_data = Namespace()
-    test_data.x = unif_random_sample_domain(domain, config.test_set_size)
-    test_data.y = f(test_data.x)
-
-    # Set model
-    gp_model_class, multi_gp_params = get_model(config, env, obs_dim, action_dim)
-
-    # Set acqfunction
-    acqfn_params = {'n_path': config.n_paths, 'crop': True}
-    acqfn_class = MultiBaxAcqFunction if not config.alg.uncertainty_sampling else UncertaintySamplingAcqFunction
-
-    # ==============================================
-    #   Computing groundtruth trajectories
-    # ==============================================
-    true_path, test_mpc_data = execute_gt_mpc(config, algo_class, algo_params, f, dumper, domain, plot_fn)
-
-    # ==============================================
-    #   Optionally: fit GP hyperparameters (then exit)
-    # ==============================================
-    if config.fit_hypers:
-        fit_hypers(config, test_mpc_data, plot_fn, domain, dumper.expdir)
-        # End script if hyper fitting bc need to include in config
-        return
-
-    # ==============================================
-    #   Run main algorithm loop
-    # ==============================================
-
-    # Set current_obs as fixed start_obs or reset env
-    current_obs = start_obs.copy() if config.fixed_start_obs else env.reset()
-    current_t = 0
-
-    for i in range(config.num_iters):
-        logging.info('---' * 5 + f' Start iteration i={i} ' + '---' * 5)
-        logging.info(f'Length of data.x: {len(data.x)}')
-        logging.info(f'Length of data.y: {len(data.y)}')
-
-        # =====================================================
-        #   Figure out what the next point to query should be
-        # =====================================================
-        # exe_path_list can be [] if there are no paths
-        # model can be None if it isn't needed here
-        x_next, exe_path_list, model = get_next_point(
-                i,
-                config,
-                algo,
-                domain,
-                current_obs,
-                env.action_space,
-                gp_model_class,
-                multi_gp_params,
-                acqfn_class,
-                acqfn_params,
-                data,
-                dumper)
-
-        # ==============================================
-        #   Periodically run evaluation and plot
-        # ==============================================
-        if i % config.eval_frequency == 0 or i + 1 == config.num_iters:
-            if model is None:
-                model = gp_model_class(multi_gp_params, data)
-            # =======================================================================
-            #    Evaluate MPC:
-            #       - see how the MPC policy performs on the real env
-            #       - see how well the model fits data from different distributions
-            # =======================================================================
-            real_paths_mpc = evaluate_mpc(
-                    config,
-                    algo,
-                    model,
-                    start_obs,
-                    env,
-                    f,
-                    dumper,
-                    data,
-                    test_data,
-                    test_mpc_data,
-                    )
-
-            # ============
-            # Make Plots:
-            #     - Posterior Mean paths
-            #     - Posterior Sample paths
-            #     - Observations
-            #     - All of the above
-            # ============
-            make_plots(
-                    plot_fn,
-                    domain,
-                    true_path,
-                    data,
-                    env,
-                    config,
-                    exe_path_list,
-                    real_paths_mpc,
-                    x_next,
-                    dumper,
-                    i,
-                    )
-
-        # Query function, update data
-        y_next = f([x_next])[0]
-        data.x.append(x_next)
-        data.y.append(y_next)
-        dumper.add('x', x_next)
-        dumper.add('y', y_next)
-
-        # for some setups we need to update the current state so that the policy / sampling
-        # happens in the right place
-        if config.alg.rollout_sampling:
-            current_t += 1
-            if current_t > env.horizon:
-                current_t = 0
-                current_obs = start_obs.copy() if config.fixed_start_obs else env.reset()
-            else:
-                delta = y_next[-obs_dim:]
-                current_obs = update_fn(current_obs, delta)
-
-        # Dumper save
-        dumper.save()
-        plt.close('all')
 
 
 if __name__ == '__main__':
