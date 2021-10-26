@@ -125,6 +125,60 @@ def fit_hypers(config, fit_data, plot_fn, domain, expdir):
         logging.info(f'gp_params for output {idx} = {gp_params}')
 
 
+def execute_gt_mpc(config, algo_class, algo_params, f, dumper, domain, plot_fn):
+    # Instantiate true algo and axes/figures
+    true_algo = algo_class(algo_params)
+    ax_gt, fig_gt = None, None
+
+    # Compute and plot true path (on true function) multiple times
+    full_paths = []
+    true_paths = []
+    returns = []
+    path_lengths = []
+    test_mpc_data = Namespace(x=[], y=[])
+    pbar = trange(config.num_eval_trials)
+    for i in pbar:
+        # Run algorithm and extract paths
+        full_path, output = true_algo.run_algorithm_on_f(f)
+        full_paths.append(full_path)
+        path_lengths.append(len(full_path.x))
+        true_path = true_algo.get_exe_path_crop()
+        true_paths.append(true_path)
+
+        # Extract fraction of planning data for test_mpc_data
+        true_planning_data = list(zip(true_algo.exe_path.x, true_algo.exe_path.y))
+        test_points = random.sample(true_planning_data, int(config.test_set_size/config.num_eval_trials))
+        new_x = [test_pt[0] for test_pt in test_points]
+        new_y = [test_pt[1] for test_pt in test_points]
+        test_mpc_data.x.extend(new_x)
+        test_mpc_data.y.extend(new_y)
+
+        # Plot groundtruth paths and print info
+        ax_gt, fig_gt = plot_fn(true_path, ax_gt, fig_gt, domain, 'samp')
+        returns.append(compute_return(output[2], 1))
+        stats = {"Mean Return": np.mean(returns), "Std Return:": np.std(returns)}
+        pbar.set_postfix(stats)
+
+    # Log and dump
+    returns = np.array(returns)
+    dumper.add('GT Returns', returns, log_mean_std=True)
+    dumper.add('Path Lengths', path_lengths, log_mean_std=True)
+    all_x = []
+    for fp in full_paths:
+        all_x += fp.x
+    all_x = np.array(all_x)
+    logging.info(f"all_x.shape = {all_x.shape}")
+    logging.info(f"all_x.min(axis=0) = {all_x.min(axis=0)}")
+    logging.info(f"all_x.max(axis=0) = {all_x.max(axis=0)}")
+    logging.info(f"all_x.mean(axis=0) = {all_x.mean(axis=0)}")
+    logging.info(f"all_x.var(axis=0) = {all_x.var(axis=0)}")
+    # Save groundtruth paths plot
+    if fig_gt:
+        neatplot.save_figure(str(dumper.expdir / 'mpc_gt'), 'png', fig=fig_gt)
+
+    return true_path, test_mpc_data
+
+
 @hydra.main(config_path='cfg', config_name='config')
 def main(config):
     # ==============================================
@@ -188,56 +242,7 @@ def main(config):
     # ==============================================
     #   Computing groundtruth trajectories
     # ==============================================
-    # Instantiate true algo and axes/figures
-    true_algo = algo_class(algo_params)
-    ax_gt, fig_gt = None, None
-
-    # Compute and plot true path (on true function) multiple times
-    full_paths = []
-    true_paths = []
-    returns = []
-    path_lengths = []
-    test_mpc_data = Namespace(x=[], y=[])
-    pbar = trange(config.num_eval_trials)
-    for i in pbar:
-        # Run algorithm and extract paths
-        full_path, output = true_algo.run_algorithm_on_f(f)
-        full_paths.append(full_path)
-        path_lengths.append(len(full_path.x))
-        true_path = true_algo.get_exe_path_crop()
-        true_paths.append(true_path)
-
-        # Extract fraction of planning data for test_mpc_data
-        true_planning_data = list(zip(true_algo.exe_path.x, true_algo.exe_path.y))
-        test_points = random.sample(true_planning_data, int(config.test_set_size/config.num_eval_trials))
-        new_x = [test_pt[0] for test_pt in test_points]
-        new_y = [test_pt[1] for test_pt in test_points]
-        test_mpc_data.x.extend(new_x)
-        test_mpc_data.y.extend(new_y)
-
-        # Plot groundtruth paths and print info
-        ax_gt, fig_gt = plot_fn(true_path, ax_gt, fig_gt, domain, 'samp')
-        returns.append(compute_return(output[2], 1))
-        stats = {"Mean Return": np.mean(returns), "Std Return:": np.std(returns)}
-        pbar.set_postfix(stats)
-
-    # Log and dump
-    returns = np.array(returns)
-    dumper.add('GT Returns', returns, log_mean_std=True)
-    dumper.add('Path Lengths', path_lengths, log_mean_std=True)
-    all_x = []
-    for fp in full_paths:
-        all_x += fp.x
-    all_x = np.array(all_x)
-    logging.info(f"all_x.shape = {all_x.shape}")
-    logging.info(f"all_x.min(axis=0) = {all_x.min(axis=0)}")
-    logging.info(f"all_x.max(axis=0) = {all_x.max(axis=0)}")
-    logging.info(f"all_x.mean(axis=0) = {all_x.mean(axis=0)}")
-    logging.info(f"all_x.var(axis=0) = {all_x.var(axis=0)}")
-
-    # Save groundtruth paths plot
-    if fig_gt:
-        neatplot.save_figure(str(dumper.expdir / 'mpc_gt'), 'png', fig=fig_gt)
+    true_path, test_mpc_data = execute_gt_mpc(config, algo_class, algo_params, f, dumper, domain, plot_fn)
 
     # ==============================================
     #   Optionally: fit GP hyperparameters (then exit)
