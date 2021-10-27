@@ -1,4 +1,4 @@
-from bax.viz.plot import (
+from barl.viz.plot import (
     plot_pendulum,
     plot_cartpole,
     plot_pilco_cartpole,

@@ -1,5 +1,5 @@
 """
-Testing MultiGpfsGp and MultiBaxAcqFunction classes
+Testing MultiGpfsGp and MultibaxAcqFunction classes
 """
 from argparse import Namespace
 import logging
@@ -12,20 +12,20 @@ import hydra
 import random
 from matplotlib import pyplot as plt
 
-from bax.models.gpfs_gp import BatchMultiGpfsGp
-from bax.models.gpflow_gp import get_gpflow_hypers_from_data
-from bax.acq.acquisition import MultiBaxAcqFunction, MCAcqFunction, UncertaintySamplingAcqFunction
-from bax.acq.acqoptimize import AcqOptimizer
-from bax.alg.mpc import MPC
-from bax import envs
-from bax.envs.wrappers import NormalizedEnv, make_normalized_reward_function, make_update_obs_fn
-from bax.envs.wrappers import make_normalized_plot_fn
-from bax.util.misc_util import Dumper, make_postmean_fn
-from bax.util.control_util import get_f_batch_mpc, get_f_batch_mpc_reward, compute_return, evaluate_policy
-from bax.util.control_util import rollout_mse, mse
-from bax.util.domain_util import unif_random_sample_domain
-from bax.util.timing import Timer
-from bax.viz import plotters, make_plot_obs
+from barl.models.gpfs_gp import BatchMultiGpfsGp
+from barl.models.gpflow_gp import get_gpflow_hypers_from_data
+from barl.acq.acquisition import MultiBaxAcqFunction, MCAcqFunction, UncertaintySamplingAcqFunction
+from barl.acq.acqoptimize import AcqOptimizer
+from barl.alg.mpc import MPC
+from barl import envs
+from barl.envs.wrappers import NormalizedEnv, make_normalized_reward_function, make_update_obs_fn
+from barl.envs.wrappers import make_normalized_plot_fn
+from barl.util.misc_util import Dumper, make_postmean_fn
+from barl.util.control_util import get_f_batch_mpc, get_f_batch_mpc_reward, compute_return, evaluate_policy
+from barl.util.control_util import rollout_mse, mse
+from barl.util.domain_util import unif_random_sample_domain
+from barl.util.timing import Timer
+from barl.viz import plotters, make_plot_obs
 import neatplot
 
 tf.compat.v1.logging.set_verbosity(tf.compat.v1.logging.ERROR)
