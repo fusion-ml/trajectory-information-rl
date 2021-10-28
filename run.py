@@ -504,32 +504,39 @@ def make_plots(
     ax_obs, fig_obs = plot_fn(path=None, domain=domain)
     # Plot true path and posterior path samples
     ax_all, fig_all = plot_fn(true_path, ax_all, fig_all, domain, 'true')
-    if ax_all is not None:
-        # Plot observations
-        x_obs, y_obs = make_plot_obs(data.x, env, config.env.normalize_env)
-        ax_all.scatter(x_obs, y_obs, color='grey', s=10, alpha=0.3)
-        ax_obs.plot(x_obs, y_obs, 'o', color='k', ms=1)
+    if ax_all is None:
+        return
+    # Plot observations
+    x_obs, y_obs = make_plot_obs(data.x, env, config.env.normalize_env)
+    ax_all.scatter(x_obs, y_obs, color='grey', s=10, alpha=0.3)
+    ax_obs.plot(x_obs, y_obs, 'o', color='k', ms=1)
 
-        # Plot execution path posterior samples
-        for path in exe_path_list:
-            ax_all, fig_all = plot_fn(path, ax_all, fig_all, domain, 'samp')
-            ax_samp, fig_samp = plot_fn(path, ax_samp, fig_samp, domain, 'samp')
+    # Plot execution path posterior samples
+    for path in exe_path_list:
+        ax_all, fig_all = plot_fn(path, ax_all, fig_all, domain, 'samp')
+        ax_samp, fig_samp = plot_fn(path, ax_samp, fig_samp, domain, 'samp')
 
-        # plot posterior mean paths
-        for path in real_paths_mpc:
-            ax_all, fig_all = plot_fn(path, ax_all, fig_all, domain, 'postmean')
-            ax_postmean, fig_postmean = plot_fn(path, ax_postmean, fig_postmean, domain, 'samp')
+    # plot posterior mean paths
+    for path in real_paths_mpc:
+        ax_all, fig_all = plot_fn(path, ax_all, fig_all, domain, 'postmean')
+        ax_postmean, fig_postmean = plot_fn(path, ax_postmean, fig_postmean, domain, 'samp')
 
-        # Plot x_next
-        x, y = make_plot_obs(x_next, env, config.env.normalize_env)
-        ax_all.scatter(x, y, facecolors='deeppink', edgecolors='k', s=120, zorder=100)
-        ax_obs.plot(x, x, 'o', mfc='deeppink', mec='k', ms=12, zorder=100)
+    # Plot x_next
+    x, y = make_plot_obs(x_next, env, config.env.normalize_env)
+    ax_all.scatter(x, y, facecolors='deeppink', edgecolors='k', s=120, zorder=100)
+    ax_obs.plot(x, x, 'o', mfc='deeppink', mec='k', ms=12, zorder=100)
 
-        # Save figure at end of evaluation
-        neatplot.save_figure(str(dumper.expdir / f'mpc_all_{i}'), 'png', fig=fig_all)
-        neatplot.save_figure(str(dumper.expdir / f'mpc_postmean_{i}'), 'png', fig=fig_postmean)
-        neatplot.save_figure(str(dumper.expdir / f'mpc_samp_{i}'), 'png', fig=fig_samp)
-        neatplot.save_figure(str(dumper.expdir / f'mpc_obs_{i}'), 'png', fig=fig_obs)
+    # set titles
+    ax_all.set_title(f"Iteration {i}")
+    ax_postmean.set_title(f"Iteration {i}")
+    ax_samp.set_title(f"Iteration {i}")
+    ax_obs.set_title(f"Iteration {i}")
+
+    # Save figure at end of evaluation
+    neatplot.save_figure(str(dumper.expdir / f'mpc_all_{i}'), 'png', fig=fig_all)
+    neatplot.save_figure(str(dumper.expdir / f'mpc_postmean_{i}'), 'png', fig=fig_postmean)
+    neatplot.save_figure(str(dumper.expdir / f'mpc_samp_{i}'), 'png', fig=fig_samp)
+    neatplot.save_figure(str(dumper.expdir / f'mpc_obs_{i}'), 'png', fig=fig_obs)
 
 
 if __name__ == '__main__':
