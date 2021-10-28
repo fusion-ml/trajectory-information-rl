@@ -4,7 +4,6 @@ Code for optimizing acquisition functions.
 
 import copy
 import numpy as np
-import logging
 
 from .acquisition import BaxAcqFunction
 from ..util.base import Base
@@ -47,7 +46,6 @@ class AcqOptimizer(Base):
         if self.params.opt_str == "batch":
             acq_opt, acq_val = self.optimize_batch()
 
-        logging.info(f'Acq val: {acq_val:.3f}')
         return acq_opt, acq_val
 
     def set_acqfunction(self, acqfunction):

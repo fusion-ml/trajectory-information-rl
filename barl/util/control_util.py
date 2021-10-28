@@ -58,18 +58,6 @@ def get_f_batch_mpc_reward(env, **kwargs):
     return batch_function(get_f_mpc_reward(env, **kwargs))
 
 
-def rollout_mse(path, f):
-    y_hat = path.y
-    y = f(path.x)
-    return mse(y, y_hat)
-
-
-def mse(y, y_hat):
-    y = np.array(y)
-    y_hat = np.array(y_hat)
-    return np.mean(np.sum(np.square(y_hat - y), axis=1))
-
-
 def CEM(start_obs,
         action_dim,
         dynamics_unroller,

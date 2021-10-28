@@ -9,6 +9,7 @@ from barl.viz.plot import (
     )
 plotters = {
         'bacpendulum-v0': plot_pendulum,
+        'bacpendulum-test-v0': plot_pendulum,
         'bacpendulum-tight-v0': plot_pendulum,
         'bacpendulum-medium-v0': plot_pendulum,
         'petscartpole-v0': plot_cartpole,

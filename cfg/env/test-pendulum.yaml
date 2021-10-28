@@ -1,0 +1,16 @@
+name: "bacpendulum-test-v0"
+gp:
+  ls: [[2.27, 7.73, 138.94], [0.84, 288.15, 11.05]]
+  alpha: [0.54, 0.22]
+  sigma: 0.01
+  periodic: False
+  period: 2.0
+mpc:
+  nsamps: 10
+  planning_horizon: 5
+  n_elites: 3
+  beta: 3
+  gamma: 1.25
+  xi: 0.3
+  num_iters: 3
+  actions_per_plan: 2

@@ -38,7 +38,7 @@ class Base:
 
     def print_init(self):
         """Print a description string when object created."""
-        logging.info('* Initialized ' + str(self))
+        logging.debug('* Initialized ' + str(self))
 
     def set_print_params(self):
         """Set self.print_params."""

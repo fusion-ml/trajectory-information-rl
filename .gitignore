@@ -39,6 +39,7 @@ docs/_build/
 
 # virtual envionments
 venvbac/
+venvbarl/
 
 # dump files
 experiments/

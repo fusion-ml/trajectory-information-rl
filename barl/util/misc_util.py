@@ -5,9 +5,11 @@ Miscellaneous utilities.
 from argparse import Namespace
 from pathlib import Path
 import os
+import numpy as np
 import logging
 import pickle
 from collections import defaultdict
+from scipy.stats import norm
 
 
 def dict_to_namespace(params):
@@ -64,25 +66,29 @@ class suppress_stdout_stderr:
 class Dumper:
     def __init__(self, experiment_name):
         cwd = Path.cwd()
-        # while cwd.name != 'bayesian-active-control':
-            # cwd = cwd.parent
         # this should be the root of the repo
         self.expdir = cwd
         logging.info(f'Dumper dumping to {cwd}')
-        # if self.expdir.exists() and overwrite:
-            # shutil.rmtree(self.expdir)
-        # self.expdir.mkdir(parents=True)
         self.info = defaultdict(list)
         self.info_path = self.expdir / 'info.pkl'
-        # args = vars(args)
-        # print('Run with the following args:')
-        # pprint(args)
-        # args_path = self.expdir / 'args.json'
-        # with args_path.open('w') as f:
-            # json.dump(args, f, indent=4)
 
-    def add(self, name, val):
+    def add(self, name, val, verbose=True, log_mean_std=False):
+        if verbose:
+            try:
+                val = float(val)
+                logging.info(f"{name}: {val:.3f}")
+            except TypeError:
+                logging.info(f"{name}: {val}")
+            if log_mean_std:
+                valarray = np.array(val)
+                logging.info(f"{name}: mean={valarray.mean():.3f} std={valarray.std():.3f}")
         self.info[name].append(val)
+
+    def extend(self, name, vals, verbose=False):
+        if verbose:
+            disp_vals = [f"{val:.3f}" for val in vals]
+            logging.info(f"{name}: {disp_vals}")
+        self.info[name].extend(vals)
 
     def save(self):
         with self.info_path.open('wb') as f:
@@ -98,9 +104,35 @@ def batch_function(f):
         return y_list
     return batched_f
 
+
 def make_postmean_fn(model):
     def postmean_fn(x):
         mu_list, std_list = model.get_post_mu_cov(x, full_cov=False)
         mu_tup_for_x = list(zip(*mu_list))
         return mu_tup_for_x
     return postmean_fn
+
+
+def mse(y, y_hat):
+    y = np.array(y)
+    y_hat = np.array(y_hat)
+    return np.mean(np.sum(np.square(y_hat - y), axis=1))
+
+
+def model_likelihood(model, x, y):
+    '''
+    assume x is list of n d_x-dim ndarrays
+    and y is list of n d_y-dim ndarrays
+    '''
+    # mu should be list of d_y n-dim ndarrays
+    # cov should be list of d_y n-dim ndarrays
+    n = len(x)
+    mu, cov = model.get_post_mu_cov(x)
+    y = np.array(y).flatten()
+    mu = np.array(mu).T.flatten()
+    cov = np.array(cov).T.flatten()
+    white_y = (y - mu) / np.sqrt(cov)
+    logpdfs = norm.logpdf(white_y)
+    logpdfs = logpdfs.reshape((n, -1))
+    avg_likelihood = logpdfs.sum(axis=1).mean()
+    return avg_likelihood
