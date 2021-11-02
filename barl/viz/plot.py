@@ -1,8 +1,49 @@
 from matplotlib import pyplot as plt
+from math import ceil
 import numpy as np
 from barl.envs.pilco_cartpole import get_pole_pos
 import matplotlib.patches as patches
 from barl.envs.lava_path import LavaPathEnv
+
+
+def plot_generic(path, ax=None, fig=None, domain=None, path_str="samp", env=None):
+    assert path_str in ["samp", "true", "postmean"]
+    if ax is None:
+        if path:
+            ndimx = len(path.x[0])
+            nplots = int(ceil(ndimx / 2))
+        elif domain:
+            ndimx = len(domain)
+            nplots = int(ceil(ndimx / 2))
+        fig, axes = plt.subplots(1, nplots, figsize=(5 * nplots, 5))
+        if domain:
+            for i, ax in enumerate(axes):
+                ax.set(
+                    xlim=(domain[i * 2][0], domain[i * 2][1]),
+                    ylim=(domain[i * 2 + 1][0], domain[i * 2 + 1][1]),
+                    xlabel=f'$x_{i * 2}$',
+                    ylabel=f'$x_{i * 2 + 1}$',
+                )
+        if path is None:
+            return axes, fig
+    for i, ax in enumerate(axes):
+        x_plot = [xi[2 * i] for xi in path.x]
+        y_plot = [xi[2 * i + 1] for xi in path.x]
+        if path_str == "true":
+            ax.plot(x_plot, y_plot, 'k--', linewidth=3)
+            ax.plot(x_plot, y_plot, '*', color='k', markersize=5)
+        elif path_str == "postmean":
+            ax.plot(x_plot, y_plot, 'r--', linewidth=3)
+            ax.plot(x_plot, y_plot, '*', color='r', markersize=5)
+        elif path_str == "samp":
+            lines2d = ax.plot(x_plot, y_plot, '--', linewidth=1, alpha=0.3)
+            ax.plot(x_plot, y_plot, 'o', color=lines2d[0].get_color(), alpha=0.3)
+
+        # Also plot small indicator of start-of-path
+        ax.plot(x_plot[0], y_plot[0], '<', markersize=2, color='k', alpha=0.5)
+
+    return axes, fig
+
 
 def plot_pendulum(path, ax=None, fig=None, domain=None, path_str="samp", env=None):
     """Plot a path through an assumed two-dimensional state space."""
@@ -18,8 +59,6 @@ def plot_pendulum(path, ax=None, fig=None, domain=None, path_str="samp", env=Non
         )
         if path is None:
             return ax, fig
-
-
     x_plot = [xi[0] for xi in path.x]
     y_plot = [xi[1] for xi in path.x]
 
@@ -78,6 +117,26 @@ def plot_lava_path(path, ax=None, fig=None, domain=None, path_str="samp", env=No
         ax.plot(x_plot, y_plot, 'o', alpha=0.3)
     ax.scatter(LavaPathEnv.goal[0], LavaPathEnv.goal[1], color = "green", s=100, zorder=99)
     return ax, fig
+
+
+def scatter(ax, x, **kwargs):
+    x = np.atleast_2d(np.array(x))
+    try:
+        axes = list(ax)
+        for i, ax in enumerate(axes):
+            ax.scatter(x[:, i * 2], x[:, i * 2 + 1], **kwargs)
+    except TypeError:
+        ax.scatter(x[:, 0], x[:, 1], **kwargs)
+
+
+def plot(ax, x, shape, **kwargs):
+    x = np.atleast_2d(np.array(x))
+    try:
+        axes = list(ax)
+        for i, ax in enumerate(axes):
+            ax.plot(x[:, i * 2], x[:, i * 2 + 1], shape, **kwargs)
+    except TypeError:
+        ax.plot(x[:, 0], x[:, 1], shape, **kwargs)
 
 
 def plot_pilco_cartpole(path, ax=None, fig=None, domain=None, path_str="samp", env=None):
@@ -192,6 +251,4 @@ def make_plot_obs(data, env, normalize_obs):
         norm_obs = x_data[..., :obs_dim]
         unnorm_obs = env.unnormalize_obs(norm_obs)
         x_data = unnorm_obs
-    x_obs = x_data[..., 0]
-    y_obs = x_data[..., 1]
-    return x_obs, y_obs
+    return x_data

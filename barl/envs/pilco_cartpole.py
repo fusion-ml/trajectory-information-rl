@@ -108,6 +108,9 @@ class CartPoleSwingUpEnv(gym.Env):
         self.state[2] = angle_normalize(self.state[2])
         return self.get_obs()
 
+    def render(self):
+            self._render()
+
     def _render(self, mode='human', close=False):
         if close:
             if self.viewer is not None:
