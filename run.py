@@ -100,7 +100,9 @@ def main(config):
     #   Optionally: fit GP hyperparameters (then exit)
     # ==============================================
     if config.fit_hypers:
-        fit_hypers(config, test_mpc_data, plot_fn, domain, dumper.expdir)
+        fit_data = Namespace(x=test_mpc_data.x + test_data.x,
+                             y=test_mpc_data.y + test_data.y)
+        fit_hypers(config, fit_data, plot_fn, domain, dumper.expdir)
         # End script if hyper fitting bc need to include in config
         return
 
