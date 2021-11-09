@@ -444,7 +444,7 @@ def evaluate_mpc(
             real_return = compute_return(real_rewards, 1)
             real_returns.append(real_return)
             real_path_mpc = Namespace()
-            real_path_mpc.x = real_obs
+            real_path_mpc.x = [np.concatenate([obs, act]) for obs, act in zip(real_obs, real_actions)]
             plan_set_size = sum([len(path.x) for path in algo.old_exe_paths])
             mpc_sample_indices = random.sample(range(plan_set_size), config.test_set_size)
             x_mpc = []
