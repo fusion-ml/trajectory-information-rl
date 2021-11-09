@@ -24,7 +24,7 @@ from barl.util.misc_util import Dumper, make_postmean_fn, mse, model_likelihood
 from barl.util.control_util import get_f_batch_mpc, get_f_batch_mpc_reward, compute_return, evaluate_policy
 from barl.util.domain_util import unif_random_sample_domain
 from barl.util.timing import Timer
-from barl.viz import plotters, make_plot_obs
+from barl.viz import plotters, make_plot_obs, scatter, plot
 import neatplot
 
 tf.compat.v1.logging.set_verbosity(tf.compat.v1.logging.ERROR)
@@ -100,7 +100,9 @@ def main(config):
     #   Optionally: fit GP hyperparameters (then exit)
     # ==============================================
     if config.fit_hypers:
-        fit_hypers(config, test_mpc_data, plot_fn, domain, dumper.expdir)
+        fit_data = Namespace(x=test_mpc_data.x + test_data.x,
+                             y=test_mpc_data.y + test_data.y)
+        fit_hypers(config, fit_data, plot_fn, domain, dumper.expdir)
         # End script if hyper fitting bc need to include in config
         return
 
@@ -228,7 +230,6 @@ def get_env(config):
     reward_function = envs.reward_functions[config.env.name] if not config.alg.learn_reward else None
     if config.normalize_env:
         env = NormalizedEnv(env)
-        env = NormalizedEnv(env)
         if reward_function is not None:
             reward_function = make_normalized_reward_function(env, reward_function)
         plot_fn = make_normalized_plot_fn(env, plot_fn)
@@ -252,11 +253,9 @@ def get_initial_data(config, env, f, domain, dumper, plot_fn):
 
     # Plot initial data (TODO, refactor plotting)
     ax_obs_init, fig_obs_init = plot_fn(path=None, domain=domain)
-    x_obs = [xi[0] for xi in data.x]
-    y_obs = [xi[1] for xi in data.x]
-    if ax_obs_init:
-        ax_obs_init.plot(x_obs, y_obs, 'o', color='k', ms=1)
-        ax_obs_init.set_title("Initial Observations")
+    if ax_obs_init is not None:
+        plot(ax_obs_init, data.x, 'o', color='k', ms=1)
+        fig_obs_init.suptitle("Initial Observations")
         neatplot.save_figure(str(dumper.expdir / 'obs_init'), 'png', fig=fig_obs_init)
     return data
 
@@ -289,7 +288,7 @@ def fit_hypers(config, fit_data, plot_fn, domain, expdir):
     x_obs = [xi[0] for xi in fit_data.x]
     y_obs = [xi[1] for xi in fit_data.x]
     if ax_obs_hyper_fit:
-        ax_obs_hyper_fit.plot(x_obs, y_obs, 'o', color='k', ms=1)
+        plot(ax_obs_hyper_fit, x_obs, y_obs, 'o', color='k', ms=1)
         neatplot.save_figure(str(expdir / 'mpc_obs_hyper_fit'), 'png', fig=fig_obs_hyper_fit)
 
     # Perform hyper fitting
@@ -349,7 +348,7 @@ def execute_gt_mpc(config, algo_class, algo_params, f, dumper, domain, plot_fn):
     logging.info(f"all_x.var(axis=0) = {all_x.var(axis=0)}")
     # Save groundtruth paths plot
     if fig_gt:
-        ax_gt.set_title("Ground Truth Eval")
+        fig_gt.suptitle("Ground Truth Eval")
         neatplot.save_figure(str(dumper.expdir / 'gt'), 'png', fig=fig_gt)
 
     return true_path, test_mpc_data
@@ -509,9 +508,9 @@ def make_plots(
     if ax_all is None:
         return
     # Plot observations
-    x_obs, y_obs = make_plot_obs(data.x, env, config.env.normalize_env)
-    ax_all.scatter(x_obs, y_obs, color='grey', s=10, alpha=0.3)
-    ax_obs.plot(x_obs, y_obs, 'o', color='k', ms=1)
+    x_obs = make_plot_obs(data.x, env, config.env.normalize_env)
+    scatter(ax_all, x_obs, color='grey', s=10, alpha=0.3)
+    plot(ax_obs, x_obs, 'o', color='k', ms=1)
 
     # Plot execution path posterior samples
     for path in exe_path_list:
@@ -524,15 +523,22 @@ def make_plots(
         ax_postmean, fig_postmean = plot_fn(path, ax_postmean, fig_postmean, domain, 'samp')
 
     # Plot x_next
-    x, y = make_plot_obs(x_next, env, config.env.normalize_env)
-    ax_all.scatter(x, y, facecolors='deeppink', edgecolors='k', s=120, zorder=100)
-    ax_obs.plot(x, x, 'o', mfc='deeppink', mec='k', ms=12, zorder=100)
+    x = make_plot_obs(x_next, env, config.env.normalize_env)
+    scatter(ax_all, x, facecolors='deeppink', edgecolors='k', s=120, zorder=100)
+    plot(ax_obs, x, 'o', mfc='deeppink', mec='k', ms=12, zorder=100)
 
-    # set titles
-    ax_all.set_title(f"All - Iteration {i}")
-    ax_postmean.set_title(f"Posterior Mean Eval - Iteration {i}")
-    ax_samp.set_title(f"Posterior Samples - Iteration {i}")
-    ax_obs.set_title(f"Observations - Iteration {i}")
+    try:
+        # set titles if there is a single axes
+        ax_all.set_title(f"All - Iteration {i}")
+        ax_postmean.set_title(f"Posterior Mean Eval - Iteration {i}")
+        ax_samp.set_title(f"Posterior Samples - Iteration {i}")
+        ax_obs.set_title(f"Observations - Iteration {i}")
+    except AttributeError:
+        # set titles for figures if they are multi-axes
+        fig_all.suptitle(f"All - Iteration {i}")
+        fig_postmean.suptitle(f"Posterior Mean Eval - Iteration {i}")
+        fig_samp.suptitle(f"Posterior Samples - Iteration {i}")
+        fig_obs.suptitle(f"Observations - Iteration {i}")
 
     # Save figure at end of evaluation
     neatplot.save_figure(str(dumper.expdir / f'all_{i}'), 'png', fig=fig_all)
