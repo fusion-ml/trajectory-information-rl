@@ -14,10 +14,27 @@ env:
       opt_max_iter: 1000
 alg:
     uncertainty_sampling: False
+mpc:
+  nsamps: ${env.mpc.nsamps}
+  planning_horizon: ${env.mpc.planning_horizon}
+  n_elites: ${env.mpc.n_elites}
+  beta: ${env.mpc.n_elites}
+  gamma: ${env.mpc.gamma}
+  xi: ${env.mpc.xi}
+  num_iters: ${env.mpc.num_iters}
+  actions_per_plan: ${env.mpc.actions_per_plan}
+test_mpc:
+  nsamps: ${env.mpc.nsamps}
+  planning_horizon: ${env.mpc.planning_horizon}
+  n_elites: ${env.mpc.n_elites}
+  beta: ${env.mpc.n_elites}
+  gamma: ${env.mpc.gamma}
+  xi: ${env.mpc.xi}
+  num_iters: ${env.mpc.num_iters}
+  actions_per_plan: ${env.mpc.actions_per_plan}
 
 num_iters: ${alg.num_iters}
 seed: 13
-mpc: ${env.mpc}
 fixed_start_obs: False
 num_samples_mc: 1
 num_init_data: 1
