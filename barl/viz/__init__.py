@@ -8,7 +8,8 @@ from barl.viz.plot import (
     make_plot_obs,
     plot_generic,
     scatter,
-    plot
+    plot,
+    noop,
     )
 plotters = {
         'bacpendulum-v0': plot_pendulum,
@@ -25,4 +26,5 @@ plotters = {
         'betatracking-v0': plot_generic,
         'betatracking-fixed-v0': plot_generic,
         'plasmatracking-v0': plot_generic,
+        'bachalfcheetah-v0': noop,
         }

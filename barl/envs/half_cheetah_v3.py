@@ -1,6 +1,6 @@
 import numpy as np
 import os
-from gym import utils
+from gym import utils, spaces
 from gym.envs.mujoco import mujoco_env
 
 
@@ -34,6 +34,10 @@ class HalfCheetahEnv(mujoco_env.MujocoEnv, utils.EzPickle):
 
         mujoco_env.MujocoEnv.__init__(self, xml_file, 5)
         self.horizon = 200
+        self.periodic_dimensions = []
+        low = np.ones(18) * -1000
+        high = -low
+        self.observation_space = spaces.Box(low=low, high=high)
 
     def control_cost(self, action):
         control_cost = self._ctrl_cost_weight * np.sum(np.square(action))
@@ -41,6 +45,7 @@ class HalfCheetahEnv(mujoco_env.MujocoEnv, utils.EzPickle):
 
     def step(self, action):
         x_position_before = self.sim.data.qpos[0]
+        old_obs = self._get_obs()
         self.do_simulation(action, self.frame_skip)
         x_position_after = self.sim.data.qpos[0]
         x_velocity = (x_position_after - x_position_before) / self.dt
@@ -52,11 +57,13 @@ class HalfCheetahEnv(mujoco_env.MujocoEnv, utils.EzPickle):
         observation = self._get_obs()
         reward = forward_reward - ctrl_cost
         done = False
+        delta_obs = observation - old_obs
         info = {
             "x_position": x_position_after,
             "x_velocity": x_velocity,
             "reward_run": forward_reward,
             "reward_ctrl": -ctrl_cost,
+            "delta_obs": delta_obs,
         }
 
         return observation, reward, done, info
@@ -79,7 +86,8 @@ class HalfCheetahEnv(mujoco_env.MujocoEnv, utils.EzPickle):
         qvel = obs[len(self.init_qpos):]
         self.set_state(qpos, qvel)
         check_obs = self._get_obs()
-        assert np.allclose(check_obs, obs)
+        assert np.allclose(check_obs, obs), f"{check_obs=}, {obs=}"
+        return obs
 
     def reset_model(self):
         noise_low = -self._reset_noise_scale
