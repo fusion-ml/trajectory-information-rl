@@ -74,7 +74,27 @@ def main(config):
             crop_to_domain=config.crop_to_domain,
             update_fn=update_fn,
     )
+    test_algo_params = dict(
+            start_obs=start_obs,
+            env=env,
+            reward_function=reward_function,
+            project_to_domain=False,
+            base_nsamps=config.test_mpc.nsamps,
+            planning_horizon=config.test_mpc.planning_horizon,
+            n_elites=config.test_mpc.n_elites,
+            beta=config.test_mpc.beta,
+            gamma=config.test_mpc.gamma,
+            xi=config.test_mpc.xi,
+            num_iters=config.test_mpc.num_iters,
+            actions_per_plan=config.test_mpc.actions_per_plan,
+            domain=domain,
+            action_lower_bound=env.action_space.low,
+            action_upper_bound=env.action_space.high,
+            crop_to_domain=config.crop_to_domain,
+            update_fn=update_fn,
+    )
     algo = algo_class(algo_params)
+    test_algo = algo_class(test_algo_params)
 
     # Set initial data
     data = get_initial_data(config, env, f, domain, dumper, plot_fn)
@@ -149,7 +169,7 @@ def main(config):
             # =======================================================================
             real_paths_mpc = evaluate_mpc(
                     config,
-                    algo,
+                    test_algo,
                     model,
                     start_obs,
                     env,
