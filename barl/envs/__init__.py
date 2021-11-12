@@ -72,6 +72,7 @@ reward_functions = {
 try:
     from barl.envs.swimmer import BACSwimmerEnv, swimmer_reward
     from barl.envs.reacher import BACReacherEnv, reacher_reward
+    from barl.envs.half_cheetah_v3 import HalfCheetahEnv, half_cheetah_reward
     register(
         id='bacswimmer-v0',
         entry_point=BACSwimmerEnv,
@@ -90,10 +91,16 @@ try:
         entry_point=BACReacherEnv,
         kwargs={'tight': True},
         )
+    register(
+        id='bachalfcheetah-v0',
+        entry_point=HalfCheetahEnv,
+        )
+
     reward_functions['bacswimmer-v0'] = swimmer_reward
     reward_functions['bacreacher-v0'] = reacher_reward
     reward_functions['bacswimmer-rew-v0'] = swimmer_reward
     reward_functions['bacreacher-tight-v0'] = reacher_reward
+    reward_functions['bachalfcheetah-v0'] = half_cheetah_reward
 except:
     logging.info('mujoco not found, skipping those envs')
 try:

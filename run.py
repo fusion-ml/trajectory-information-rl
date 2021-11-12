@@ -120,7 +120,9 @@ def main(config):
     #   Optionally: fit GP hyperparameters (then exit)
     # ==============================================
     if config.fit_hypers:
-        fit_hypers(config, test_mpc_data, plot_fn, domain, dumper.expdir)
+        fit_data = Namespace(x=test_mpc_data.x + test_data.x,
+                             y=test_mpc_data.y + test_data.y)
+        fit_hypers(config, fit_data, plot_fn, domain, dumper.expdir)
         # End script if hyper fitting bc need to include in config
         return
 
@@ -462,7 +464,7 @@ def evaluate_mpc(
             real_return = compute_return(real_rewards, 1)
             real_returns.append(real_return)
             real_path_mpc = Namespace()
-            real_path_mpc.x = real_obs
+            real_path_mpc.x = [np.concatenate([obs, act]) for obs, act in zip(real_obs, real_actions)]
             plan_set_size = sum([len(path.x) for path in algo.old_exe_paths])
             mpc_sample_indices = random.sample(range(plan_set_size), config.test_set_size)
             x_mpc = []

@@ -1,6 +1,7 @@
 from matplotlib import pyplot as plt
 from math import ceil
 import numpy as np
+from copy import deepcopy
 from barl.envs.pilco_cartpole import get_pole_pos
 import matplotlib.patches as patches
 from barl.envs.lava_path import LavaPathEnv
@@ -17,6 +18,9 @@ def plot_generic(path, ax=None, fig=None, domain=None, path_str="samp", env=None
             nplots = int(ceil(ndimx / 2))
         fig, axes = plt.subplots(1, nplots, figsize=(5 * nplots, 5))
         if domain:
+            domain = deepcopy(domain)
+            if len(domain) % 2 == 1:
+                domain.append([-1, 1])
             for i, ax in enumerate(axes):
                 ax.set(
                     xlim=(domain[i * 2][0], domain[i * 2][1]),
@@ -26,9 +30,14 @@ def plot_generic(path, ax=None, fig=None, domain=None, path_str="samp", env=None
                 )
         if path is None:
             return axes, fig
+    else:
+        axes = ax
     for i, ax in enumerate(axes):
         x_plot = [xi[2 * i] for xi in path.x]
-        y_plot = [xi[2 * i + 1] for xi in path.x]
+        try:
+            y_plot = [xi[2 * i + 1] for xi in path.x]
+        except IndexError:
+            y_plot = [0] * len(path.x)
         if path_str == "true":
             ax.plot(x_plot, y_plot, 'k--', linewidth=3)
             ax.plot(x_plot, y_plot, '*', color='k', markersize=5)
@@ -121,6 +130,8 @@ def plot_lava_path(path, ax=None, fig=None, domain=None, path_str="samp", env=No
 
 def scatter(ax, x, **kwargs):
     x = np.atleast_2d(np.array(x))
+    if x.shape[1] % 2 == 1:
+        x = np.concatenate([x, np.zeros((x.shape[0], 1))], axis=1)
     try:
         axes = list(ax)
         for i, ax in enumerate(axes):
@@ -131,6 +142,8 @@ def scatter(ax, x, **kwargs):
 
 def plot(ax, x, shape, **kwargs):
     x = np.atleast_2d(np.array(x))
+    if x.shape[1] % 2 == 1:
+        x = np.concatenate([x, np.zeros([x.shape[0], 1])], axis=1)
     try:
         axes = list(ax)
         for i, ax in enumerate(axes):
@@ -249,6 +262,7 @@ def make_plot_obs(data, env, normalize_obs):
     x_data = np.array(data)
     if normalize_obs:
         norm_obs = x_data[..., :obs_dim]
+        action = x_data[..., obs_dim:]
         unnorm_obs = env.unnormalize_obs(norm_obs)
-        x_data = unnorm_obs
+        x_data = np.concatenate([unnorm_obs, action], axis=-1)
     return x_data
