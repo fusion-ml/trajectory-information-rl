@@ -239,6 +239,7 @@ class MultiGpfsGp(Base):
 
         return mu_list, cov_list
 
+
     def get_data_list(self, data):
         """
         Return list of Namespaces, where each is a version of data containing only one
@@ -394,3 +395,27 @@ class BatchMultiGpfsGp(MultiGpfsGp):
         # TODO: possibly implement for BatchMultiGpfsGp for sample approximation of
         # posterior mean
         pass
+
+    def sample_post_list(self, x_list, n_samp, full_cov=False):
+        '''
+        This is going to return a triply-nested list of shape
+        len(x_list) x n_samp x len(self.gpfsgs_list)
+        '''
+        assert len(self.data.x) > 0
+        mu_list, cov_list = self.get_post_mu_cov(x_list, full_cov)
+        return self.get_normal_samples(mu_list, cov_list, n_samp, full_cov)
+
+    def get_normal_samples(self, mu_list, cov_list, n_samp, full_cov):
+        # TODO: I don't think this will work for the multivariate case
+        # copied from simpleGP but I think this code won't work.
+        # this is here as an initial attempt
+        if full_cov:
+            sample_list = list(sample_mvn(mu, cov, n_samp))
+        else:
+            sample_list = list(
+                np.random.normal(
+                    mu.reshape(-1,), cov.reshape(-1,), size=(n_samp, len(mu))
+                )
+            )
+        x_list_sample_list = list(np.stack(sample_list).T)
+        return x_list_sample_list
