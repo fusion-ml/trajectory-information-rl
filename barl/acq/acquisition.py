@@ -805,3 +805,64 @@ class UncertaintySamplingAcqFunction(AcqFunction):
         """Class is callable and returns acquisition function on x_list."""
         acq_list = self.get_acq_list_batch(x_list)
         return acq_list
+
+
+class KGRLAcqFunction(Base):
+    """
+    Implements the KG for RL idea given in the overleaf.
+
+    This version is a standard acquisition function that is only aiming to acquire
+    a single state-action pair that maximizes the expected H-entropy gain
+    for the cost function. To do this, it should run gradient descent on both the policy
+    parameters and the point being acquired.
+
+    This function is intended to be used for gradient-based acquisition and therefore
+    doesn't compute the first term of the h-entropy.
+    """
+    def set_params(self, params):
+        super().set_params(params)
+
+        params = dict_to_namespace(params)
+        # these eventually need to go in the optimizer
+        # self.params.learning_rate = getattr(params, 'learning_rate', 3e-4)
+        # self.params.num_steps = getattr(params, 'num_steps', 10000)
+        self.params.num_fs = getattr(params, 'num_fs', 15)
+        self.params.num_s0 = getattr(params, 'num_s0', 5)
+        self.params.num_sprime_samps = getattr(params, 'num_sprime_samps', 5)
+        self.params.horizon = params.horizon
+        self.params.p0 = params.p0
+        self.start_states = []
+
+    def initialize(self):
+        self.start_states = [self.params.p0() for _ in range(self.params.num_s0)]
+        # self.model.initialize_function_sample_list(self.params.num_fs)
+
+    def __call__(self, policy_list, x_list):
+        post_samples = self.model.sample_post_list(x_list, self.params.num_sprime_samps)
+        risks = []
+        for i, samp_batch in enumerate(post_samples):
+            risk_samps = []
+            for sprime in samp_batch:
+                new_x = x_list[i]
+                policy = policy_list[i]
+                new_data = Namespace()
+                new_data.x = self.model.data.x + [new_x]
+                new_data.y = self.model.data.y + [sprime]
+                old_data = self.model.data
+                # pretty sure there are some extra copies of the dataset happening here
+                self.model.set_data(new_data)
+                bayes_risk = -1 * self.execute_policy_on_fs(policy)
+                risk_samps.append(bayes_risk)
+            risks.append(np.mean(risk_samps))
+        return risks
+
+    def execute_policy_on_fs(self, policy):
+        current_states = np.array(self.start_states)
+        for i in range(self.params.num_fs):
+            for t in range(self.params.horizon)
+                actions = policy(np.array(self.start_states))
+                # todo: push the actions through posterior function samples,
+                # current states = ...
+                # see what the rewards are (need to add reward function)
+            # sum them 
+        return returns
