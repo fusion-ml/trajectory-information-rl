@@ -823,14 +823,12 @@ class KGRLAcqFunction(Base):
         super().set_params(params)
 
         params = dict_to_namespace(params)
-        # these eventually need to go in the optimizer
-        # self.params.learning_rate = getattr(params, 'learning_rate', 3e-4)
-        # self.params.num_steps = getattr(params, 'num_steps', 10000)
         self.params.num_fs = getattr(params, 'num_fs', 15)
         self.params.num_s0 = getattr(params, 'num_s0', 5)
         self.params.num_sprime_samps = getattr(params, 'num_sprime_samps', 5)
         self.params.horizon = params.horizon
         self.params.p0 = params.p0
+        self.params.reward_fn = params.reward_fn
         self.start_states = []
 
     def initialize(self):
@@ -850,19 +848,34 @@ class KGRLAcqFunction(Base):
                 new_data.y = self.model.data.y + [sprime]
                 old_data = self.model.data
                 # pretty sure there are some extra copies of the dataset happening here
+                # TODO: make this more efficient
                 self.model.set_data(new_data)
-                bayes_risk = -1 * self.execute_policy_on_fs(policy)
-                risk_samps.append(bayes_risk)
+                neg_bayes_risk = self.execute_policy_on_fs(policy)
+                risk_samps.append(neg_bayes_risk)
+                self.model.set_data(old_data)
             risks.append(np.mean(risk_samps))
+
         return risks
 
     def execute_policy_on_fs(self, policy):
         current_states = np.array(self.start_states)
-        for i in range(self.params.num_fs):
-            for t in range(self.params.horizon)
-                actions = policy(np.array(self.start_states))
-                # todo: push the actions through posterior function samples,
-                # current states = ...
-                # see what the rewards are (need to add reward function)
-            # sum them 
-        return returns
+        obs_dim = current_states.shape[-1]
+        current_states = np.repeat(current_states[np.newaxis, :, :], self.params.num_fs, axis=0)
+        current_states = tf.Tensor(current_states)
+        self.model.UncertaintySamplingAcqFunction(self.params.num_fs)
+        f_batch_list = self.model.call_function_sample_list
+        returns = 0
+        for t in range(self.params.horizon):
+            current_states = tf.reshape(current_states, (-1, obs_dim))
+            actions = policy(current_states)
+            x = tf.concat([current_states, actions], -1)
+            x = tf.reshape(current_states, (self.params.num_fs, self.params.num_s0, -1))
+            deltas = f_batch_list(x)
+            deltas = tf.reshape(deltas, (-1, obs_dim))
+            current_states = self.params.update_fn(current_states, deltas)
+            rewards = self.params.reward_fn(current_states)
+            rewards = tf.reshape(rewards, (self.params.num_fs, -1))
+            returns = rewards + returns
+        avg_return = returns.mean()
+
+        return avg_return

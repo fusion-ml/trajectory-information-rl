@@ -14,6 +14,7 @@ env:
       opt_max_iter: 1000
 alg:
     uncertainty_sampling: False
+    kgrl: False
 mpc:
   nsamps: ${env.mpc.nsamps}
   planning_horizon: ${env.mpc.planning_horizon}

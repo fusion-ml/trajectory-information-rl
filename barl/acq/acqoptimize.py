@@ -4,10 +4,13 @@ Code for optimizing acquisition functions.
 
 import copy
 import numpy as np
+import tensorflow as tf
+import tf.keras as keras
 
 from .acquisition import BaxAcqFunction
 from ..util.base import Base
 from ..util.misc_util import dict_to_namespace
+from ..policies import TanhMlpPolicy
 
 
 class AcqOptimizer(Base):
@@ -95,3 +98,30 @@ class AcqOptimizer(Base):
     def set_print_params(self):
         """Set self.print_params."""
         self.print_params = copy.deepcopy(self.params)
+
+
+class GDAcqOptimizer(AcqOptimizer):
+    def set_params(self, params):
+        super().set_params(params)
+        self.params.learning_rate = getattr(params, 'learning_rate', 3e-4)
+        self.params.num_steps = getattr(params, 'num_steps', 10000)
+        self.params.obs_dim = params.obs_dim
+        self.params.action_dim = params.action_dim
+        self.params.hidden_layer_sizes = getattr(params, 'hidden_layer_sizes', [128, 128])
+
+    def optimize(self, x_batch):
+        x_batch = tf.Variable(x_batch)
+        policies = [TanhMlpPolicy(self.params.obs_dim, self.params.action_dim, self.params.hidden_layer_sizes) for _ in range(x_batch.shape[0])]
+        opt = keras.optimizers.Adam(learning_rate=self.params.learning_rate)
+
+        def loss():
+            return -1 * self.acqfunction(policies, x_batch)
+        opt_vars = [x_batch] + [policy.model.trainable_variables for policy in policies]
+        for _ in range(self.params.num_steps):
+            opt.minimize(loss, opt_vars)
+        optima = x_batch.numpy()
+        final_losses = loss()
+        return optima
+
+    def optimize_batch(self):
+        raise NotImplementedError()

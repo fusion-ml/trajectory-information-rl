@@ -14,8 +14,8 @@ from matplotlib import pyplot as plt
 
 from barl.models.gpfs_gp import BatchMultiGpfsGp
 from barl.models.gpflow_gp import get_gpflow_hypers_from_data
-from barl.acq.acquisition import MultiBaxAcqFunction, MCAcqFunction, UncertaintySamplingAcqFunction
-from barl.acq.acqoptimize import AcqOptimizer
+from barl.acq.acquisition import MultiBaxAcqFunction, MCAcqFunction, UncertaintySamplingAcqFunction, KGRLAcqFunction
+from barl.acq.acqoptimize import AcqOptimizer, GDAcqOptimizer
 from barl.alg.mpc import MPC
 from barl import envs
 from barl.envs.wrappers import NormalizedEnv, make_normalized_reward_function, make_update_obs_fn
@@ -40,7 +40,7 @@ def main(config):
     configure(config)
 
     # Instantiate environment and create functions for dynamics, plotting, rewards, state updates
-    env, f, plot_fn, reward_function, update_fn = get_env(config)
+    env, f, plot_fn, reward_function, update_fn, p0 = get_env(config)
     obs_dim = env.observation_space.low.size
     action_dim = env.action_space.low.size
 
@@ -108,8 +108,8 @@ def main(config):
     gp_model_class, multi_gp_params = get_model(config, env, obs_dim, action_dim)
 
     # Set acqfunction
-    acqfn_params = {'n_path': config.n_paths, 'crop': True}
-    acqfn_class = MultiBaxAcqFunction if not config.alg.uncertainty_sampling else UncertaintySamplingAcqFunction
+    acqfn_class, acqfn_params = get_acq_fn(config, env.horizon, p0, reward_function, obs_dim, action_dim)
+    acqopt_class, acqopt_params = get_acq_opt(config, obs_dim, action_dim)
 
     # ==============================================
     #   Computing groundtruth trajectories
@@ -153,6 +153,8 @@ def main(config):
                 multi_gp_params,
                 acqfn_class,
                 acqfn_params,
+                acqopt_class,
+                acqopt_params,
                 data,
                 dumper)
 
@@ -256,7 +258,8 @@ def get_env(config):
     else:
         f = get_f_batch_mpc(env, use_info_delta=config.teleport)
     update_fn = make_update_obs_fn(env, teleport=config.teleport)
-    return env, f, plot_fn, reward_function, update_fn
+    p0 = env.reset
+    return env, f, plot_fn, reward_function, update_fn, p0
 
 
 def get_initial_data(config, env, f, domain, dumper, plot_fn):
@@ -292,6 +295,45 @@ def get_model(config, env, obs_dim, action_dim):
     multi_gp_params = {'n_dimy': obs_dim, 'gp_params': gp_params}
     gp_model_class = BatchMultiGpfsGp
     return gp_model_class, multi_gp_params
+
+
+def get_acq_fn(config, horizon, p0, reward_fn, obs_dim, action_dim):
+    if config.alg.uncertainty_sampling:
+        acqfn_params = {}
+        acqfn_class = UncertaintySamplingAcqFunction
+    elif config.alg.kgrl:
+        acqfn_params = {
+                'num_fs': config.alg.num_fs,
+                'num_s0': config.alg.num_s0,
+                'num_sprime_samps': config.alg.num_sprime_samps,
+                'horizon': horizon,
+                'p0': p0,
+                'reward_fn': reward_fn,
+                }
+        acqfn_class = KGRLAcqFunction
+    else:
+        acqfn_params = {'n_path': config.n_paths, 'crop': True}
+        acqfn_class = MultiBaxAcqFunction
+    return acqfn_class, acqfn_params
+
+
+def get_acq_opt(config, obs_dim, action_dim):
+    if config.alg.gd_opt:
+        acqopt_params = {
+                "learning_rate": config.alg.learning_rate,
+                "num_steps": config.alg.num_steps,
+                "obs_dim": obs_dim,
+                "action_dim": action_dim
+            }
+        try:
+            acqopt_params['hidden_layer_sizes'] = config.alg.hidden_layer_sizes
+        except Exception:
+            pass
+        acqopt_class = GDAcqOptimizer
+    else:
+        acqopt_params = {}
+        acqopt_class = AcqOptimizer
+    return acqopt_class, acqopt_params
 
 
 def fit_hypers(config, fit_data, plot_fn, domain, expdir):
@@ -383,6 +425,8 @@ def get_next_point(
         multi_gp_params,
         acqfn_class,
         acqfn_params,
+        acqopt_class,
+        acqopt_params,
         data,
         dumper,
         ):
@@ -393,7 +437,7 @@ def get_next_point(
         # Set and optimize acquisition function
         acqfn_base = acqfn_class(params=acqfn_params, model=model, algorithm=algo)
         acqfn = MCAcqFunction(acqfn_base, {"num_samples_mc": config.num_samples_mc})
-        acqopt = AcqOptimizer()
+        acqopt = acqopt_class(params=acqopt_params)
         acqopt.initialize(acqfn)
         if config.alg.rollout_sampling:
             x_test = [np.concatenate([current_obs, action_space.sample()]) for _ in range(config.n_rand_acqopt)]
