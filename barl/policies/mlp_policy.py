@@ -1,12 +1,13 @@
-import tensorflow as tf
 from tensorflow import keras
 from tensorflow.keras import layers
 
+
 class MlpPolicy:
     def __init__(self, obs_dim, action_dim, hidden_layer_sizes, output_activation=None):
-        layers = [layers.Dense(size, activation="relu") for size in hidden_layer_sizes]
-        layers.append(layers.Dense(action_dim, activation=output_activation))
-        self.model = keras.Sequential(layers)
+        policy_layers = [layers.Dense(hidden_layer_sizes[0], activation="relu", input_shape=(obs_dim,))] +\
+                        [layers.Dense(size, activation="relu") for size in hidden_layer_sizes[1:]]
+        policy_layers.append(layers.Dense(action_dim, activation=output_activation))
+        self.model = keras.Sequential(policy_layers)
 
     def __call__(self, obs):
         return self.model(obs)
@@ -21,4 +22,3 @@ class MlpPolicy:
 class TanhMlpPolicy(MlpPolicy):
     def __init__(self, obs_dim, action_dim, hidden_layer_sizes):
         super().__init__(obs_dim, action_dim, hidden_layer_sizes, output_activation='tanh')
-

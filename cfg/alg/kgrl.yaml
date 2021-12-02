@@ -2,9 +2,10 @@ learn_reward: False
 num_iters: 4000
 use_acquisition: True
 rollout_sampling: False
-n_rand_acqopt: 1
+n_rand_acqopt: 10
 use_mpc: False
 kgrl: True
+gd_opt: True
 num_fs: 15
 num_s0: 5
 num_sprime_samps: 5

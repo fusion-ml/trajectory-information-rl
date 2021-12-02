@@ -5,7 +5,7 @@ Code for optimizing acquisition functions.
 import copy
 import numpy as np
 import tensorflow as tf
-import tf.keras as keras
+import tensorflow.keras as keras
 
 from .acquisition import BaxAcqFunction
 from ..util.base import Base
@@ -103,6 +103,7 @@ class AcqOptimizer(Base):
 class GDAcqOptimizer(AcqOptimizer):
     def set_params(self, params):
         super().set_params(params)
+        params = dict_to_namespace(params)
         self.params.learning_rate = getattr(params, 'learning_rate', 3e-4)
         self.params.num_steps = getattr(params, 'num_steps', 10000)
         self.params.obs_dim = params.obs_dim

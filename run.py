@@ -436,7 +436,10 @@ def get_next_point(
         model = gp_model_class(multi_gp_params, data)
         # Set and optimize acquisition function
         acqfn_base = acqfn_class(params=acqfn_params, model=model, algorithm=algo)
-        acqfn = MCAcqFunction(acqfn_base, {"num_samples_mc": config.num_samples_mc})
+        if config.num_samples_mc != 1:
+            acqfn = MCAcqFunction(acqfn_base, {"num_samples_mc": config.num_samples_mc})
+        else:
+            acqfn = acqfn_base
         acqopt = acqopt_class(params=acqopt_params)
         acqopt.initialize(acqfn)
         if config.alg.rollout_sampling:

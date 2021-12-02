@@ -5,6 +5,7 @@ Acquisition functions.
 from argparse import Namespace
 import copy
 import numpy as np
+import tensorflow as tf
 from scipy.stats import norm as sps_norm
 
 from ..util.base import Base
@@ -807,7 +808,7 @@ class UncertaintySamplingAcqFunction(AcqFunction):
         return acq_list
 
 
-class KGRLAcqFunction(Base):
+class KGRLAcqFunction(AcqFunction):
     """
     Implements the KG for RL idea given in the overleaf.
 
@@ -861,8 +862,9 @@ class KGRLAcqFunction(Base):
         current_states = np.array(self.start_states)
         obs_dim = current_states.shape[-1]
         current_states = np.repeat(current_states[np.newaxis, :, :], self.params.num_fs, axis=0)
-        current_states = tf.Tensor(current_states)
-        self.model.UncertaintySamplingAcqFunction(self.params.num_fs)
+        print(f"{current_states.dtype=}")
+        current_states = tf.convert_to_tensor(current_states, dtype=tf.float32)
+        self.model.initialize_function_sample_list(self.params.num_fs)
         f_batch_list = self.model.call_function_sample_list
         returns = 0
         for t in range(self.params.horizon):
@@ -870,6 +872,7 @@ class KGRLAcqFunction(Base):
             actions = policy(current_states)
             x = tf.concat([current_states, actions], -1)
             x = tf.reshape(current_states, (self.params.num_fs, self.params.num_s0, -1))
+            breakpoint()
             deltas = f_batch_list(x)
             deltas = tf.reshape(deltas, (-1, obs_dim))
             current_states = self.params.update_fn(current_states, deltas)

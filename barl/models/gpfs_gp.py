@@ -315,6 +315,10 @@ class BatchGpfsGp(GpfsGp):
             self.initialize_fsl_xvars(max_n_batch)
 
         # Set fsl_xvars as x_batch_list_new
+        # TODO(Viraj, Willie): for KGRL, we need these operations to happen in pure tensorflow.
+        # Should we just rewrite the GP or add a flag to work in pure TF?
+        # It will come in handy if we ever decide to
+        # try and use tf.function a lot more broadly in this codebase
         self.fsl_xvars = np.array(x_batch_list_new)
 
         # Call fsl on fsl_xvars, return y_list
@@ -405,17 +409,16 @@ class BatchMultiGpfsGp(MultiGpfsGp):
         mu_list, cov_list = self.get_post_mu_cov(x_list, full_cov)
         return self.get_normal_samples(mu_list, cov_list, n_samp, full_cov)
 
-    def get_normal_samples(self, mu_list, cov_list, n_samp, full_cov):
-        # TODO: I don't think this will work for the multivariate case
-        # copied from simpleGP but I think this code won't work.
-        # this is here as an initial attempt
+    @staticmethod
+    def get_normal_samples(mu_list, cov_list, n_samp, full_cov):
         if full_cov:
-            sample_list = list(sample_mvn(mu, cov, n_samp))
+            raise NotImplementedError()
         else:
-            sample_list = list(
-                np.random.normal(
-                    mu.reshape(-1,), cov.reshape(-1,), size=(n_samp, len(mu))
-                )
-            )
-        x_list_sample_list = list(np.stack(sample_list).T)
-        return x_list_sample_list
+            mu = np.concatenate(mu_list)
+            cov = np.concatenate(cov_list)
+            samps = np.random.normal(mu, cov, size=(n_samp, len(mu)))
+            samps = samps.reshape((n_samp, len(mu_list), -1))
+            samps = np.transpose(samps, (2, 0, 1))
+        samps = list(samps)
+        samps = [list(samp) for samp in samps]
+        return samps
