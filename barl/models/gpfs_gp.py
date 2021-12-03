@@ -11,7 +11,7 @@ from gpflow.config import default_float as floatx
 
 from gpflow_sampling.models import PathwiseGPR
 from .gpfs.periodic import Periodic
-from .simple_gp import SimpleGp
+from .simple_gp import SimpleGp, TFSimpleGp
 from ..util.base import Base
 from ..util.misc_util import dict_to_namespace, suppress_stdout_stderr
 from ..util.domain_util import unif_random_sample_domain
@@ -139,6 +139,108 @@ class GpfsGp(SimpleGp):
         x_list_new = [new_val if x is None else x for x in x_list]
 
         return x_list_new
+
+
+class TFGpfsGp(TFSimpleGp):
+    """
+    GP model using GPFlowSampling. All operations are in TF and we
+    assume the args are TF tensors.
+    """
+
+    def set_params(self, params):
+        """Set self.params, the parameters for this model."""
+        super().set_params(params)
+        params = dict_to_namespace(params)
+
+        # Set self.params
+        self.params.name = getattr(params, 'name', 'TFGpfsGp')
+        self.params.n_bases = getattr(params, 'n_bases', 1000)
+        self.params.n_dimx = getattr(params, 'n_dimx', 1)
+        self.set_kernel(params)
+
+    def set_kernel(self, params):
+        """Set GPflow kernel."""
+        super().set_kernel(params)
+
+        if self.params.kernel_str == 'rbf':
+            gpf_kernel = kernels.SquaredExponential(
+                variance=self.params.alpha**2, lengthscales=self.params.ls
+            )
+
+        elif self.params.kernel_str == 'rbf_periodic':
+            period = params.period
+
+            per_dims = params.periodic_dims
+            per_dims_ls_idx = per_dims[0] if len(per_dims)==1 else list(per_dims)
+            rbf_dims = [i for i in range(self.params.n_dimx) if i not in per_dims]
+            rbf_dims_ls_idx = rbf_dims[0] if len(rbf_dims)==1 else list(rbf_dims)
+
+            gpf_kernel_1 = kernels.SquaredExponential(
+                variance=self.params.alpha**2,
+                lengthscales=self.params.ls[rbf_dims_ls_idx],
+                active_dims=rbf_dims,
+            )
+            gpf_kernel_2 = kernels.SquaredExponential(
+                variance=1.0,
+                lengthscales=self.params.ls[per_dims_ls_idx],
+                active_dims=per_dims,
+            )
+            gpf_kernel_per = kernels.Periodic(gpf_kernel_2, period=period)
+            gpf_kernel = kernels.Product([gpf_kernel_1, gpf_kernel_per])
+
+        self.params.gpf_kernel = gpf_kernel
+
+    def set_data(self, data):
+        """Set self.data."""
+        super().set_data(data)
+        self.set_model()
+
+    def set_model(self):
+        """Set GPFlowSampling as self.params.model."""
+        self.params.model = PathwiseGPR(
+            data=(self.data.x, self.data.y),
+            kernel=self.params.gpf_kernel,
+            noise_variance=self.params.sigma**2,
+        )
+
+    def initialize_function_sample_list(self, n_fsamp=1):
+        """Initialize a list of n_fsamp function samples."""
+        n_bases = self.params.n_bases
+        paths = self.params.model.generate_paths(num_samples=n_fsamp, num_bases=n_bases)
+        _ = self.params.model.set_paths(paths)
+
+        Xinit = tf.random.uniform(
+            [n_fsamp, self.params.n_dimx], minval=0.0, maxval=0.1, dtype=floatx()
+        )
+        self.fsl_xvars = Xinit
+        self.n_fsamp = n_fsamp
+
+    @tf.function
+    def call_fsl_on_xvars(self, model, xvars, sample_axis=0):
+        """Call fsl on fsl_xvars."""
+        fvals = model.predict_f_samples(Xnew=xvars, sample_axis=sample_axis)
+        return fvals
+
+    def call_function_sample_list(self, x_list):
+        """Call a set of posterior function samples on respective x in x_list."""
+
+        y_tf = self.call_fsl_on_xvars(self.params.model, self.fsl_xvars)
+        return y_tf
+
+    def call_function_sample_list_mean(self, x):
+        """
+        Call a set of posterior function samples on an input x and return mean of
+        outputs.
+        """
+        raise NotImplementedError()
+        # Construct x_dupe_list
+        x_dupe_list = [x for _ in range(self.n_fsamp)]
+
+        # Set fsl_xvars as x_dupe_list, call fsl, return y_list
+        self.fsl_xvars = np.array(x_dupe_list)
+        y_tf = self.call_fsl_on_xvars(self.params.model, self.fsl_xvars)
+        y_mean = y_tf.numpy().reshape(-1).mean()
+        return y_mean
 
 
 class MultiGpfsGp(Base):

@@ -3,6 +3,7 @@ Utilities for Gaussian process (GP) inference.
 """
 
 import numpy as np
+import tensorflow as tf
 from scipy.linalg import solve_triangular
 from scipy.spatial.distance import cdist
 import itertools
@@ -20,6 +21,22 @@ def kern_exp_quad_ard(xmat1, xmat2, ls, alpha):
     norm = np.sum(diff ** 2, axis=-1) / 2.0
     kern = alpha ** 2 * np.exp(-norm)
     return kern
+
+
+def tf_kern_exp_quad_ard(xmat1, xmat2, ls, alpha):
+    """
+    Exponentiated quadratic kernel function with
+    dimensionwise lengthscales if ls is an ndarray or tensor.
+    assumes xmat1 and xmat2 are Tensors
+    """
+    xmat1 = tf.expand_dims(xmat1, axis=1)
+    xmat2 = tf.expand_dims(xmat2, axis=0)
+    diff = xmat1 - xmat2
+    diff = diff / ls
+    norm = tf.sum(diff ** 2, axis=-1) / 2.0
+    kern = alpha ** 2 * tf.exp(-norm)
+    return kern
+
 
 
 def kern_exp_quad_ard_sklearn(xmat1, xmat2, ls, alpha):
@@ -156,6 +173,13 @@ def get_cholesky_decomp(k11_nonoise, sigma, psd_str):
         return stable_cholesky(k11)
 
 
+def tf_get_cholesky_decomp(k11_nonoise, sigma, psd_str):
+    """Return cholesky decomposition. Simplest implementation, can make 
+       smarter later."""
+    k11 = k11_nonoise + sigma ** 2 * tf.eye(k11_nonoise.shape[0])
+    return tf.linalg.cholesky(k11)
+
+
 def stable_cholesky(mmat, make_psd=True, verbose=False):
     """Return a 'stable' cholesky decomposition of mmat."""
     if mmat.size == 0:
@@ -220,6 +244,23 @@ def solve_triangular_base(amat, b, lower):
         return np.zeros((b.shape))
     else:
         return solve_triangular(amat, b, lower=lower)
+
+def tf_solve_lower_triangular(amat, b):
+    """Solves amat*x=b when amat is lower triangular."""
+    return tf_solve_triangular_base(amat, b, lower=True)
+
+
+def tf_solve_upper_triangular(amat, b):
+    """Solves amat*x=b when amat is upper triangular."""
+    return tf_solve_triangular_base(amat, b, lower=False)
+
+
+def tf_solve_triangular_base(amat, b, lower):
+    """Solves amat*x=b when amat is a triangular matrix."""
+    if amat.size == 0 and b.shape[0] == 0:
+        return tf.zeros((b.shape))
+    else:
+        return tf.linalg.triangular_solve(amat, b, lower=lower)
 
 
 def sample_mvn(mu, covmat, nsamp):

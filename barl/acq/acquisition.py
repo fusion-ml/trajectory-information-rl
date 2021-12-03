@@ -862,7 +862,6 @@ class KGRLAcqFunction(AcqFunction):
         current_states = np.array(self.start_states)
         obs_dim = current_states.shape[-1]
         current_states = np.repeat(current_states[np.newaxis, :, :], self.params.num_fs, axis=0)
-        print(f"{current_states.dtype=}")
         current_states = tf.convert_to_tensor(current_states, dtype=tf.float32)
         self.model.initialize_function_sample_list(self.params.num_fs)
         f_batch_list = self.model.call_function_sample_list

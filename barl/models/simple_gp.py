@@ -9,12 +9,16 @@ import numpy as np
 
 from .gp.gp_utils import (
     kern_exp_quad_ard,
+    tf_kern_exp_quad_ard,
     kern_exp_quad_ard_per,
     sample_mvn,
     gp_post,
     solve_lower_triangular,
     solve_upper_triangular,
+    tf_solve_lower_triangular,
+    tf_solve_upper_triangular,
     get_cholesky_decomp,
+    tf_get_cholesky_decomp,
 )
 from ..util.base import Base
 from ..util.misc_util import dict_to_namespace
@@ -270,3 +274,116 @@ class SimpleGp(Base):
         ns.x = ns1.x + ns2.x
         ns.y = ns1.y + ns2.y
         return ns
+
+
+def TFSimpleGp(SimpleGp):
+    '''
+    A version of SimpleGp that replaces all the fundamental operations
+    with native TensorFlow operations so as to promote differentiability
+    both through function calls to the arguments and through function calls
+    to the dataset.
+
+    We also hope to modify this class to be able to be used in tf.Function
+    code (not sure what all that entails yet, besides all data being passed
+    around as TF tensors.
+    '''
+    def set_kernel(self, params):
+        """Set self.params.kernel. Uses the TF versions"""
+        self.params.kernel_str = getattr(params, 'kernel_str', 'rbf')
+
+        if self.params.kernel_str == 'rbf':
+            self.params.kernel = tf_kern_exp_quad_ard
+
+        elif self.params.kernel_str == 'rbf_periodic':
+            # will implement this in tf when needed
+            raise NotImplementedError()
+
+    def set_data(self, data):
+        '''
+        Data should be given as a dict or Namespace where
+        data.x is an n x d_x tf tensor and
+        data.y is an n x 1 tf tensor
+        '''
+        assert data is not None
+        data = dict_to_namespace(data)
+        self.data = data
+        x_train = self.data.x
+        y_train = self.data.y
+        kernel = self.params.kernel
+        ls = self.params.ls
+        alpha = self.params.alpha
+        sigma = self.params.sigma
+
+        k11_nonoise = kernel(x_train, x_train, ls, alpha)
+        self.lmat = tf_get_cholesky_decomp(k11_nonoise, sigma, 'try_first')
+        self.smat = tf_solve_upper_triangular(self.lmat.T, tf_solve_lower_triangular(self.lmat, y_train))
+
+    def get_prior_mu_cov(self, x_list, full_cov=True):
+        raise NotImplementedError()
+
+    def get_post_mu_cov(self, x_list, full_cov=True):
+        """
+        Return GP posterior parameters: mean (mu) and covariance (cov). If there is no
+        data, return the GP prior parameters.
+
+        Parameters
+        ----------
+        x_list : list
+            List of numpy ndarrays, each representing a domain point.
+        full_cov : bool
+            If True, return covariance matrix. If False, return list of standard
+            deviations.
+
+        Returns
+        -------
+        mu : ndarray
+            A numpy 1d ndarray with len=len(x_list) of floats, corresponding to
+            posterior mean for each x in x_list.
+        cov : ndarray
+            If full_cov is False, return a numpy 1d ndarray with len=len(x_list) of
+            floats, corresponding to posterior standard deviations for each x in x_list.
+            If full_cov is True, return the covariance matrix as a numpy ndarray
+            (len(x_list) x len(x_list)).
+        """
+        k21 = self.params.kernel(x_list, self.data.x, self.params.ls, self.params.alpha)
+        mu2 = tf.matmul(k21, self.smat)
+
+        k22 = self.params.kernel(x_list, x_list, self.params.ls, self.params.alpha)
+        vmat = tf_solve_lower_triangular(self.lmat, k21.T)
+        k2 = k22 - tf.matmul(vmat.T, vmat)
+        if full_cov is False:
+            k2 = tf.sqrt(tf.diag(k2))
+
+        # Return mean and cov matrix (or std-dev array if full_cov=False)
+        return mu2, k2
+
+
+    def gp_post_wrapper(self, x_list, data, full_cov=True):
+        raise NotImplementedError()
+
+    def get_post_mu_cov_single(self, x):
+        raise NotImplementedError()
+
+    def sample_prior_list(self, x_list, n_samp, full_cov=True):
+        raise NotImplementedError()
+
+    def sample_prior(self, x, n_samp):
+        raise NotImplementedError()
+
+    def sample_post_list(self, x_list, n_samp, full_cov=True):
+        raise NotImplementedError()
+
+    def sample_post(self, x, n_samp):
+        raise NotImplementedError()
+
+    def sample_post_pred_list(self, x_list, n_samp, full_cov=True):
+        raise NotImplementedError()
+
+    def sample_post_pred(self, x, n_samp):
+        raise NotImplementedError()
+
+    def get_normal_samples(self, mu, cov, n_samp, full_cov):
+        raise NotImplementedError()
+
+    def combine_data_namespaces(self, ns1, ns2):
+        raise NotImplementedError()
