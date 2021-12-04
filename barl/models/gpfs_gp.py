@@ -209,10 +209,6 @@ class TFGpfsGp(TFSimpleGp):
         paths = self.params.model.generate_paths(num_samples=n_fsamp, num_bases=n_bases)
         _ = self.params.model.set_paths(paths)
 
-        Xinit = tf.random.uniform(
-            [n_fsamp, self.params.n_dimx], minval=0.0, maxval=0.1, dtype=floatx()
-        )
-        self.fsl_xvars = Xinit
         self.n_fsamp = n_fsamp
 
     @tf.function
@@ -224,7 +220,7 @@ class TFGpfsGp(TFSimpleGp):
     def call_function_sample_list(self, x_list):
         """Call a set of posterior function samples on respective x in x_list."""
 
-        y_tf = self.call_fsl_on_xvars(self.params.model, self.fsl_xvars)
+        y_tf = self.call_fsl_on_xvars(self.params.model, x_list)
         return y_tf
 
     def call_function_sample_list_mean(self, x):
@@ -372,6 +368,101 @@ class MultiGpfsGp(Base):
         return gp_params_list
 
 
+class TFMultiGpfsGp(MultiGpfsGp):
+    """
+    Simple multi-output GP model using GPFlowSampling. To do this, this class duplicates
+    the model in GpfsGp multiple times (and uses same kernel and other parameters in
+    each duplication).
+    This one is implemented in tensorflow
+    """
+
+    def set_gpfsgp_list(self):
+        """Set self.gpfsgp_list by instantiating a list of GpfsGp objects."""
+        data_list = self.get_data_list(self.data)
+        gp_params_list = self.get_gp_params_list()
+
+        # Each GpfsGp verbose set to same as self.params.verbose
+        verb = self.params.verbose
+        self.gpfsgp_list = [
+            TFGpfsGp(gpp, dat, verb) for gpp, dat in zip(gp_params_list, data_list)
+        ]
+
+    def initialize_function_sample_list(self, n_samp=1):
+        """
+        Initialize a list of n_samp function samples, for each GP in self.gpfsgp_list.
+        """
+        for gpfsgp in self.gpfsgp_list:
+            gpfsgp.initialize_function_sample_list(n_samp)
+
+    def call_function_sample_list(self, x_list):
+        """
+        Call a set of posterior function samples on respective x in x_list, for each GP
+        in self.gpfsgp_list.
+        """
+        y_list_list = [
+            gpfsgp.call_function_sample_list(x_list) for gpfsgp in self.gpfsgp_list
+        ]
+        y_out = tf.stack(y_list_list, axis=-1)
+
+        # y_list is a list, where each element is a list representing a multidim y
+        # y_list = [list(x) for x in zip(*y_list_list)]
+        return y_out
+
+    def call_function_sample_list_mean(self, x):
+        """
+        Call a set of posterior function samples on an input x and return mean of
+        outputs, for each GP in self.gpfsgp_list.
+        """
+
+        raise NotImplementedError()
+
+    def get_post_mu_cov(self, x_list, full_cov=False):
+        """Returns a list of mu, and a list of cov/std."""
+        mu_list, cov_list = [], []
+        for gpfsgp in self.gpfsgp_list:
+            # Call usual 1d gpfsgp gp_post_wrapper
+            mu, cov = gpfsgp.get_post_mu_cov(x_list, full_cov)
+            mu_list.append(mu)
+            cov_list.append(cov)
+        mu_out = tf.stack(mu_list, axis=-1)
+        cov_out = tf.stack(cov_list, axis=-1)
+
+        return mu_out, cov_out
+
+    def gp_post_wrapper(self, x_list, data, full_cov=True):
+        """Returns a list of mu, and a list of cov/std."""
+        raise NotImplementedError()
+
+    def get_data_list(self, data):
+        """
+        Return list of Namespaces, where each is a version of data containing only one
+        of the dimensions of data.y (and the full data.x).
+        """
+        data_list = []
+        for j in range(self.params.n_dimy):
+            data_list.append(Namespace(x=data.x, data.y[..., j]))
+
+        return data_list
+
+    def get_gp_params_list(self):
+        """
+        Return list of gp_params dicts (same length as self.data_list), by parsing
+        self.params.gp_params.
+        """
+        gp_params_list = [
+            copy.deepcopy(self.params.gp_params) for _ in range(self.params.n_dimy)
+        ]
+
+        hyps = ['ls', 'alpha', 'sigma']
+        for hyp in hyps:
+            if not isinstance(self.params.gp_params.get(hyp, 1), (float, int)):
+                # If hyp exists in dict, and is not (float, int), assume is list of hyp
+                for idx, gpp in enumerate(gp_params_list):
+                    gpp[hyp] = self.params.gp_params[hyp][idx]
+
+        return gp_params_list
+
+
 class BatchGpfsGp(GpfsGp):
     """
     GPFlowSampling GP model tailored to batch algorithms with BAX.
@@ -450,6 +541,39 @@ class BatchGpfsGp(GpfsGp):
 
         return x_batch_list_new, max_n_batch
 
+
+class TFBatchGpfsGp(TFGpfsGp):
+    """
+    GPFlowSampling GP model tailored to batch algorithms with BAX.
+    All operations are tensorflow ops.
+    """
+
+    def set_params(self, params):
+        """Set self.params, the parameters for this model."""
+        super().set_params(params)
+        params = dict_to_namespace(params)
+
+        # Set self.params
+        self.params.name = getattr(params, 'name', 'TFBatchGpfsGp')
+
+    def initialize_function_sample_list(self, n_fsamp=1):
+        """Initialize a list of n_fsamp function samples."""
+        n_bases = self.params.n_bases
+        paths = self.params.model.generate_paths(num_samples=n_fsamp, num_bases=n_bases)
+        _ = self.params.model.set_paths(paths)
+        self.n_fsamp = n_fsamp
+
+    def call_function_sample_list(self, x_batch):
+        """
+        Call a set of posterior function samples on respective x_batch (a list of
+        inputs) in x_batch_list.
+        """
+
+
+        # Call fsl on fsl_xvars, return y_list
+        y_tf = self.call_fsl_on_xvars(self.params.model, x_batch)
+
+        return y_tf
 
 class BatchMultiGpfsGp(MultiGpfsGp):
     """
