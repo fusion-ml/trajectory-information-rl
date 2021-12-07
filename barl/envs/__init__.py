@@ -68,6 +68,9 @@ reward_functions = {
         'bacrobot-v0': acrobot_reward,
         'lavapath-v0': lava_path_reward,
         }
+tf_reward_functions = {
+        'bacpendulum-v0': pendulum_reward,
+        }
 # mujoco stuff
 try:
     from barl.envs.swimmer import BACSwimmerEnv, swimmer_reward

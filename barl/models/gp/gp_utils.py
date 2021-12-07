@@ -33,7 +33,7 @@ def tf_kern_exp_quad_ard(xmat1, xmat2, ls, alpha):
     xmat2 = tf.expand_dims(xmat2, axis=0)
     diff = xmat1 - xmat2
     diff = diff / ls
-    norm = tf.sum(diff ** 2, axis=-1) / 2.0
+    norm = tf.reduce_sum(diff ** 2, axis=-1) / 2.0
     kern = alpha ** 2 * tf.exp(-norm)
     return kern
 
@@ -257,10 +257,8 @@ def tf_solve_upper_triangular(amat, b):
 
 def tf_solve_triangular_base(amat, b, lower):
     """Solves amat*x=b when amat is a triangular matrix."""
-    if amat.size == 0 and b.shape[0] == 0:
-        return tf.zeros((b.shape))
-    else:
-        return tf.linalg.triangular_solve(amat, b, lower=lower)
+    sol = tf.linalg.triangular_solve(amat, b[None, ...], lower=lower)
+    return sol[0, :]
 
 
 def sample_mvn(mu, covmat, nsamp):

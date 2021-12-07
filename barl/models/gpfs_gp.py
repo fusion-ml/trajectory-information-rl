@@ -7,6 +7,7 @@ import copy
 import numpy as np
 import tensorflow as tf
 from gpflow import kernels
+import gpflow.config
 from gpflow.config import default_float as floatx
 
 from gpflow_sampling.models import PathwiseGPR
@@ -15,6 +16,8 @@ from .simple_gp import SimpleGp, TFSimpleGp
 from ..util.base import Base
 from ..util.misc_util import dict_to_namespace, suppress_stdout_stderr
 from ..util.domain_util import unif_random_sample_domain
+
+gpflow.config.set_default_float(np.float32)
 
 
 class GpfsGp(SimpleGp):
@@ -387,6 +390,16 @@ class TFMultiGpfsGp(MultiGpfsGp):
             TFGpfsGp(gpp, dat, verb) for gpp, dat in zip(gp_params_list, data_list)
         ]
 
+    def set_data(self, data):
+        """Set self.data."""
+        if data is None:
+            raise NotImplementedError()
+        else:
+            data = dict_to_namespace(data)
+            data.x = tf.convert_to_tensor(data.x, dtype=tf.float32)
+            data.y = tf.convert_to_tensor(data.y, dtype=tf.float32)
+            self.data = data
+
     def initialize_function_sample_list(self, n_samp=1):
         """
         Initialize a list of n_samp function samples, for each GP in self.gpfsgp_list.
@@ -419,15 +432,41 @@ class TFMultiGpfsGp(MultiGpfsGp):
     def get_post_mu_cov(self, x_list, full_cov=False):
         """Returns a list of mu, and a list of cov/std."""
         mu_list, cov_list = [], []
-        for gpfsgp in self.gpfsgp_list:
+        for gp in self.gpfsgp_list:
             # Call usual 1d gpfsgp gp_post_wrapper
-            mu, cov = gpfsgp.get_post_mu_cov(x_list, full_cov)
+            mu, cov = gp.get_post_mu_cov(x_list, full_cov)
             mu_list.append(mu)
             cov_list.append(cov)
         mu_out = tf.stack(mu_list, axis=-1)
         cov_out = tf.stack(cov_list, axis=-1)
-
+        mu_out = tf.reshape(mu_out, (-1, len(mu_list)))
         return mu_out, cov_out
+
+    def sample_post_list(self, x_list, n_samp, lambdas=None, full_cov=False):
+        '''
+        This is going to return a triply-nested list of shape
+        len(x_list) x n_samp x len(self.gpfsgs_list)
+
+        Lambdas are sampled r.vs for the reparameterization trick
+        '''
+        assert len(self.data.x) > 0
+        mu_list, cov_list = self.get_post_mu_cov(x_list, full_cov)
+        if lambdas is None:
+            return self.get_normal_samples(mu_list, cov_list, n_samp, full_cov)
+        std = tf.sqrt(cov_list)[:, None, :]
+        mu = mu_list[:, None, :]
+        samples = lambdas * std + mu
+        return samples
+
+
+    @staticmethod
+    def get_normal_samples(mu, cov, n_samp, full_cov):
+        if full_cov:
+            raise NotImplementedError()
+        else:
+            samps = tf.random.normal((n_samp, mu.shape[0], mu.shape[1]), mu, cov)
+            samps = tf.transpose(samps, (1, 0, 2))
+        return samps
 
     def gp_post_wrapper(self, x_list, data, full_cov=True):
         """Returns a list of mu, and a list of cov/std."""
@@ -440,7 +479,7 @@ class TFMultiGpfsGp(MultiGpfsGp):
         """
         data_list = []
         for j in range(self.params.n_dimy):
-            data_list.append(Namespace(x=data.x, data.y[..., j]))
+            data_list.append(Namespace(x=data.x, y=data.y[..., j]))
 
         return data_list
 

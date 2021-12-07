@@ -126,8 +126,8 @@ def angle_normalize(x):
 
 
 def pendulum_reward(x, next_obs):
-    th = x[..., 0]
-    thdot = x[..., 1]
+    th = next_obs[..., 0]
+    thdot = next_obs[..., 1]
     u = x[..., 2]
     costs = angle_normalize(th) ** 2 + .1 * thdot ** 2 + .001 * (u ** 2)
     return -costs

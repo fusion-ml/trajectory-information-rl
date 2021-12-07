@@ -6,6 +6,7 @@ from argparse import Namespace
 import copy
 import collections.abc
 import numpy as np
+import tensorflow as tf
 
 from .gp.gp_utils import (
     kern_exp_quad_ard,
@@ -276,7 +277,7 @@ class SimpleGp(Base):
         return ns
 
 
-def TFSimpleGp(SimpleGp):
+class TFSimpleGp(SimpleGp):
     '''
     A version of SimpleGp that replaces all the fundamental operations
     with native TensorFlow operations so as to promote differentiability
@@ -306,6 +307,9 @@ def TFSimpleGp(SimpleGp):
         '''
         assert data is not None
         data = dict_to_namespace(data)
+        # hopefully a noop if it is already tf
+        data.x = tf.convert_to_tensor(data.x)
+        data.y = tf.convert_to_tensor(data.y)
         self.data = data
         x_train = self.data.x
         y_train = self.data.y
@@ -316,7 +320,9 @@ def TFSimpleGp(SimpleGp):
 
         k11_nonoise = kernel(x_train, x_train, ls, alpha)
         self.lmat = tf_get_cholesky_decomp(k11_nonoise, sigma, 'try_first')
-        self.smat = tf_solve_upper_triangular(self.lmat.T, tf_solve_lower_triangular(self.lmat, y_train))
+        self.smat = tf_solve_upper_triangular(tf.transpose(self.lmat), tf_solve_lower_triangular(self.lmat, y_train))
+        if self.smat.ndim == 1:
+            self.smat = self.smat[None, :]
 
     def get_prior_mu_cov(self, x_list, full_cov=True):
         raise NotImplementedError()
@@ -349,13 +355,14 @@ def TFSimpleGp(SimpleGp):
         mu2 = tf.matmul(k21, self.smat)
 
         k22 = self.params.kernel(x_list, x_list, self.params.ls, self.params.alpha)
-        vmat = tf_solve_lower_triangular(self.lmat, k21.T)
-        k2 = k22 - tf.matmul(vmat.T, vmat)
+        vmat = tf_solve_lower_triangular(self.lmat, tf.transpose(k21))
+        k2 = k22 - tf.matmul(tf.transpose(vmat), vmat)
         if full_cov is False:
-            k2 = tf.sqrt(tf.diag(k2))
+            k2 = tf.sqrt(tf.linalg.diag_part(k2))
 
         # Return mean and cov matrix (or std-dev array if full_cov=False)
-        return mu2, k2
+        mu = tf.squeeze(mu2)
+        return mu, k2
 
 
     def gp_post_wrapper(self, x_list, data, full_cov=True):

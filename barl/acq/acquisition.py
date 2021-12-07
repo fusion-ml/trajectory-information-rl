@@ -7,6 +7,7 @@ import copy
 import numpy as np
 import tensorflow as tf
 from scipy.stats import norm as sps_norm
+from tqdm import trange
 
 from ..util.base import Base
 from ..util.misc_util import dict_to_namespace
@@ -830,26 +831,26 @@ class KGRLAcqFunction(AcqFunction):
         self.params.horizon = params.horizon
         self.params.p0 = params.p0
         self.params.reward_fn = params.reward_fn
+        self.params.update_fn = params.update_fn
         self.start_states = []
 
     def initialize(self):
         self.start_states = [self.params.p0() for _ in range(self.params.num_s0)]
         # self.model.initialize_function_sample_list(self.params.num_fs)
 
-    def __call__(self, policy_list, x_list):
-        post_samples = self.model.sample_post_list(x_list, self.params.num_sprime_samps)
+    def __call__(self, policy_list, x_list, lambdas):
+        post_samples = self.model.sample_post_list(x_list, self.params.num_sprime_samps, lambdas)
         risks = []
         for i, samp_batch in enumerate(post_samples):
+            point_policies = policy_list[i]
             risk_samps = []
-            for sprime in samp_batch:
+            for j, sprime in enumerate(samp_batch):
                 new_x = x_list[i]
-                policy = policy_list[i]
+                policy = point_policies[i]
                 new_data = Namespace()
                 new_data.x = self.model.data.x + [new_x]
                 new_data.y = self.model.data.y + [sprime]
                 old_data = self.model.data
-                # pretty sure there are some extra copies of the dataset happening here
-                # TODO: make this more efficient
                 self.model.set_data(new_data)
                 neg_bayes_risk = self.execute_policy_on_fs(policy)
                 risk_samps.append(neg_bayes_risk)
@@ -866,18 +867,17 @@ class KGRLAcqFunction(AcqFunction):
         self.model.initialize_function_sample_list(self.params.num_fs)
         f_batch_list = self.model.call_function_sample_list
         returns = 0
-        for t in range(self.params.horizon):
+        for t in trange(self.params.horizon):
             current_states = tf.reshape(current_states, (-1, obs_dim))
             actions = policy(current_states)
-            x = tf.concat([current_states, actions], -1)
-            x = tf.reshape(current_states, (self.params.num_fs, self.params.num_s0, -1))
-            breakpoint()
+            flat_x = tf.concat([current_states, actions], -1)
+            x = tf.reshape(flat_x, (self.params.num_fs, self.params.num_s0, -1))
             deltas = f_batch_list(x)
             deltas = tf.reshape(deltas, (-1, obs_dim))
             current_states = self.params.update_fn(current_states, deltas)
-            rewards = self.params.reward_fn(current_states)
+            rewards = self.params.reward_fn(flat_x, current_states)
             rewards = tf.reshape(rewards, (self.params.num_fs, -1))
             returns = rewards + returns
-        avg_return = returns.mean()
+        avg_return = tf.reduce_mean(returns)
 
         return avg_return

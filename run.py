@@ -12,10 +12,10 @@ import hydra
 import random
 from matplotlib import pyplot as plt
 
-from barl.models.gpfs_gp import BatchMultiGpfsGp
+from barl.models.gpfs_gp import BatchMultiGpfsGp, TFMultiGpfsGp
 from barl.models.gpflow_gp import get_gpflow_hypers_from_data
 from barl.acq.acquisition import MultiBaxAcqFunction, MCAcqFunction, UncertaintySamplingAcqFunction, KGRLAcqFunction
-from barl.acq.acqoptimize import AcqOptimizer, GDAcqOptimizer
+from barl.acq.acqoptimize import AcqOptimizer, KGAcqOptimizer
 from barl.alg.mpc import MPC
 from barl import envs
 from barl.envs.wrappers import NormalizedEnv, make_normalized_reward_function, make_update_obs_fn
@@ -35,7 +35,6 @@ def main(config):
     # ==============================================
     #   Define and configure
     # ==============================================
-    # TODO: should we make the dumper some kind of global thing?
     dumper = Dumper(config.name)
     configure(config)
 
@@ -105,10 +104,10 @@ def main(config):
     test_data.y = f(test_data.x)
 
     # Set model
-    gp_model_class, multi_gp_params = get_model(config, env, obs_dim, action_dim)
+    gp_model_class, gp_model_params = get_model(config, env, obs_dim, action_dim)
 
     # Set acqfunction
-    acqfn_class, acqfn_params = get_acq_fn(config, env.horizon, p0, reward_function, obs_dim, action_dim)
+    acqfn_class, acqfn_params = get_acq_fn(config, env.horizon, p0, reward_function, update_fn, obs_dim, action_dim)
     acqopt_class, acqopt_params = get_acq_opt(config, obs_dim, action_dim)
 
     # ==============================================
@@ -150,7 +149,7 @@ def main(config):
                 current_obs,
                 env.action_space,
                 gp_model_class,
-                multi_gp_params,
+                gp_model_params,
                 acqfn_class,
                 acqfn_params,
                 acqopt_class,
@@ -163,7 +162,7 @@ def main(config):
         # ==============================================
         if i % config.eval_frequency == 0 or i + 1 == config.num_iters:
             if model is None:
-                model = gp_model_class(multi_gp_params, data)
+                model = gp_model_class(gp_model_params, data)
             # =======================================================================
             #    Evaluate MPC:
             #       - see how the MPC policy performs on the real env
@@ -247,17 +246,23 @@ def get_env(config):
     # set plot fn
     plot_fn = partial(plotters[config.env.name], env=env)
 
-    reward_function = envs.reward_functions[config.env.name] if not config.alg.learn_reward else None
+    if not config.alg.learn_reward:
+        if config.alg.gd_opt:
+            reward_function = envs.tf_reward_functions[config.env.name]
+        else:
+            reward_function = envs.reward_functions[config.env.name]
+    else:
+        reward_function = None
     if config.normalize_env:
         env = NormalizedEnv(env)
         if reward_function is not None:
-            reward_function = make_normalized_reward_function(env, reward_function)
+            reward_function = make_normalized_reward_function(env, reward_function, config.alg.gd_opt)
         plot_fn = make_normalized_plot_fn(env, plot_fn)
     if config.alg.learn_reward:
         f = get_f_batch_mpc_reward(env, use_info_delta=config.teleport)
     else:
         f = get_f_batch_mpc(env, use_info_delta=config.teleport)
-    update_fn = make_update_obs_fn(env, teleport=config.teleport)
+    update_fn = make_update_obs_fn(env, teleport=config.teleport, use_tf=config.alg.gd_opt)
     p0 = env.reset
     return env, f, plot_fn, reward_function, update_fn, p0
 
@@ -292,12 +297,15 @@ def get_model(config, env, obs_dim, action_dim):
         gp_params['kernel_str'] = 'rbf_periodic'
         gp_params['periodic_dims'] = env.periodic_dimensions
         gp_params['period'] = config.env.gp.period
-    multi_gp_params = {'n_dimy': obs_dim, 'gp_params': gp_params}
-    gp_model_class = BatchMultiGpfsGp
-    return gp_model_class, multi_gp_params
+    gp_model_params = {'n_dimy': obs_dim, 'gp_params': gp_params}
+    if config.alg.kgrl:
+        gp_model_class = TFMultiGpfsGp
+    else:
+        gp_model_class = BatchMultiGpfsGp
+    return gp_model_class, gp_model_params
 
 
-def get_acq_fn(config, horizon, p0, reward_fn, obs_dim, action_dim):
+def get_acq_fn(config, horizon, p0, reward_fn, update_fn, obs_dim, action_dim):
     if config.alg.uncertainty_sampling:
         acqfn_params = {}
         acqfn_class = UncertaintySamplingAcqFunction
@@ -309,6 +317,7 @@ def get_acq_fn(config, horizon, p0, reward_fn, obs_dim, action_dim):
                 'horizon': horizon,
                 'p0': p0,
                 'reward_fn': reward_fn,
+                'update_fn': update_fn,
                 }
         acqfn_class = KGRLAcqFunction
     else:
@@ -323,13 +332,14 @@ def get_acq_opt(config, obs_dim, action_dim):
                 "learning_rate": config.alg.learning_rate,
                 "num_steps": config.alg.num_steps,
                 "obs_dim": obs_dim,
-                "action_dim": action_dim
+                "action_dim": action_dim,
+                "num_sprime_samps": config.alg.num_sprime_samps,
             }
         try:
             acqopt_params['hidden_layer_sizes'] = config.alg.hidden_layer_sizes
         except Exception:
             pass
-        acqopt_class = GDAcqOptimizer
+        acqopt_class = KGAcqOptimizer
     else:
         acqopt_params = {}
         acqopt_class = AcqOptimizer
@@ -422,7 +432,7 @@ def get_next_point(
         current_obs,
         action_space,
         gp_model_class,
-        multi_gp_params,
+        gp_model_params,
         acqfn_class,
         acqfn_params,
         acqopt_class,
@@ -433,7 +443,7 @@ def get_next_point(
     exe_path_list = []
     model = None
     if config.alg.use_acquisition:
-        model = gp_model_class(multi_gp_params, data)
+        model = gp_model_class(gp_model_params, data)
         # Set and optimize acquisition function
         acqfn_base = acqfn_class(params=acqfn_params, model=model, algorithm=algo)
         if config.num_samples_mc != 1:
@@ -466,7 +476,7 @@ def get_next_point(
         posterior_returns = [compute_return(output[2], 1) for output in acqfn.output_list]
         dumper.add('Posterior Returns', posterior_returns, verbose=(i % config.eval_frequency == 0))
     elif config.alg.use_mpc:
-        model = gp_model_class(multi_gp_params, data)
+        model = gp_model_class(gp_model_params, data)
         algo.initialize()
 
         policy = partial(algo.execute_mpc, f=make_postmean_fn(model))

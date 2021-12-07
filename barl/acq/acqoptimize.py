@@ -6,6 +6,7 @@ import copy
 import numpy as np
 import tensorflow as tf
 import tensorflow.keras as keras
+from tqdm import trange
 
 from .acquisition import BaxAcqFunction
 from ..util.base import Base
@@ -100,7 +101,7 @@ class AcqOptimizer(Base):
         self.print_params = copy.deepcopy(self.params)
 
 
-class GDAcqOptimizer(AcqOptimizer):
+class KGAcqOptimizer(AcqOptimizer):
     def set_params(self, params):
         super().set_params(params)
         params = dict_to_namespace(params)
@@ -109,16 +110,28 @@ class GDAcqOptimizer(AcqOptimizer):
         self.params.obs_dim = params.obs_dim
         self.params.action_dim = params.action_dim
         self.params.hidden_layer_sizes = getattr(params, 'hidden_layer_sizes', [128, 128])
+        self.params.num_sprime_samps = params.num_sprime_samps
 
     def optimize(self, x_batch):
-        x_batch = tf.Variable(x_batch)
-        policies = [TanhMlpPolicy(self.params.obs_dim, self.params.action_dim, self.params.hidden_layer_sizes) for _ in range(x_batch.shape[0])]
+        # TODO:  make this differentiable
+        x_batch = tf.Variable(x_batch, dtype=tf.float32)
+        policies = []
+        lambdas = tf.random.normal((x_batch.shape[0], self.params.num_sprime_samps, self.params.obs_dim))
+        for _ in range(x_batch.shape[0]):
+            xval_policies = []
+            for __ in range(self.params.num_sprime_samps):
+                xval_policies.append(TanhMlpPolicy(self.params.obs_dim, self.params.action_dim, self.params.hidden_layer_sizes))
+            policies.append(xval_policies)
+        # policies = [[TanhMlpPolicy(self.params.obs_dim, self.params.action_dim, self.params.hidden_layer_sizes) for _ in range(x_batch.shape[0])]
         opt = keras.optimizers.Adam(learning_rate=self.params.learning_rate)
 
         def loss():
-            return -1 * self.acqfunction(policies, x_batch)
-        opt_vars = [x_batch] + [policy.model.trainable_variables for policy in policies]
-        for _ in range(self.params.num_steps):
+            return -1 * self.acqfunction(policies, x_batch, lambdas)
+        opt_vars = [x_batch]
+        for x_policies in policies:
+            for policy in x_policies:
+                opt_vars += policy.model.trainable_variables
+        for _ in trange(self.params.num_steps):
             opt.minimize(loss, opt_vars)
         optima = x_batch.numpy()
         final_losses = loss()
