@@ -43,7 +43,7 @@ class Base:
     def set_print_params(self):
         """Set self.print_params."""
         if not hasattr(self, 'print_params'):
-            self.print_params = copy.deepcopy(self.params)
+            self.print_params = self.params
 
     def __str__(self):
         self.set_print_params()
