@@ -479,7 +479,7 @@ class TFMultiGpfsGp(MultiGpfsGp):
         """
         data_list = []
         for j in range(self.params.n_dimy):
-            data_list.append(Namespace(x=data.x, y=data.y[..., j]))
+            data_list.append(Namespace(x=data.x, y=data.y[..., j:j+1]))
 
         return data_list
 

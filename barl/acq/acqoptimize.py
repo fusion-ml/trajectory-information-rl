@@ -132,7 +132,10 @@ class KGAcqOptimizer(AcqOptimizer):
             for policy in x_policies:
                 opt_vars += policy.model.trainable_variables
         for _ in trange(self.params.num_steps):
-            opt.minimize(loss, opt_vars)
+            with tf.GradientTape() as tape:
+                loss_val = loss()
+            grads = tape.gradient(loss_val, opt_vars)
+            opt.apply_gradients(zip(grads, opt_vars))
         optima = x_batch.numpy()
         final_losses = loss()
         return optima

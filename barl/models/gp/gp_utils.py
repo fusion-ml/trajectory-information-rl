@@ -257,8 +257,8 @@ def tf_solve_upper_triangular(amat, b):
 
 def tf_solve_triangular_base(amat, b, lower):
     """Solves amat*x=b when amat is a triangular matrix."""
-    sol = tf.linalg.triangular_solve(amat, b[None, ...], lower=lower)
-    return sol[0, :]
+    sol = tf.linalg.triangular_solve(amat, b, lower=lower)
+    return sol
 
 
 def sample_mvn(mu, covmat, nsamp):

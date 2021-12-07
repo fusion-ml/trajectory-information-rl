@@ -832,11 +832,13 @@ class KGRLAcqFunction(AcqFunction):
         self.params.p0 = params.p0
         self.params.reward_fn = params.reward_fn
         self.params.update_fn = params.update_fn
+        self.params.gp_model_class = params.gp_model_class
+        self.params.gp_model_params = params.gp_model_params
+        self.verbose = getattr(params, "verbose", True)
         self.start_states = []
 
     def initialize(self):
         self.start_states = [self.params.p0() for _ in range(self.params.num_s0)]
-        # self.model.initialize_function_sample_list(self.params.num_fs)
 
     def __call__(self, policy_list, x_list, lambdas):
         post_samples = self.model.sample_post_list(x_list, self.params.num_sprime_samps, lambdas)
@@ -846,28 +848,27 @@ class KGRLAcqFunction(AcqFunction):
             risk_samps = []
             for j, sprime in enumerate(samp_batch):
                 new_x = x_list[i]
-                policy = point_policies[i]
+                policy = point_policies[j]
                 new_data = Namespace()
-                new_data.x = self.model.data.x + [new_x]
-                new_data.y = self.model.data.y + [sprime]
-                old_data = self.model.data
-                self.model.set_data(new_data)
-                neg_bayes_risk = self.execute_policy_on_fs(policy)
+                new_data.x = tf.concat([self.model.data.x, new_x[None, :]], axis=0)
+                new_data.y = tf.concat([self.model.data.y, sprime[None, :]], axis=0)
+                conditioned_model = self.params.gp_model_class(self.params.gp_model_params, new_data)
+                neg_bayes_risk = self.execute_policy_on_fs(policy, conditioned_model)
                 risk_samps.append(neg_bayes_risk)
-                self.model.set_data(old_data)
-            risks.append(np.mean(risk_samps))
+            risks.append(tf.reduce_mean(risk_samps))
 
-        return risks
+        return tf.reduce_sum(risks)
 
-    def execute_policy_on_fs(self, policy):
+    def execute_policy_on_fs(self, policy, model):
         current_states = np.array(self.start_states)
         obs_dim = current_states.shape[-1]
         current_states = np.repeat(current_states[np.newaxis, :, :], self.params.num_fs, axis=0)
         current_states = tf.convert_to_tensor(current_states, dtype=tf.float32)
-        self.model.initialize_function_sample_list(self.params.num_fs)
-        f_batch_list = self.model.call_function_sample_list
+        model.initialize_function_sample_list(self.params.num_fs)
+        f_batch_list = model.call_function_sample_list
         returns = 0
-        for t in trange(self.params.horizon):
+        #for t in trange(self.params.horizon, disable=not self.verbose):
+        for t in trange(1, disable=not self.verbose):
             current_states = tf.reshape(current_states, (-1, obs_dim))
             actions = policy(current_states)
             flat_x = tf.concat([current_states, actions], -1)

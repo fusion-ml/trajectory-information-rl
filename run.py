@@ -107,7 +107,8 @@ def main(config):
     gp_model_class, gp_model_params = get_model(config, env, obs_dim, action_dim)
 
     # Set acqfunction
-    acqfn_class, acqfn_params = get_acq_fn(config, env.horizon, p0, reward_function, update_fn, obs_dim, action_dim)
+    acqfn_class, acqfn_params = get_acq_fn(config, env.horizon, p0, reward_function, update_fn,
+                                           obs_dim, action_dim, gp_model_class, gp_model_params)
     acqopt_class, acqopt_params = get_acq_opt(config, obs_dim, action_dim)
 
     # ==============================================
@@ -305,7 +306,8 @@ def get_model(config, env, obs_dim, action_dim):
     return gp_model_class, gp_model_params
 
 
-def get_acq_fn(config, horizon, p0, reward_fn, update_fn, obs_dim, action_dim):
+def get_acq_fn(config, horizon, p0, reward_fn, update_fn, obs_dim, action_dim,
+               gp_model_class, gp_model_params):
     if config.alg.uncertainty_sampling:
         acqfn_params = {}
         acqfn_class = UncertaintySamplingAcqFunction
@@ -318,6 +320,9 @@ def get_acq_fn(config, horizon, p0, reward_fn, update_fn, obs_dim, action_dim):
                 'p0': p0,
                 'reward_fn': reward_fn,
                 'update_fn': update_fn,
+                'gp_model_class': gp_model_class,
+                'gp_model_params': gp_model_params,
+                'verbose': False,
                 }
         acqfn_class = KGRLAcqFunction
     else:
