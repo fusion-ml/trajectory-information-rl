@@ -867,8 +867,7 @@ class KGRLAcqFunction(AcqFunction):
         model.initialize_function_sample_list(self.params.num_fs)
         f_batch_list = model.call_function_sample_list
         returns = 0
-        #for t in trange(self.params.horizon, disable=not self.verbose):
-        for t in trange(1, disable=not self.verbose):
+        for t in trange(self.params.horizon, disable=not self.verbose):
             current_states = tf.reshape(current_states, (-1, obs_dim))
             actions = policy(current_states)
             flat_x = tf.concat([current_states, actions], -1)
