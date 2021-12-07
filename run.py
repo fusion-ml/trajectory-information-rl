@@ -236,6 +236,7 @@ def configure(config):
     seed = config.seed
     np.random.seed(seed)
     tf.random.set_seed(seed)
+    tf.config.run_functions_eagerly(config.tf_eager)
 
     # Check fixed_start_obs and num_samples_mc compatability
     assert (not config.fixed_start_obs) or config.num_samples_mc == 1, f"Need to have a fixed start obs ({config.fixed_start_obs}) or only 1 mc sample ({config.num_samples_mc})"  # NOQA
