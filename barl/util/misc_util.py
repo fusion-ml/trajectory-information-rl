@@ -6,6 +6,7 @@ from argparse import Namespace
 from pathlib import Path
 import os
 import numpy as np
+import tensorflow as tf
 import logging
 import pickle
 from collections import defaultdict
@@ -105,12 +106,20 @@ def batch_function(f):
     return batched_f
 
 
-def make_postmean_fn(model):
+def make_postmean_fn(model, use_tf=False):
     def postmean_fn(x):
         mu_list, std_list = model.get_post_mu_cov(x, full_cov=False)
         mu_tup_for_x = list(zip(*mu_list))
         return mu_tup_for_x
-    return postmean_fn
+    if not use_tf:
+        return postmean_fn
+    def tf_postmean_fn(x):
+        x = tf.convert_to_tensor(x, dtype=tf.float32)
+        mu_list, std_list = model.get_post_mu_cov(x, full_cov=False)
+        mu_tup_for_x = list(mu_list.numpy())
+        return mu_tup_for_x
+    return tf_postmean_fn
+
 
 
 def mse(y, y_hat):

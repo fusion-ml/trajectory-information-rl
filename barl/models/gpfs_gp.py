@@ -441,6 +441,7 @@ class TFMultiGpfsGp(MultiGpfsGp):
 
     def get_post_mu_cov(self, x_list, full_cov=False):
         """Returns a list of mu, and a list of cov/std."""
+        x_list = tf.cast(x_list, tf.float32)
         mu_list, cov_list = [], []
         for gp in self.gpfsgp_list:
             # Call usual 1d gpfsgp gp_post_wrapper

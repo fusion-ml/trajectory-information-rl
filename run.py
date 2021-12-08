@@ -11,6 +11,7 @@ import tensorflow as tf
 import hydra
 import random
 from matplotlib import pyplot as plt
+from copy import deepcopy
 
 from barl.models.gpfs_gp import BatchMultiGpfsGp, TFMultiGpfsGp
 from barl.models.gpflow_gp import get_gpflow_hypers_from_data
@@ -446,6 +447,7 @@ def get_next_point(
         data,
         dumper,
         ):
+    data = deepcopy(data)
     exe_path_list = []
     model = None
     if config.alg.use_acquisition:
@@ -471,18 +473,15 @@ def get_next_point(
             x_test += np.random.randn(*x_test.shape) * 0.01
             x_test = list(x_test)
             x_test += unif_random_sample_domain(domain, n=n_rand)
+            exe_path_list = acqfn.exe_path_list
+            # Store returns of posterior samples
+            posterior_returns = [compute_return(output[2], 1) for output in acqfn.output_list]
+            dumper.add('Posterior Returns', posterior_returns, verbose=(i % config.eval_frequency == 0))
         else:
             x_test = unif_random_sample_domain(domain, n=config.n_rand_acqopt)
         x_next, acq_val = acqopt.optimize(x_test)
         dumper.add('Acquisition Function Value', acq_val)
 
-        try:
-            exe_path_list = acqfn.exe_path_list
-            # Store returns of posterior samples
-            posterior_returns = [compute_return(output[2], 1) for output in acqfn.output_list]
-            dumper.add('Posterior Returns', posterior_returns, verbose=(i % config.eval_frequency == 0))
-        except AttributeError:
-            exe_path_list = None
 
     elif config.alg.use_mpc:
         model = gp_model_class(gp_model_params, data)
@@ -513,7 +512,7 @@ def evaluate_mpc(
         # this is required to delete the current execution path
         algo.initialize()
 
-        postmean_fn = make_postmean_fn(model)
+        postmean_fn = make_postmean_fn(model, use_tf=config.alg.gd_opt)
         policy = partial(algo.execute_mpc, f=postmean_fn)
         real_returns = []
         mses = []
