@@ -581,39 +581,6 @@ class BatchGpfsGp(GpfsGp):
         return x_batch_list_new, max_n_batch
 
 
-class TFBatchGpfsGp(TFGpfsGp):
-    """
-    GPFlowSampling GP model tailored to batch algorithms with BAX.
-    All operations are tensorflow ops.
-    """
-
-    def set_params(self, params):
-        """Set self.params, the parameters for this model."""
-        super().set_params(params)
-        params = dict_to_namespace(params)
-
-        # Set self.params
-        self.params.name = getattr(params, 'name', 'TFBatchGpfsGp')
-
-    def initialize_function_sample_list(self, n_fsamp=1):
-        """Initialize a list of n_fsamp function samples."""
-        n_bases = self.params.n_bases
-        paths = self.params.model.generate_paths(num_samples=n_fsamp, num_bases=n_bases)
-        _ = self.params.model.set_paths(paths)
-        self.n_fsamp = n_fsamp
-
-    def call_function_sample_list(self, x_batch):
-        """
-        Call a set of posterior function samples on respective x_batch (a list of
-        inputs) in x_batch_list.
-        """
-
-
-        # Call fsl on fsl_xvars, return y_list
-        y_tf = self.call_fsl_on_xvars(self.params.model, x_batch)
-
-        return y_tf
-
 class BatchMultiGpfsGp(MultiGpfsGp):
     """
     Batch version of MultiGpfsGp model, which is tailored to batch algorithms with BAX.

@@ -8,6 +8,7 @@ import gym
 from gym import spaces
 from gym.utils import seeding
 import numpy as np
+import tensorflow as tf
 
 logger = logging.getLogger(__name__)
 
@@ -212,6 +213,23 @@ def pilco_cartpole_reward(x, next_obs):
     costs = 1 - np.exp(-0.5*squared_distance/squared_sigma)
     return -costs
 
+def tf_get_pole_pos(x):
+    xpos = x[..., 0]
+    theta = x[..., 2]
+    pole_x = CartPoleSwingUpEnv.POLE_LENGTH*tf.sin(theta)
+    pole_y = CartPoleSwingUpEnv.POLE_LENGTH*tf.cos(theta)
+    position = tf.cast(tf.stack([xpos + pole_x, pole_y], axis=-1), tf.float32)
+    return position
+
+
+def tf_pilco_cartpole_reward(x, next_obs):
+    position = tf_get_pole_pos(next_obs)
+    goal = tf.constant([0.0, CartPoleSwingUpEnv.POLE_LENGTH])
+    squared_distance = tf.reduce_sum((position - goal)**2, axis=-1)
+    squared_sigma = 0.25**2
+    costs = 1 - tf.exp(-0.5*squared_distance/squared_sigma)
+    return -costs
+
 
 def test_cartpole():
     env = CartPoleSwingUpEnv()
@@ -222,6 +240,8 @@ def test_cartpole():
         next_obs, rew, done, info = env.step(action)
         x = np.concatenate([obs, action])
         other_rew = pilco_cartpole_reward(x, next_obs)
+        tf_rew = tf_pilco_cartpole_reward(x, next_obs)
+        assert np.allclose(other_rew, tf_rew)
         assert np.allclose(rew, other_rew)
         new_obs = env.reset(obs)
         assert np.allclose(new_obs, obs)

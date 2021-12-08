@@ -1,7 +1,7 @@
 import logging
 from gym.envs.registration import register
 from barl.envs.pendulum import PendulumEnv, pendulum_reward
-from barl.envs.pilco_cartpole import CartPoleSwingUpEnv, pilco_cartpole_reward
+from barl.envs.pilco_cartpole import CartPoleSwingUpEnv, pilco_cartpole_reward, tf_pilco_cartpole_reward
 from barl.envs.goddard import GoddardEnv, goddard_reward
 # from barl.util.envs.pets_cartpole import PETSCartpoleEnv, cartpole_reward
 from barl.envs.acrobot import AcrobotEnv, acrobot_reward
@@ -70,6 +70,7 @@ reward_functions = {
         }
 tf_reward_functions = {
         'bacpendulum-v0': pendulum_reward,
+        'pilcocartpole-v0': tf_pilco_cartpole_reward,
         }
 # mujoco stuff
 try:
