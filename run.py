@@ -476,11 +476,14 @@ def get_next_point(
         x_next, acq_val = acqopt.optimize(x_test)
         dumper.add('Acquisition Function Value', acq_val)
 
-        exe_path_list = acqfn.exe_path_list
+        try:
+            exe_path_list = acqfn.exe_path_list
+            # Store returns of posterior samples
+            posterior_returns = [compute_return(output[2], 1) for output in acqfn.output_list]
+            dumper.add('Posterior Returns', posterior_returns, verbose=(i % config.eval_frequency == 0))
+        except AttributeError:
+            exe_path_list = None
 
-        # Store returns of posterior samples
-        posterior_returns = [compute_return(output[2], 1) for output in acqfn.output_list]
-        dumper.add('Posterior Returns', posterior_returns, verbose=(i % config.eval_frequency == 0))
     elif config.alg.use_mpc:
         model = gp_model_class(gp_model_params, data)
         algo.initialize()

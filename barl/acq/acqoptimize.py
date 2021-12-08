@@ -138,9 +138,9 @@ class KGAcqOptimizer(AcqOptimizer):
             grads = tape.gradient(loss_val, opt_vars)
             opt.apply_gradients(zip(grads, opt_vars))
             pbar.set_postfix({"Bayes Risk": loss_val.numpy()})
-        optima = x_batch.numpy()
+        optima = np.squeeze(x_batch.numpy())
         final_losses = loss()
-        return optima, final_losses
+        return optima, np.squeeze(final_losses.numpy())
 
     def optimize_batch(self):
         raise NotImplementedError()
