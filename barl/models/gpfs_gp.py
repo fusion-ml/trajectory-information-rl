@@ -98,7 +98,7 @@ class GpfsGp(SimpleGp):
         self.fsl_xvars = Xinit.numpy() #### TODO initialize directly with numpy
         self.n_fsamp = n_fsamp
 
-    @tf.function
+    # @tf.function
     def call_fsl_on_xvars(self, model, xvars, sample_axis=0):
         """Call fsl on fsl_xvars."""
         fvals = model.predict_f_samples(Xnew=xvars, sample_axis=sample_axis)
@@ -217,7 +217,7 @@ class TFGpfsGp(TFSimpleGp):
 
         self.n_fsamp = n_fsamp
 
-    @tf.function
+    # @tf.function
     def call_fsl_on_xvars(self, model, xvars, sample_axis=0):
         """Call fsl on fsl_xvars."""
         fvals = model.predict_f_samples(Xnew=xvars, sample_axis=sample_axis)

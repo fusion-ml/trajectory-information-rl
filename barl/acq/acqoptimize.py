@@ -140,7 +140,7 @@ class KGAcqOptimizer(AcqOptimizer):
             pbar.set_postfix({"Bayes Risk": loss_val.numpy()})
         optima = x_batch.numpy()
         final_losses = loss()
-        return optima
+        return optima, final_losses
 
     def optimize_batch(self):
         raise NotImplementedError()
