@@ -857,7 +857,7 @@ class KGRLAcqFunction(AcqFunction):
                 risk_samps.append(neg_bayes_risk)
             risks.append(tf.reduce_mean(risk_samps))
 
-        return tf.reduce_sum(risks)
+        return tf.reduce_mean(risks)
 
     def execute_policy_on_fs(self, policy, model):
         current_states = np.array(self.start_states)
