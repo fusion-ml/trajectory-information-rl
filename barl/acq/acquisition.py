@@ -7,7 +7,7 @@ import copy
 import numpy as np
 import tensorflow as tf
 from scipy.stats import norm as sps_norm
-from tqdm import trange
+from functools import partial
 
 from ..util.base import Base
 from ..util.misc_util import dict_to_namespace
@@ -839,6 +839,14 @@ class KGRLAcqFunction(AcqFunction):
 
     def initialize(self):
         self.start_states = [self.params.p0() for _ in range(self.params.num_s0)]
+        self.rollout = tf.function(partial(self.execute_policy_on_fs,
+            model_class=self.params.gp_model_class,
+            model_params=self.params.gp_model_params,
+            start_states=self.start_states,
+            num_fs=self.params.num_fs,
+            rollout_horizon=self.params.rollout_horizon,
+            update_fn=self.params.update_fn,
+            reward_fn=self.params.reward_fn))
 
     def __call__(self, policy_list, x_list, lambdas):
         post_samples = self.model.sample_post_list(x_list, self.params.num_sprime_samps, lambdas)
@@ -851,35 +859,46 @@ class KGRLAcqFunction(AcqFunction):
                 sprime = samp_batch[j, ...]
                 new_x = x_list[i]
                 policy = point_policies[j]
-                new_data = Namespace()
-                new_data.x = tf.concat([self.model.data.x, new_x[None, :]], axis=0)
-                new_data.y = tf.concat([self.model.data.y, sprime[None, :]], axis=0)
-                conditioned_model = self.params.gp_model_class(self.params.gp_model_params, new_data)
-                conditioned_model.initialize_function_sample_list(self.params.num_fs)
-                neg_bayes_risk = self.execute_policy_on_fs(policy, conditioned_model)
+                x_data = tf.concat([self.model.data.x, new_x[None, :]], axis=0)
+                y_data = tf.concat([self.model.data.y, sprime[None, :]], axis=0)
+                neg_bayes_risk = self.rollout(policy, x_data, y_data)
                 risk_samps.append(neg_bayes_risk)
             risks.append(tf.reduce_mean(risk_samps))
 
-        return tf.reduce_sum(risks)
+        return tf.reduce_mean(risks)
 
-    @tf.function
-    def execute_policy_on_fs(self, policy, model):
-        current_states = np.array(self.start_states)
+    @staticmethod
+    def execute_policy_on_fs(
+            policy,
+            x_data,
+            y_data,
+            model,
+            start_states,
+            num_fs,
+            rollout_horizon,
+            update_fn,
+            reward_fn,
+            ):
+        current_states = np.array(start_states)
         obs_dim = current_states.shape[-1]
-        current_states = np.repeat(current_states[np.newaxis, :, :], self.params.num_fs, axis=0)
+        num_s0 = current_states.shape[0]
+        data = Namespace(x=x_data, y=y_data)
+        model.set_data()
+        model.initialize_function_sample_list(num_fs)
+        current_states = np.repeat(current_states[np.newaxis, :, :], num_fs, axis=0)
         current_states = tf.convert_to_tensor(current_states, dtype=tf.float32)
         f_batch_list = model.call_function_sample_list
         returns = 0
-        for t in trange(self.params.rollout_horizon, disable=not self.verbose):
+        for t in range(rollout_horizon):
             current_states = tf.reshape(current_states, (-1, obs_dim))
             actions = policy(current_states)
             flat_x = tf.concat([current_states, actions], -1)
-            x = tf.reshape(flat_x, (self.params.num_fs, self.params.num_s0, -1))
+            x = tf.reshape(flat_x, (num_fs, num_s0, -1))
             deltas = f_batch_list(x)
             deltas = tf.reshape(deltas, (-1, obs_dim))
-            current_states = self.params.update_fn(current_states, deltas)
-            rewards = self.params.reward_fn(flat_x, current_states)
-            rewards = tf.reshape(rewards, (self.params.num_fs, -1))
+            current_states = update_fn(current_states, deltas)
+            rewards = reward_fn(flat_x, current_states)
+            rewards = tf.reshape(rewards, (num_fs, -1))
             returns = rewards + returns
         avg_return = tf.reduce_mean(returns)
 

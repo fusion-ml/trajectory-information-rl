@@ -130,7 +130,7 @@ class KGAcqOptimizer(AcqOptimizer):
         opt_vars = [x_batch]
         for x_policies in policies:
             for policy in x_policies:
-                opt_vars += policy.model.trainable_variables
+                opt_vars += policy.trainable_variables
         pbar = trange(self.params.num_steps)
         for _ in pbar:
             with tf.GradientTape() as tape:
