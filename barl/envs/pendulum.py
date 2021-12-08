@@ -82,6 +82,7 @@ class PendulumEnv(gym.Env):
             else:
                 self.state = self.np_random.uniform(low=-high, high=high)
         else:
+            obs = angle_normalize(np.array(obs))
             self.state = obs
         self.last_u = None
         return self.state

@@ -56,4 +56,4 @@ hydra:
       dir: experiments/${name}_${now:%Y-%m-%d}/${now:%H-%M-%S}
   sweep:
       dir: experiments/${name}_${now:%Y-%m-%d}/${now:%H-%M-%S}
-      subdir: seed_${hydra.job.num}
+      subdir: run_${hydra.job.num}
