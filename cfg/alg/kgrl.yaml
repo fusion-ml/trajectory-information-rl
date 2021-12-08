@@ -10,5 +10,5 @@ num_fs: 15
 num_s0: 5
 num_sprime_samps: 5
 learning_rate: 0.001
-num_steps: 10000
+num_steps: 1000
 hidden_layer_sizes: [128, 128]
