@@ -159,6 +159,7 @@ class TFGpfsGp(TFSimpleGp):
         self.params.name = getattr(params, 'name', 'TFGpfsGp')
         self.params.n_bases = getattr(params, 'n_bases', 1000)
         self.params.n_dimx = getattr(params, 'n_dimx', 1)
+        self.params.model = None
         self.set_kernel(params)
 
     def set_kernel(self, params):
@@ -196,7 +197,9 @@ class TFGpfsGp(TFSimpleGp):
     def set_data(self, data):
         """Set self.data."""
         super().set_data(data)
-        self.set_model()
+        if self.params.model is None:
+            self.set_model()
+        self.params.model.data = (data.x, data.y)
 
     def set_model(self):
         """Set GPFlowSampling as self.params.model."""
@@ -251,6 +254,7 @@ class MultiGpfsGp(Base):
 
     def __init__(self, params=None, data=None, verbose=True):
         super().__init__(params, verbose)
+        self.gpfsgp_list = []
         self.set_data(data)
         self.set_gpfsgp_list()
 
@@ -399,6 +403,12 @@ class TFMultiGpfsGp(MultiGpfsGp):
             data.x = tf.convert_to_tensor(data.x, dtype=tf.float32)
             data.y = tf.convert_to_tensor(data.y, dtype=tf.float32)
             self.data = data
+        if len(self.gpfsgp_list) == 0:
+            return
+        data_list = self.get_data_list(self.data)
+        for gp, dat in zip(self.gpfsgp_list, data_list):
+            gp.set_data(dat)
+
 
     def initialize_function_sample_list(self, n_samp=1):
         """

@@ -839,9 +839,9 @@ class KGRLAcqFunction(AcqFunction):
 
     def initialize(self):
         self.start_states = [self.params.p0() for _ in range(self.params.num_s0)]
+        self.conditioned_model = self.params.gp_model_class(self.params.gp_model_params, self.model.data)
         self.rollout = tf.function(partial(self.execute_policy_on_fs,
-            model_class=self.params.gp_model_class,
-            model_params=self.params.gp_model_params,
+            model=self.conditioned_model,
             start_states=self.start_states,
             num_fs=self.params.num_fs,
             rollout_horizon=self.params.rollout_horizon,
@@ -883,7 +883,7 @@ class KGRLAcqFunction(AcqFunction):
         obs_dim = current_states.shape[-1]
         num_s0 = current_states.shape[0]
         data = Namespace(x=x_data, y=y_data)
-        model.set_data()
+        model.set_data(data)
         model.initialize_function_sample_list(num_fs)
         current_states = np.repeat(current_states[np.newaxis, :, :], num_fs, axis=0)
         current_states = tf.convert_to_tensor(current_states, dtype=tf.float32)
