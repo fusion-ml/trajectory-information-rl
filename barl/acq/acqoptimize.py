@@ -111,6 +111,7 @@ class KGAcqOptimizer(AcqOptimizer):
         self.params.action_dim = params.action_dim
         self.params.hidden_layer_sizes = getattr(params, 'hidden_layer_sizes', [128, 128])
         self.params.num_sprime_samps = params.num_sprime_samps
+        self.risk_vals = None
 
     def optimize(self, x_batch):
         x_batch = tf.Variable(x_batch, dtype=tf.float64)
@@ -127,6 +128,7 @@ class KGAcqOptimizer(AcqOptimizer):
         def loss():
             return -1 * self.acqfunction(policies, x_batch, lambdas)
         # opt_vars = [x_batch]
+        self.risk_vals = []
         opt_vars = []
         for x_policies in policies:
             for policy in x_policies:
@@ -135,6 +137,7 @@ class KGAcqOptimizer(AcqOptimizer):
         for _ in pbar:
             with tf.GradientTape() as tape:
                 loss_val = loss()
+            self.risk_vals.append(loss_val)
             grads = tape.gradient(loss_val, opt_vars)
             # tqdm.write(f"{tf.reduce_max(tf.abs(grads[0]))=}")
             opt.apply_gradients(zip(grads, opt_vars))
