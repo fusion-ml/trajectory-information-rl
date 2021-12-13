@@ -4,6 +4,7 @@ Utilities for Gaussian process (GP) inference.
 
 import numpy as np
 import tensorflow as tf
+import tensorflow_probability as tfp
 from scipy.linalg import solve_triangular
 from scipy.spatial.distance import cdist
 import itertools
@@ -174,10 +175,10 @@ def get_cholesky_decomp(k11_nonoise, sigma, psd_str):
 
 
 def tf_get_cholesky_decomp(k11_nonoise, sigma, psd_str):
-    """Return cholesky decomposition. Simplest implementation, can make 
+    """Return cholesky decomposition. Simplest implementation, can make
        smarter later."""
     k11 = k11_nonoise + sigma ** 2 * tf.eye(k11_nonoise.shape[0])
-    return tf.linalg.cholesky(k11)
+    return tfp.experimental.linalg.simple_robustified_cholesky(k11)
 
 
 def stable_cholesky(mmat, make_psd=True, verbose=False):
