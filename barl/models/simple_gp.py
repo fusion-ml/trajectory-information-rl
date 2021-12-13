@@ -321,8 +321,8 @@ class TFSimpleGp(SimpleGp):
         k11_nonoise = kernel(x_train, x_train, ls, alpha)
         self.lmat = tf_get_cholesky_decomp(k11_nonoise, sigma, 'try_first')
         self.smat = tf_solve_upper_triangular(tf.transpose(self.lmat), tf_solve_lower_triangular(self.lmat, y_train))
-        if self.smat.ndim == 1:
-            self.smat = self.smat[None, :]
+        # if self.smat.ndim == 1:
+        #     self.smat = self.smat[None, :]
 
     def get_prior_mu_cov(self, x_list, full_cov=True):
         raise NotImplementedError()

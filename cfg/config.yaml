@@ -41,6 +41,7 @@ fixed_start_obs: False
 num_samples_mc: 1
 num_init_data: 1
 test_set_size: 1000
+tf_eager: False
 n_paths: 15
 sample_exe: ${env.sample_exe}
 path_sampling_fraction: 0.8

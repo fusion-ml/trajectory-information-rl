@@ -98,7 +98,7 @@ class GpfsGp(SimpleGp):
         self.fsl_xvars = Xinit.numpy() #### TODO initialize directly with numpy
         self.n_fsamp = n_fsamp
 
-    @tf.function
+    # @tf.function
     def call_fsl_on_xvars(self, model, xvars, sample_axis=0):
         """Call fsl on fsl_xvars."""
         fvals = model.predict_f_samples(Xnew=xvars, sample_axis=sample_axis)
@@ -159,6 +159,7 @@ class TFGpfsGp(TFSimpleGp):
         self.params.name = getattr(params, 'name', 'TFGpfsGp')
         self.params.n_bases = getattr(params, 'n_bases', 1000)
         self.params.n_dimx = getattr(params, 'n_dimx', 1)
+        self.params.model = None
         self.set_kernel(params)
 
     def set_kernel(self, params):
@@ -196,7 +197,9 @@ class TFGpfsGp(TFSimpleGp):
     def set_data(self, data):
         """Set self.data."""
         super().set_data(data)
-        self.set_model()
+        if self.params.model is None:
+            self.set_model()
+        self.params.model.data = (data.x, data.y)
 
     def set_model(self):
         """Set GPFlowSampling as self.params.model."""
@@ -214,7 +217,7 @@ class TFGpfsGp(TFSimpleGp):
 
         self.n_fsamp = n_fsamp
 
-    @tf.function
+    # @tf.function
     def call_fsl_on_xvars(self, model, xvars, sample_axis=0):
         """Call fsl on fsl_xvars."""
         fvals = model.predict_f_samples(Xnew=xvars, sample_axis=sample_axis)
@@ -251,6 +254,7 @@ class MultiGpfsGp(Base):
 
     def __init__(self, params=None, data=None, verbose=True):
         super().__init__(params, verbose)
+        self.gpfsgp_list = []
         self.set_data(data)
         self.set_gpfsgp_list()
 
@@ -399,6 +403,12 @@ class TFMultiGpfsGp(MultiGpfsGp):
             data.x = tf.convert_to_tensor(data.x, dtype=tf.float64)
             data.y = tf.convert_to_tensor(data.y, dtype=tf.float64)
             self.data = data
+        if len(self.gpfsgp_list) == 0:
+            return
+        data_list = self.get_data_list(self.data)
+        for gp, dat in zip(self.gpfsgp_list, data_list):
+            gp.set_data(dat)
+
 
     def initialize_function_sample_list(self, n_samp=1):
         """
@@ -431,6 +441,7 @@ class TFMultiGpfsGp(MultiGpfsGp):
 
     def get_post_mu_cov(self, x_list, full_cov=False):
         """Returns a list of mu, and a list of cov/std."""
+        x_list = tf.cast(x_list, tf.float32)
         mu_list, cov_list = [], []
         for gp in self.gpfsgp_list:
             # Call usual 1d gpfsgp gp_post_wrapper

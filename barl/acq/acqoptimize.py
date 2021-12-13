@@ -6,7 +6,7 @@ import copy
 import numpy as np
 import tensorflow as tf
 import tensorflow.keras as keras
-from tqdm import trange
+from tqdm import trange, tqdm
 
 from .acquisition import BaxAcqFunction
 from ..util.base import Base
@@ -113,7 +113,6 @@ class KGAcqOptimizer(AcqOptimizer):
         self.params.num_sprime_samps = params.num_sprime_samps
 
     def optimize(self, x_batch):
-        # TODO:  make this differentiable
         x_batch = tf.Variable(x_batch, dtype=tf.float64)
         policies = []
         lambdas = tf.random.normal((x_batch.shape[0], self.params.num_sprime_samps, self.params.obs_dim), dtype=tf.float64)
@@ -130,17 +129,21 @@ class KGAcqOptimizer(AcqOptimizer):
         opt_vars = [x_batch]
         for x_policies in policies:
             for policy in x_policies:
-                opt_vars += policy.model.trainable_variables
+                opt_vars += policy.trainable_variables
         pbar = trange(self.params.num_steps)
         for _ in pbar:
             with tf.GradientTape() as tape:
                 loss_val = loss()
             grads = tape.gradient(loss_val, opt_vars)
+            tqdm.write(f"{tf.reduce_max(tf.abs(grads[0]))=}")
             opt.apply_gradients(zip(grads, opt_vars))
+            # TODO: make sure we're in a NormalizedBoxEnv or use other bounds
+            x_batch.assign(tf.clip_by_value(x_batch, -1, 1))
+            tqdm.write(f"{x_batch.numpy()=}")
             pbar.set_postfix({"Bayes Risk": loss_val.numpy()})
-        optima = tf.squeeze(x_batch).numpy()
+        optima = np.squeeze(x_batch.numpy())
         final_losses = loss()
-        return optima, tf.squeeze(final_losses).numpy()
+        return optima, np.squeeze(final_losses.numpy())
 
     def optimize_batch(self):
         raise NotImplementedError()

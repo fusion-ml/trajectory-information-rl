@@ -74,7 +74,7 @@ class NormalizedEnv(Env):
         return '{}({})'.format(type(self).__name__, self.wrapped_env)
 
     def normalize_obs(self, obs):
-        if obs.ndim == 1:
+        if len(obs.shape)== 1:
             low = self.unnorm_observation_space.low
             size = self.unnorm_obs_space_size
         else:
@@ -85,7 +85,7 @@ class NormalizedEnv(Env):
         return norm_obs
 
     def unnormalize_obs(self, obs):
-        if obs.ndim == 1:
+        if len(obs.shape) == 1:
             low = self.unnorm_observation_space.low
             size = self.unnorm_obs_space_size
         else:
@@ -97,7 +97,7 @@ class NormalizedEnv(Env):
         return unnorm_obs
 
     def unnormalize_action(self, action):
-        if action.ndim == 1:
+        if len(action.shape) == 1:
             low = self.unnorm_action_space.low
             size = self.unnorm_action_space_size
         else:
@@ -135,7 +135,7 @@ def make_normalized_reward_function(norm_env, reward_function, use_tf=False):
         action = x[..., obs_dim:]
         unnorm_action = norm_env.unnormalize_action(action)
         unnorm_obs = norm_env.unnormalize_obs(norm_obs)
-        unnorm_x = np.concatenate([unnorm_obs, unnorm_action], axis=-1)
+        unnorm_x = tf.concat([unnorm_obs, unnorm_action], axis=-1)
         unnorm_y = norm_env.unnormalize_obs(y)
         rewards = reward_function(unnorm_x, unnorm_y)
         return rewards
@@ -208,7 +208,7 @@ def make_update_obs_fn(env, teleport=False, use_tf=False):
         if not teleport:
             return output
         shifted_output = output - env.observation_space.low
-        if x.ndim == 2:
+        if len(x.shape) == 2:
             mask = np.tile(periodic, (x.shape[0], 1))
         else:
             mask = periodic

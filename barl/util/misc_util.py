@@ -6,6 +6,7 @@ from argparse import Namespace
 from pathlib import Path
 import os
 import numpy as np
+import tensorflow as tf
 import logging
 import pickle
 from collections import defaultdict
@@ -114,9 +115,9 @@ def make_postmean_fn(model, use_tf=False):
     if not use_tf:
         return postmean_fn
     def tf_postmean_fn(x):
+        x = tf.convert_to_tensor(x, dtype=tf.float32)
         mu_list, std_list = model.get_post_mu_cov(x, full_cov=False)
-        mu_list = np.array(mu_list).T
-        mu_tup_for_x = list(zip(*mu_list))
+        mu_tup_for_x = list(mu_list.numpy())
         return mu_tup_for_x
     return tf_postmean_fn
 

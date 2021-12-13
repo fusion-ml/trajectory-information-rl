@@ -237,6 +237,7 @@ def configure(config):
     seed = config.seed
     np.random.seed(seed)
     tf.random.set_seed(seed)
+    tf.config.run_functions_eagerly(config.tf_eager)
 
     # Check fixed_start_obs and num_samples_mc compatability
     assert (not config.fixed_start_obs) or config.num_samples_mc == 1, f"Need to have a fixed start obs ({config.fixed_start_obs}) or only 1 mc sample ({config.num_samples_mc})"  # NOQA
@@ -472,7 +473,6 @@ def get_next_point(
             x_test = list(x_test)
             x_test += unif_random_sample_domain(domain, n=n_rand)
             exe_path_list = acqfn.exe_path_list
-
             # Store returns of posterior samples
             posterior_returns = [compute_return(output[2], 1) for output in acqfn.output_list]
             dumper.add('Posterior Returns', posterior_returns, verbose=(i % config.eval_frequency == 0))
