@@ -481,7 +481,7 @@ def get_next_point(
         x_next, acq_val = acqopt.optimize(x_test)
         dumper.add('Acquisition Function Value', acq_val)
         if config.alg.kgrl:
-            dumper.add("Bayes Risks", acqopt.risk_vals)
+            dumper.add("Bayes Risks", acqopt.risk_vals, verbose=False)
 
     elif config.alg.use_mpc:
         model = gp_model_class(gp_model_params, data)

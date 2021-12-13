@@ -137,7 +137,7 @@ class KGAcqOptimizer(AcqOptimizer):
         for _ in pbar:
             with tf.GradientTape() as tape:
                 loss_val = loss()
-            self.risk_vals.append(loss_val)
+            self.risk_vals.append(float(loss_val))
             grads = tape.gradient(loss_val, opt_vars)
             # tqdm.write(f"{tf.reduce_max(tf.abs(grads[0]))=}")
             opt.apply_gradients(zip(grads, opt_vars))

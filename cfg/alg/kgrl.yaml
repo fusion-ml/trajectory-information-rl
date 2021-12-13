@@ -6,9 +6,9 @@ n_rand_acqopt: 1
 use_mpc: False
 kgrl: True
 gd_opt: True
-num_fs: 15
-num_s0: 5
-num_sprime_samps: 5
+num_fs: 30
+num_s0: 10
+num_sprime_samps: 1
 learning_rate: 0.001
-num_steps: 1000
+num_steps: 10000
 hidden_layer_sizes: [128, 128]
