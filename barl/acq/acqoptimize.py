@@ -126,7 +126,8 @@ class KGAcqOptimizer(AcqOptimizer):
 
         def loss():
             return -1 * self.acqfunction(policies, x_batch, lambdas)
-        opt_vars = [x_batch]
+        # opt_vars = [x_batch]
+        opt_vars = []
         for x_policies in policies:
             for policy in x_policies:
                 opt_vars += policy.trainable_variables
@@ -135,11 +136,11 @@ class KGAcqOptimizer(AcqOptimizer):
             with tf.GradientTape() as tape:
                 loss_val = loss()
             grads = tape.gradient(loss_val, opt_vars)
-            tqdm.write(f"{tf.reduce_max(tf.abs(grads[0]))=}")
+            # tqdm.write(f"{tf.reduce_max(tf.abs(grads[0]))=}")
             opt.apply_gradients(zip(grads, opt_vars))
             # TODO: make sure we're in a NormalizedBoxEnv or use other bounds
             x_batch.assign(tf.clip_by_value(x_batch, -1, 1))
-            tqdm.write(f"{x_batch.numpy()=}")
+            # tqdm.write(f"{x_batch.numpy()=}")
             pbar.set_postfix({"Bayes Risk": loss_val.numpy()})
         optima = np.squeeze(x_batch.numpy())
         final_losses = loss()

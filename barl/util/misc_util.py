@@ -115,7 +115,7 @@ def make_postmean_fn(model, use_tf=False):
     if not use_tf:
         return postmean_fn
     def tf_postmean_fn(x):
-        x = tf.convert_to_tensor(x, dtype=tf.float32)
+        x = tf.convert_to_tensor(x, dtype=tf.float64)
         mu_list, std_list = model.get_post_mu_cov(x, full_cov=False)
         mu_tup_for_x = list(mu_list.numpy())
         return mu_tup_for_x
