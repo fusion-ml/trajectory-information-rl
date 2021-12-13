@@ -7,6 +7,7 @@ import numpy as np
 import gym
 from tqdm import trange
 from functools import partial
+from copy import deepcopy
 import tensorflow as tf
 import hydra
 import random
@@ -155,7 +156,7 @@ def main(config):
                 acqfn_params,
                 acqopt_class,
                 acqopt_params,
-                data,
+                deepcopy(data),
                 dumper)
 
         # ==============================================
@@ -470,21 +471,21 @@ def get_next_point(
             x_test += np.random.randn(*x_test.shape) * 0.01
             x_test = list(x_test)
             x_test += unif_random_sample_domain(domain, n=n_rand)
+            exe_path_list = acqfn.exe_path_list
+
+            # Store returns of posterior samples
+            posterior_returns = [compute_return(output[2], 1) for output in acqfn.output_list]
+            dumper.add('Posterior Returns', posterior_returns, verbose=(i % config.eval_frequency == 0))
         else:
             x_test = unif_random_sample_domain(domain, n=config.n_rand_acqopt)
         x_next, acq_val = acqopt.optimize(x_test)
         dumper.add('Acquisition Function Value', acq_val)
 
-        exe_path_list = acqfn.exe_path_list
-
-        # Store returns of posterior samples
-        posterior_returns = [compute_return(output[2], 1) for output in acqfn.output_list]
-        dumper.add('Posterior Returns', posterior_returns, verbose=(i % config.eval_frequency == 0))
     elif config.alg.use_mpc:
         model = gp_model_class(gp_model_params, data)
         algo.initialize()
 
-        policy = partial(algo.execute_mpc, f=make_postmean_fn(model))
+        policy = partial(algo.execute_mpc, f=make_postmean_fn(model, use_tf=config.alg.gd_opt))
         action = policy(current_obs)
         x_next = np.concatenate([current_obs, action])
     else:
@@ -509,7 +510,7 @@ def evaluate_mpc(
         # this is required to delete the current execution path
         algo.initialize()
 
-        postmean_fn = make_postmean_fn(model)
+        postmean_fn = make_postmean_fn(model, use_tf=config.alg.gd_opt)
         policy = partial(algo.execute_mpc, f=postmean_fn)
         real_returns = []
         mses = []

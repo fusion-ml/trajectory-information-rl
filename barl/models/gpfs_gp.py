@@ -17,7 +17,7 @@ from ..util.base import Base
 from ..util.misc_util import dict_to_namespace, suppress_stdout_stderr
 from ..util.domain_util import unif_random_sample_domain
 
-gpflow.config.set_default_float(np.float32)
+gpflow.config.set_default_float(np.float64)
 
 
 class GpfsGp(SimpleGp):
@@ -396,8 +396,8 @@ class TFMultiGpfsGp(MultiGpfsGp):
             raise NotImplementedError()
         else:
             data = dict_to_namespace(data)
-            data.x = tf.convert_to_tensor(data.x, dtype=tf.float32)
-            data.y = tf.convert_to_tensor(data.y, dtype=tf.float32)
+            data.x = tf.convert_to_tensor(data.x, dtype=tf.float64)
+            data.y = tf.convert_to_tensor(data.y, dtype=tf.float64)
             self.data = data
 
     def initialize_function_sample_list(self, n_samp=1):

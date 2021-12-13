@@ -105,12 +105,21 @@ def batch_function(f):
     return batched_f
 
 
-def make_postmean_fn(model):
+def make_postmean_fn(model, use_tf=False):
     def postmean_fn(x):
         mu_list, std_list = model.get_post_mu_cov(x, full_cov=False)
+        mu_list = np.array(mu_list)
         mu_tup_for_x = list(zip(*mu_list))
         return mu_tup_for_x
-    return postmean_fn
+    if not use_tf:
+        return postmean_fn
+    def tf_postmean_fn(x):
+        mu_list, std_list = model.get_post_mu_cov(x, full_cov=False)
+        mu_list = np.array(mu_list).T
+        mu_tup_for_x = list(zip(*mu_list))
+        return mu_tup_for_x
+    return tf_postmean_fn
+
 
 
 def mse(y, y_hat):

@@ -114,9 +114,9 @@ class KGAcqOptimizer(AcqOptimizer):
 
     def optimize(self, x_batch):
         # TODO:  make this differentiable
-        x_batch = tf.Variable(x_batch, dtype=tf.float32)
+        x_batch = tf.Variable(x_batch, dtype=tf.float64)
         policies = []
-        lambdas = tf.random.normal((x_batch.shape[0], self.params.num_sprime_samps, self.params.obs_dim))
+        lambdas = tf.random.normal((x_batch.shape[0], self.params.num_sprime_samps, self.params.obs_dim), dtype=tf.float64)
         for _ in range(x_batch.shape[0]):
             xval_policies = []
             for __ in range(self.params.num_sprime_samps):
@@ -138,7 +138,7 @@ class KGAcqOptimizer(AcqOptimizer):
             grads = tape.gradient(loss_val, opt_vars)
             opt.apply_gradients(zip(grads, opt_vars))
             pbar.set_postfix({"Bayes Risk": loss_val.numpy()})
-        optima = x_batch.numpy()
+        optima = tf.squeeze(x_batch).numpy()
         final_losses = loss()
         return optima, tf.squeeze(final_losses).numpy()
 

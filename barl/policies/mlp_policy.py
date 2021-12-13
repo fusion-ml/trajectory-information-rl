@@ -1,5 +1,6 @@
 from tensorflow import keras
 from tensorflow.keras import layers
+keras.backend.set_floatx('float64')
 
 
 class MlpPolicy:
