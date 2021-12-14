@@ -489,8 +489,8 @@ def get_next_point(
         dumper.add('Acquisition Function Value', acq_val)
         if config.alg.kgrl:
             dumper.add("Bayes Risks", acqopt.risk_vals, verbose=False)
-            dumper.add("GT Returns", acqopt.eval_vals, verbose=False)
-            dumper.add("GT Return ndata", acqopt.eval_steps, verbose=False)
+            dumper.add("Policy Returns", acqopt.eval_vals, verbose=False)
+            dumper.add("Policy Return ndata", acqopt.eval_steps, verbose=False)
 
     elif config.alg.use_mpc:
         model = gp_model_class(gp_model_params, data)

@@ -75,7 +75,7 @@ tf_reward_functions = {
 # mujoco stuff
 try:
     from barl.envs.swimmer import BACSwimmerEnv, swimmer_reward
-    from barl.envs.reacher import BACReacherEnv, reacher_reward
+    from barl.envs.reacher import BACReacherEnv, reacher_reward, tf_reacher_reward
     register(
         id='bacswimmer-v0',
         entry_point=BACSwimmerEnv,
@@ -98,6 +98,7 @@ try:
     reward_functions['bacreacher-v0'] = reacher_reward
     reward_functions['bacswimmer-rew-v0'] = swimmer_reward
     reward_functions['bacreacher-tight-v0'] = reacher_reward
+    tf_reward_functions['bacreacher-v0'] = tf_reacher_reward
 except:
     logging.info('mujoco not found, skipping those envs')
 try:

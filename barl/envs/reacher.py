@@ -1,5 +1,6 @@
 import os
 import numpy as np
+import tensorflow as tf
 from gym import utils, spaces
 from gym.envs.mujoco import mujoco_env
 
@@ -110,6 +111,15 @@ def reacher_reward(x, next_obs):
     reward = reward_dist + reward_ctrl
     return reward
 
+def tf_reacher_reward(x, next_obs):
+    action_dim = 2
+    start_obs = x[..., :-action_dim]
+    vec = next_obs[..., -2:]
+    action = x[..., -action_dim:]
+    reward_dist = -tf.norm(vec, axis=-1)
+    reward_ctrl = -tf.reduce_sum(tf.square(action), axis=-1)
+    reward = reward_dist + reward_ctrl
+    return reward
 
 def angle_normalize(x):
     return (((x+np.pi) % (2*np.pi)) - np.pi)
