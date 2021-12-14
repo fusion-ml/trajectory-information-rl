@@ -301,7 +301,7 @@ def rollout_icem_continuous_cartpole(env, unroller):
                 return sum(rewards)
     return sum(rewards)
 
-def evaluate_policy(env, policy, start_obs=None, mpc_pass=False):
+def evaluate_policy(policy, env, start_obs=None, mpc_pass=False, autobatch=False):
     obs = env.reset(start_obs)
     observations = [obs]
     actions = []
@@ -309,10 +309,14 @@ def evaluate_policy(env, policy, start_obs=None, mpc_pass=False):
     done = False
     samples_to_pass = []
     for _ in range(env.horizon):
+        if autobatch:
+            obs = obs[None, :]
         if not mpc_pass:
             action = policy(obs)
         else:
             action, samples_to_pass = policy(obs, samples_to_pass=samples_to_pass, return_samps=True)
+        if autobatch:
+            action = action[0, :]
         obs, rew, done, info = env.step(action)
         observations.append(obs)
         actions.append(action)

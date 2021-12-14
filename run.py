@@ -110,7 +110,7 @@ def main(config):
     # Set acqfunction
     acqfn_class, acqfn_params = get_acq_fn(config, env.horizon, p0, reward_function, update_fn,
                                            obs_dim, action_dim, gp_model_class, gp_model_params)
-    acqopt_class, acqopt_params = get_acq_opt(config, obs_dim, action_dim)
+    acqopt_class, acqopt_params = get_acq_opt(config, obs_dim, action_dim, env, start_obs)
 
     # ==============================================
     #   Computing groundtruth trajectories
@@ -333,7 +333,7 @@ def get_acq_fn(config, horizon, p0, reward_fn, update_fn, obs_dim, action_dim,
     return acqfn_class, acqfn_params
 
 
-def get_acq_opt(config, obs_dim, action_dim):
+def get_acq_opt(config, obs_dim, action_dim, env, start_obs):
     if config.alg.gd_opt:
         acqopt_params = {
                 "learning_rate": config.alg.learning_rate,
@@ -341,7 +341,14 @@ def get_acq_opt(config, obs_dim, action_dim):
                 "obs_dim": obs_dim,
                 "action_dim": action_dim,
                 "num_sprime_samps": config.alg.num_sprime_samps,
+                "policy_test_period": config.alg.policy_test_period,
+                "num_eval_trials": config.num_eval_trials,
             }
+        if config.alg.policy_test_period != 0:
+            eval_fn = partial(evaluate_policy, env=env, start_obs=start_obs, autobatch=True)
+            acqopt_params['eval_fn'] = eval_fn
+        else:
+            acqopt_params['eval_fn'] = None
         try:
             acqopt_params['hidden_layer_sizes'] = config.alg.hidden_layer_sizes
         except Exception:
@@ -482,6 +489,8 @@ def get_next_point(
         dumper.add('Acquisition Function Value', acq_val)
         if config.alg.kgrl:
             dumper.add("Bayes Risks", acqopt.risk_vals, verbose=False)
+            dumper.add("GT Returns", acqopt.eval_vals, verbose=False)
+            dumper.add("GT Return ndata", acqopt.eval_steps, verbose=False)
 
     elif config.alg.use_mpc:
         model = gp_model_class(gp_model_params, data)
@@ -522,7 +531,7 @@ def evaluate_mpc(
         real_paths_mpc = []
         pbar = trange(config.num_eval_trials)
         for j in pbar:
-            real_obs, real_actions, real_rewards = evaluate_policy(env, policy, start_obs=start_obs,
+            real_obs, real_actions, real_rewards = evaluate_policy(policy, env, start_obs=start_obs,
                                                                    mpc_pass=True)
             real_return = compute_return(real_rewards, 1)
             real_returns.append(real_return)

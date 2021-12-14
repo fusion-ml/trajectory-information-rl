@@ -11,6 +11,7 @@ from tqdm import trange, tqdm
 from .acquisition import BaxAcqFunction
 from ..util.base import Base
 from ..util.misc_util import dict_to_namespace
+from ..util.control_util import compute_return
 from ..policies import TanhMlpPolicy
 
 
@@ -111,7 +112,12 @@ class KGAcqOptimizer(AcqOptimizer):
         self.params.action_dim = params.action_dim
         self.params.hidden_layer_sizes = getattr(params, 'hidden_layer_sizes', [128, 128])
         self.params.num_sprime_samps = params.num_sprime_samps
+        self.params.policy_test_period = params.policy_test_period
+        self.params.num_eval_trials = params.num_eval_trials
+        self.params.eval_fn = params.eval_fn
         self.risk_vals = None
+        self.eval_vals = None
+        self.eval_steps = None
 
     def optimize(self, x_batch):
         x_batch = tf.Variable(x_batch, dtype=tf.float64)
@@ -129,12 +135,18 @@ class KGAcqOptimizer(AcqOptimizer):
             return -1 * self.acqfunction(policies, x_batch, lambdas)
         # opt_vars = [x_batch]
         self.risk_vals = []
+        self.eval_vals = []
+        self.eval_steps = []
         opt_vars = []
         for x_policies in policies:
             for policy in x_policies:
                 opt_vars += policy.trainable_variables
         pbar = trange(self.params.num_steps)
-        for _ in pbar:
+        avg_return = None
+        for i in pbar:
+            if self.params.policy_test_period != 0 and i % self.params.policy_test_period == 0:
+                self.eval_steps.append(i)
+                avg_return = self.evaluate(policies)
             with tf.GradientTape() as tape:
                 loss_val = loss()
             self.risk_vals.append(float(loss_val))
@@ -144,10 +156,30 @@ class KGAcqOptimizer(AcqOptimizer):
             # TODO: make sure we're in a NormalizedBoxEnv or use other bounds
             x_batch.assign(tf.clip_by_value(x_batch, -1, 1))
             # tqdm.write(f"{x_batch.numpy()=}")
-            pbar.set_postfix({"Bayes Risk": loss_val.numpy()})
+            postfix = {"Bayes Risk": loss_val.numpy()}
+            if avg_return is not None:
+                postfix["Avg Return"] = avg_return
+            pbar.set_postfix(postfix)
         optima = np.squeeze(x_batch.numpy())
         final_losses = loss()
         return optima, np.squeeze(final_losses.numpy())
+
+    def evaluate(self, policies):
+        '''
+        Evaluate the policy here on the real environment. This information should not
+        be used by the optimizer, it is strictly for diagnostic purposes.
+        '''
+        all_returns = []
+        policies = [policy for plist in policies for policy in plist]
+        for policy in policies:
+            policy_returns = []
+            for i in range(self.params.num_eval_trials):
+                obs, actions, rewards = self.params.eval_fn(policy)
+                returns = compute_return(rewards, 1)
+                policy_returns.append(returns)
+            all_returns.append(policy_returns)
+        self.eval_vals.append(all_returns)
+        return np.mean(all_returns)
 
     def optimize_batch(self):
         raise NotImplementedError()
