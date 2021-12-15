@@ -26,6 +26,8 @@ def plot_generic(path, ax=None, fig=None, domain=None, path_str="samp", env=None
                 )
         if path is None:
             return axes, fig
+    else:
+        axes = ax
     for i, ax in enumerate(axes):
         x_plot = [xi[2 * i] for xi in path.x]
         y_plot = [xi[2 * i + 1] for xi in path.x]

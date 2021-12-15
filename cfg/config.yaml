@@ -16,6 +16,7 @@ alg:
     uncertainty_sampling: False
     kgrl: False
     gd_opt: False
+    eig: False
 mpc:
   nsamps: ${env.mpc.nsamps}
   planning_horizon: ${env.mpc.planning_horizon}

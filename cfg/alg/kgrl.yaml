@@ -2,6 +2,7 @@ learn_reward: False
 num_iters: 4000
 use_acquisition: True
 rollout_sampling: False
+sample_exe: False
 n_rand_acqopt: 1
 use_mpc: False
 kgrl: True
