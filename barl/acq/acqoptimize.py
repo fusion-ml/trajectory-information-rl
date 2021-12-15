@@ -1,7 +1,6 @@
 """
 Code for optimizing acquisition functions.
 """
-
 import copy
 import numpy as np
 import tensorflow as tf
@@ -133,11 +132,10 @@ class KGAcqOptimizer(AcqOptimizer):
 
         def loss():
             return -1 * self.acqfunction(policies, x_batch, lambdas)
-        # opt_vars = [x_batch]
+        opt_vars = [x_batch]
         self.risk_vals = []
         self.eval_vals = []
         self.eval_steps = []
-        opt_vars = []
         for x_policies in policies:
             for policy in x_policies:
                 opt_vars += policy.trainable_variables
@@ -180,6 +178,3 @@ class KGAcqOptimizer(AcqOptimizer):
             all_returns.append(policy_returns)
         self.eval_vals.append(all_returns)
         return np.mean(all_returns)
-
-    def optimize_batch(self):
-        raise NotImplementedError()

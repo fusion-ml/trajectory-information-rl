@@ -808,8 +808,7 @@ class UncertaintySamplingAcqFunction(AcqFunction):
         acq_list = self.get_acq_list_batch(x_list)
         return acq_list
 
-
-class KGRLAcqFunction(AcqFunction):
+class PILCOAcqFunction(AcqFunction):
     """
     Implements the KG for RL idea given in the overleaf.
 
@@ -848,24 +847,27 @@ class KGRLAcqFunction(AcqFunction):
             update_fn=self.params.update_fn,
             reward_fn=self.params.reward_fn))
 
-    def __call__(self, policy_list, x_list, lambdas):
-        post_samples = self.model.sample_post_list(x_list, self.params.num_sprime_samps, lambdas)
+    def __call__(self, policy_list, *args, **kwargs)
+        '''
+        Ignore the extra args so that we don't have to worry about anything besides the policies
+        '''
         risks = []
-        for i in range(post_samples.shape[0]):
-            samp_batch = post_samples[i, ...]
-            point_policies = policy_list[i]
-            risk_samps = []
-            for j in range(samp_batch.shape[0]):
-                sprime = samp_batch[j, ...]
-                new_x = x_list[i]
-                policy = point_policies[j]
-                x_data = tf.concat([self.model.data.x, new_x[None, :]], axis=0)
-                y_data = tf.concat([self.model.data.y, sprime[None, :]], axis=0)
-                neg_bayes_risk = self.rollout(policy, x_data, y_data)
-                risk_samps.append(neg_bayes_risk)
-            risks.append(tf.reduce_mean(risk_samps))
-
+        for policy in self.flatten(policy_list):
+            x_data = tf.concat([self.model.data.x, new_x[None, :]], axis=0)
+            y_data = tf.concat([self.model.data.y, sprime[None, :]], axis=0)
+            neg_bayes_risk = self.rollout(policy, self.model.data.x, self.model.data.y)
+            risks.append(neg_bayes_risk)
         return tf.reduce_mean(risks)
+
+    @staticmethod
+    def flatten(policy_list):
+        out = []
+        for item in policy_list:
+            if type(item) is list:
+                out += item
+            else:
+                out.append(item)
+        return out
 
     @staticmethod
     def execute_policy_on_fs(
@@ -903,3 +905,40 @@ class KGRLAcqFunction(AcqFunction):
         avg_return = tf.reduce_mean(returns)
 
         return avg_return
+
+class KGRLAcqFunction(PILCOAcqFunction):
+    """
+    Implements the KG for RL idea given in the overleaf.
+
+    This version is a standard acquisition function that is only aiming to acquire
+    a single state-action pair that maximizes the expected H-entropy gain
+    for the cost function. To do this, it should run gradient descent on both the policy
+    parameters and the point being acquired.
+
+    This function is intended to be used for gradient-based acquisition and therefore
+    doesn't compute the first term of the h-entropy.
+    """
+    def set_params(self, params):
+        super().set_params(params)
+
+    def initialize(self):
+        super().initialize()
+
+    def __call__(self, policy_list, x_list, lambdas):
+        post_samples = self.model.sample_post_list(x_list, self.params.num_sprime_samps, lambdas)
+        risks = []
+        for i in range(post_samples.shape[0]):
+            samp_batch = post_samples[i, ...]
+            point_policies = policy_list[i]
+            risk_samps = []
+            for j in range(samp_batch.shape[0]):
+                sprime = samp_batch[j, ...]
+                new_x = x_list[i]
+                policy = point_policies[j]
+                x_data = tf.concat([self.model.data.x, new_x[None, :]], axis=0)
+                y_data = tf.concat([self.model.data.y, sprime[None, :]], axis=0)
+                neg_bayes_risk = self.rollout(policy, x_data, y_data)
+                risk_samps.append(neg_bayes_risk)
+            risks.append(tf.reduce_mean(risk_samps))
+
+        return tf.reduce_mean(risks)

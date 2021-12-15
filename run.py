@@ -15,7 +15,7 @@ from matplotlib import pyplot as plt
 
 from barl.models.gpfs_gp import BatchMultiGpfsGp, TFMultiGpfsGp
 from barl.models.gpflow_gp import get_gpflow_hypers_from_data
-from barl.acq.acquisition import MultiBaxAcqFunction, MCAcqFunction, UncertaintySamplingAcqFunction, KGRLAcqFunction
+from barl.acq.acquisition import MultiBaxAcqFunction, MCAcqFunction, UncertaintySamplingAcqFunction, KGRLAcqFunction, PILCOAcqFunction
 from barl.acq.acqoptimize import AcqOptimizer, KGAcqOptimizer
 from barl.alg.mpc import MPC
 from barl import envs
@@ -313,7 +313,7 @@ def get_acq_fn(config, horizon, p0, reward_fn, update_fn, obs_dim, action_dim,
     if config.alg.uncertainty_sampling:
         acqfn_params = {}
         acqfn_class = UncertaintySamplingAcqFunction
-    elif config.alg.kgrl:
+    elif config.alg.kgrl or config.alg.pilco:
         acqfn_params = {
                 'num_fs': config.alg.num_fs,
                 'num_s0': config.alg.num_s0,
@@ -326,7 +326,7 @@ def get_acq_fn(config, horizon, p0, reward_fn, update_fn, obs_dim, action_dim,
                 'gp_model_params': gp_model_params,
                 'verbose': False,
                 }
-        acqfn_class = KGRLAcqFunction
+        acqfn_class = KGRLAcqFunction if config.alg.kgrl else PILCOAcqFunction
     else:
         acqfn_params = {'n_path': config.n_paths, 'crop': True}
         acqfn_class = MultiBaxAcqFunction
