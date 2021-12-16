@@ -301,7 +301,7 @@ def get_model(config, env, obs_dim, action_dim):
         gp_params['periodic_dims'] = env.periodic_dimensions
         gp_params['period'] = config.env.gp.period
     gp_model_params = {'n_dimy': obs_dim, 'gp_params': gp_params}
-    if config.alg.kgrl:
+    if config.alg.kgrl or config.alg.pilco:
         gp_model_class = TFMultiGpfsGp
     else:
         gp_model_class = BatchMultiGpfsGp
@@ -343,6 +343,11 @@ def get_acq_opt(config, obs_dim, action_dim, env, start_obs):
                 "num_sprime_samps": config.alg.num_sprime_samps,
                 "policy_test_period": config.alg.policy_test_period,
                 "num_eval_trials": config.num_eval_trials,
+                "policies": KGAcqOptimizer.get_policies(config.n_rand_acqopt,
+                                                        config.alg.num_sprime_samps,
+                                                        obs_dim,
+                                                        action_dim,
+                                                        [128, 128])
             }
         if config.alg.policy_test_period != 0:
             eval_fn = partial(evaluate_policy, env=env, start_obs=start_obs, autobatch=True)

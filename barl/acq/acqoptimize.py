@@ -114,29 +114,36 @@ class KGAcqOptimizer(AcqOptimizer):
         self.params.policy_test_period = params.policy_test_period
         self.params.num_eval_trials = params.num_eval_trials
         self.params.eval_fn = params.eval_fn
+        self.params.policies = getattr(params, 'policies', None)
         self.risk_vals = None
         self.eval_vals = None
         self.eval_steps = None
 
+    @staticmethod
+    def get_policies(num_x, num_sprime_samps, obs_dim, action_dim, hidden_layer_sizes):
+        policies = []
+        for _ in range(num_x):
+            xval_policies = []
+            for __ in range(num_sprime_samps):
+                xval_policies.append(TanhMlpPolicy(obs_dim, action_dim, hidden_layer_sizes))
+            policies.append(xval_policies)
+        return policies
+
     def optimize(self, x_batch):
         x_batch = tf.Variable(x_batch, dtype=tf.float64)
-        policies = []
         lambdas = tf.random.normal((x_batch.shape[0], self.params.num_sprime_samps, self.params.obs_dim), dtype=tf.float64)
-        for _ in range(x_batch.shape[0]):
-            xval_policies = []
-            for __ in range(self.params.num_sprime_samps):
-                xval_policies.append(TanhMlpPolicy(self.params.obs_dim, self.params.action_dim, self.params.hidden_layer_sizes))
-            policies.append(xval_policies)
         # policies = [[TanhMlpPolicy(self.params.obs_dim, self.params.action_dim, self.params.hidden_layer_sizes) for _ in range(x_batch.shape[0])]
         opt = keras.optimizers.Adam(learning_rate=self.params.learning_rate)
-
+        if self.params.policies is None:
+            self.params.policies = self.get_policies(x_batch.shape[0], self.params.num_sprime_samps, self.params.obs_dim, self.params.action_dim,
+                                                     self.params.hidden_layer_sizes)
         def loss():
-            return -1 * self.acqfunction(policies, x_batch, lambdas)
+            return -1 * self.acqfunction(self.params.policies, x_batch, lambdas)
         opt_vars = [x_batch]
         self.risk_vals = []
         self.eval_vals = []
         self.eval_steps = []
-        for x_policies in policies:
+        for x_policies in self.params.policies:
             for policy in x_policies:
                 opt_vars += policy.trainable_variables
         pbar = trange(self.params.num_steps)
@@ -144,7 +151,7 @@ class KGAcqOptimizer(AcqOptimizer):
         for i in pbar:
             if self.params.policy_test_period != 0 and i % self.params.policy_test_period == 0:
                 self.eval_steps.append(i)
-                avg_return = self.evaluate(policies)
+                avg_return = self.evaluate(self.params.policies)
             with tf.GradientTape() as tape:
                 loss_val = loss()
             self.risk_vals.append(float(loss_val))

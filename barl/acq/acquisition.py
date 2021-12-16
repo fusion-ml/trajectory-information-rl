@@ -847,14 +847,12 @@ class PILCOAcqFunction(AcqFunction):
             update_fn=self.params.update_fn,
             reward_fn=self.params.reward_fn))
 
-    def __call__(self, policy_list, *args, **kwargs)
+    def __call__(self, policy_list, *args, **kwargs):
         '''
         Ignore the extra args so that we don't have to worry about anything besides the policies
         '''
         risks = []
         for policy in self.flatten(policy_list):
-            x_data = tf.concat([self.model.data.x, new_x[None, :]], axis=0)
-            y_data = tf.concat([self.model.data.y, sprime[None, :]], axis=0)
             neg_bayes_risk = self.rollout(policy, self.model.data.x, self.model.data.y)
             risks.append(neg_bayes_risk)
         return tf.reduce_mean(risks)
