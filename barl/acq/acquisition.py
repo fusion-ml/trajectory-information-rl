@@ -826,7 +826,6 @@ class PILCOAcqFunction(AcqFunction):
         params = dict_to_namespace(params)
         self.params.num_fs = getattr(params, 'num_fs', 15)
         self.params.num_s0 = getattr(params, 'num_s0', 5)
-        self.params.num_sprime_samps = getattr(params, 'num_sprime_samps', 5)
         self.params.rollout_horizon = params.rollout_horizon
         self.params.p0 = params.p0
         self.params.reward_fn = params.reward_fn
@@ -918,12 +917,37 @@ class KGRLAcqFunction(PILCOAcqFunction):
     """
     def set_params(self, params):
         super().set_params(params)
+        self.params.num_sprime_samps = getattr(params, 'num_sprime_samps', 5)
 
     def initialize(self):
         super().initialize()
+        self.tf_acqfn = tf.function(partial(self.kgrl_acq,
+            model=self.conditioned_model,
+            num_sprime_samps=self.params.num_sprime_samps,
+            start_states=self.start_states,
+            num_fs=self.params.num_fs,
+            rollout_horizon=self.params.rollout_horizon,
+            update_fn=self.params.update_fn,
+            reward_fn=self.params.reward_fn))
+
+
 
     def __call__(self, policy_list, x_list, lambdas):
-        post_samples = self.model.sample_post_list(x_list, self.params.num_sprime_samps, lambdas)
+        return self.tf_acqfn(policy_list, x_list, lambdas)
+
+    @staticmethod
+    def kgrl_acq(policy_list,
+                 x_list,
+                 lambdas,
+                 model,
+                 num_sprime_samps,
+                 start_states,
+                 num_fs,
+                 rollout_horizon,
+                 update_fn,
+                 reward_fn):
+                 
+        post_samples = model.sample_post_list(x_list, num_sprime_samps, lambdas)
         risks = []
         for i in range(post_samples.shape[0]):
             samp_batch = post_samples[i, ...]
@@ -933,9 +957,17 @@ class KGRLAcqFunction(PILCOAcqFunction):
                 sprime = samp_batch[j, ...]
                 new_x = x_list[i]
                 policy = point_policies[j]
-                x_data = tf.concat([self.model.data.x, new_x[None, :]], axis=0)
-                y_data = tf.concat([self.model.data.y, sprime[None, :]], axis=0)
-                neg_bayes_risk = self.rollout(policy, x_data, y_data)
+                x_data = tf.concat([model.data.x, new_x[None, :]], axis=0)
+                y_data = tf.concat([model.data.y, sprime[None, :]], axis=0)
+                neg_bayes_risk = KGRLAcqFunction.execute_policy_on_fs(policy,
+                                                                      x_data,
+                                                                      y_data,
+                                                                      model,
+                                                                      start_states,
+                                                                      num_fs,
+                                                                      rollout_horizon,
+                                                                      update_fn,
+                                                                      reward_fn)
                 risk_samps.append(neg_bayes_risk)
             risks.append(tf.reduce_mean(risk_samps))
 
