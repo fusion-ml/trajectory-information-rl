@@ -1,6 +1,6 @@
 from tensorflow import keras
 from tensorflow.keras import layers
-keras.backend.set_floatx('float64')
+keras.backend.set_floatx('float32')
 
 
 def MlpPolicy(obs_dim, action_dim, hidden_layer_sizes, output_activation=None):

@@ -885,7 +885,7 @@ class PILCOAcqFunction(AcqFunction):
         model.set_data(data)
         model.initialize_function_sample_list(num_fs)
         current_states = np.repeat(current_states[np.newaxis, :, :], num_fs, axis=0)
-        current_states = tf.convert_to_tensor(current_states, dtype=tf.float64)
+        current_states = tf.convert_to_tensor(current_states, dtype=tf.float32)
         f_batch_list = model.call_function_sample_list
         returns = 0
         for t in range(rollout_horizon):

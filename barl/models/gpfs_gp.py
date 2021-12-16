@@ -17,7 +17,7 @@ from ..util.base import Base
 from ..util.misc_util import dict_to_namespace, suppress_stdout_stderr
 from ..util.domain_util import unif_random_sample_domain
 
-gpflow.config.set_default_float(np.float64)
+gpflow.config.set_default_float(np.float32)
 
 
 class GpfsGp(SimpleGp):
@@ -400,8 +400,8 @@ class TFMultiGpfsGp(MultiGpfsGp):
             raise NotImplementedError()
         else:
             data = dict_to_namespace(data)
-            data.x = tf.convert_to_tensor(data.x, dtype=tf.float64)
-            data.y = tf.convert_to_tensor(data.y, dtype=tf.float64)
+            data.x = tf.convert_to_tensor(data.x, dtype=tf.float32)
+            data.y = tf.convert_to_tensor(data.y, dtype=tf.float32)
             self.data = data
         if len(self.gpfsgp_list) == 0:
             return
@@ -441,7 +441,7 @@ class TFMultiGpfsGp(MultiGpfsGp):
 
     def get_post_mu_cov(self, x_list, full_cov=False):
         """Returns a list of mu, and a list of cov/std."""
-        x_list = tf.cast(x_list, tf.float64)
+        x_list = tf.cast(x_list, tf.float32)
         mu_list, cov_list = [], []
         for gp in self.gpfsgp_list:
             # Call usual 1d gpfsgp gp_post_wrapper

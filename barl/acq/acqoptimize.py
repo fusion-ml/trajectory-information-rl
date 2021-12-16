@@ -130,8 +130,8 @@ class KGAcqOptimizer(AcqOptimizer):
         return policies
 
     def optimize(self, x_batch):
-        x_batch = tf.Variable(x_batch, dtype=tf.float64)
-        lambdas = tf.random.normal((x_batch.shape[0], self.params.num_sprime_samps, self.params.obs_dim), dtype=tf.float64)
+        x_batch = tf.Variable(x_batch, dtype=tf.float32)
+        lambdas = tf.random.normal((x_batch.shape[0], self.params.num_sprime_samps, self.params.obs_dim), dtype=tf.float32)
         # policies = [[TanhMlpPolicy(self.params.obs_dim, self.params.action_dim, self.params.hidden_layer_sizes) for _ in range(x_batch.shape[0])]
         opt = keras.optimizers.Adam(learning_rate=self.params.learning_rate)
         if self.params.policies is None:
