@@ -157,7 +157,9 @@ def main(config):
                 acqopt_class,
                 acqopt_params,
                 deepcopy(data),
-                dumper)
+                dumper,
+                obs_dim,
+                action_dim)
 
         # ==============================================
         #   Periodically run evaluation and plot
@@ -458,6 +460,8 @@ def get_next_point(
         acqopt_params,
         data,
         dumper,
+        obs_dim,
+        action_dim,
         ):
     exe_path_list = []
     model = None
@@ -496,6 +500,9 @@ def get_next_point(
             dumper.add("Bayes Risks", acqopt.risk_vals, verbose=False)
             dumper.add("Policy Returns", acqopt.eval_vals, verbose=False)
             dumper.add("Policy Return ndata", acqopt.eval_steps, verbose=False)
+            if i % config.alg.policy_lifetime == 0:
+                # will force acqopt to reinitialize policies
+                acqopt_params["policies"] = None
 
     elif config.alg.use_mpc:
         model = gp_model_class(gp_model_params, data)

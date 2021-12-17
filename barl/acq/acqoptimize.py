@@ -5,7 +5,7 @@ import copy
 import numpy as np
 import tensorflow as tf
 import tensorflow.keras as keras
-from tqdm import trange, tqdm
+from tqdm import trange
 
 from .acquisition import BaxAcqFunction
 from ..util.base import Base
@@ -118,6 +118,7 @@ class KGAcqOptimizer(AcqOptimizer):
         self.risk_vals = None
         self.eval_vals = None
         self.eval_steps = None
+        self.tf_train_step = tf.function(self.train_step)
 
     @staticmethod
     def get_policies(num_x, num_sprime_samps, obs_dim, action_dim, hidden_layer_sizes):
@@ -129,6 +130,20 @@ class KGAcqOptimizer(AcqOptimizer):
             policies.append(xval_policies)
         return policies
 
+    @staticmethod
+    def train_step(acqfn, opt, policies, x_batch, lambdas):
+        opt_vars = [x_batch]
+        for x_policies in policies:
+            for policy in x_policies:
+                opt_vars += policy.trainable_variables
+        with tf.GradientTape() as tape:
+            loss_val = -1 * acqfn(policies, x_batch, lambdas)
+        grads = tape.gradient(loss_val, opt_vars)
+        clipped_grads = [tf.clip_by_norm(grad, clip_norm=10) for grad in grads]
+        opt.apply_gradients(zip(clipped_grads, opt_vars))
+        x_batch.assign(tf.clip_by_value(x_batch, -1, 1))
+        return loss_val
+
     def optimize(self, x_batch):
         x_batch = tf.Variable(x_batch, dtype=tf.float32)
         lambdas = tf.random.normal((x_batch.shape[0], self.params.num_sprime_samps, self.params.obs_dim), dtype=tf.float32)
@@ -137,37 +152,23 @@ class KGAcqOptimizer(AcqOptimizer):
         if self.params.policies is None:
             self.params.policies = self.get_policies(x_batch.shape[0], self.params.num_sprime_samps, self.params.obs_dim, self.params.action_dim,
                                                      self.params.hidden_layer_sizes)
-        def loss():
-            return -1 * self.acqfunction(self.params.policies, x_batch, lambdas)
-        opt_vars = [x_batch]
         self.risk_vals = []
         self.eval_vals = []
         self.eval_steps = []
-        for x_policies in self.params.policies:
-            for policy in x_policies:
-                opt_vars += policy.trainable_variables
         pbar = trange(self.params.num_steps)
         avg_return = None
         for i in pbar:
             if self.params.policy_test_period != 0 and i % self.params.policy_test_period == 0:
                 self.eval_steps.append(i)
                 avg_return = self.evaluate(self.params.policies)
-            with tf.GradientTape() as tape:
-                loss_val = loss()
-            self.risk_vals.append(float(loss_val))
-            grads = tape.gradient(loss_val, opt_vars)
-            # tqdm.write(f"{tf.reduce_max(tf.abs(grads[0]))=}")
-            opt.apply_gradients(zip(grads, opt_vars))
-            # TODO: make sure we're in a NormalizedBoxEnv or use other bounds
-            x_batch.assign(tf.clip_by_value(x_batch, -1, 1))
-            # tqdm.write(f"{x_batch.numpy()=}")
-            postfix = {"Bayes Risk": loss_val.numpy()}
+            bayes_risk = float(self.tf_train_step(self.acqfunction, opt, self.params.policies, x_batch, lambdas))
+            self.risk_vals.append(bayes_risk)
+            postfix = {"Bayes Risk": bayes_risk}
             if avg_return is not None:
                 postfix["Avg Return"] = avg_return
             pbar.set_postfix(postfix)
         optima = np.squeeze(x_batch.numpy())
-        final_losses = loss()
-        return optima, np.squeeze(final_losses.numpy())
+        return optima, bayes_risk
 
     def evaluate(self, policies):
         '''

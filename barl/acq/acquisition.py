@@ -838,6 +838,7 @@ class PILCOAcqFunction(AcqFunction):
     def initialize(self):
         self.start_states = [self.params.p0() for _ in range(self.params.num_s0)]
         self.conditioned_model = self.params.gp_model_class(self.params.gp_model_params, self.model.data)
+        '''
         self.rollout = tf.function(partial(self.execute_policy_on_fs,
             model=self.conditioned_model,
             start_states=self.start_states,
@@ -845,6 +846,14 @@ class PILCOAcqFunction(AcqFunction):
             rollout_horizon=self.params.rollout_horizon,
             update_fn=self.params.update_fn,
             reward_fn=self.params.reward_fn))
+        '''
+        self.rollout = partial(self.execute_policy_on_fs,
+            model=self.conditioned_model,
+            start_states=self.start_states,
+            num_fs=self.params.num_fs,
+            rollout_horizon=self.params.rollout_horizon,
+            update_fn=self.params.update_fn,
+            reward_fn=self.params.reward_fn)
 
     def __call__(self, policy_list, *args, **kwargs):
         '''
@@ -930,8 +939,6 @@ class KGRLAcqFunction(PILCOAcqFunction):
             update_fn=self.params.update_fn,
             reward_fn=self.params.reward_fn))
 
-
-
     def __call__(self, policy_list, x_list, lambdas):
         return self.tf_acqfn(policy_list, x_list, lambdas)
 
@@ -946,7 +953,6 @@ class KGRLAcqFunction(PILCOAcqFunction):
                  rollout_horizon,
                  update_fn,
                  reward_fn):
-                 
         post_samples = model.sample_post_list(x_list, num_sprime_samps, lambdas)
         risks = []
         for i in range(post_samples.shape[0]):
