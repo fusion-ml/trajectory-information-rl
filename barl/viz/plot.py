@@ -127,7 +127,7 @@ def plot_lava_path(path, ax=None, fig=None, domain=None, path_str="samp", env=No
 def scatter(ax, x, **kwargs):
     x = np.atleast_2d(np.array(x))
     if x.shape[1] % 2 == 1:
-        x = np.concatenate([x, np.zeros(x.shape[0], 1)], axis=1)
+        x = np.concatenate([x, np.zeros((x.shape[0], 1))], axis=1)
     try:
         axes = list(ax)
         for i, ax in enumerate(axes):
