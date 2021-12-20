@@ -30,7 +30,10 @@ def plot_generic(path, ax=None, fig=None, domain=None, path_str="samp", env=None
         axes = ax
     for i, ax in enumerate(axes):
         x_plot = [xi[2 * i] for xi in path.x]
-        y_plot = [xi[2 * i + 1] for xi in path.x]
+        try:
+            y_plot = [xi[2 * i + 1] for xi in path.x]
+        except IndexError:
+            y_plot = [0 for xi in path.x]
         if path_str == "true":
             ax.plot(x_plot, y_plot, 'k--', linewidth=3)
             ax.plot(x_plot, y_plot, '*', color='k', markersize=5)
@@ -123,6 +126,8 @@ def plot_lava_path(path, ax=None, fig=None, domain=None, path_str="samp", env=No
 
 def scatter(ax, x, **kwargs):
     x = np.atleast_2d(np.array(x))
+    if x.shape[1] % 2 == 1:
+        x = np.concatenate([x, np.zeros(x.shape[0], 1)], axis=1)
     try:
         axes = list(ax)
         for i, ax in enumerate(axes):
@@ -252,5 +257,7 @@ def make_plot_obs(data, env, normalize_obs):
     if normalize_obs:
         norm_obs = x_data[..., :obs_dim]
         unnorm_obs = env.unnormalize_obs(norm_obs)
-        x_data = unnorm_obs
+        action = x_data[..., obs_dim:]
+        unnorm_action = env.unnormalize_action(action)
+        x_data = np.concatenate([unnorm_obs, unnorm_action], axis=-1)
     return x_data

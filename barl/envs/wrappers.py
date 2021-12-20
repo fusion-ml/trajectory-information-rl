@@ -156,10 +156,10 @@ def make_normalized_plot_fn(norm_env, plot_fn):
         if path:
             x = np.array(path.x)
             norm_obs = x[..., :obs_dim]
-            # action = x[..., obs_dim:]
-            # unnorm_action = norm_env.unnormalize_action(action)
+            action = x[..., obs_dim:]
+            unnorm_action = norm_env.unnormalize_action(action)
             unnorm_obs = norm_env.unnormalize_obs(norm_obs)
-            unnorm_x = unnorm_obs
+            unnorm_x = np.concatenate([unnorm_obs, unnorm_action], axis=-1)
             path.x = list(unnorm_x)
             try:
                 y = np.array(path.y)
