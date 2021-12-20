@@ -156,18 +156,22 @@ class KGAcqOptimizer(AcqOptimizer):
         self.eval_vals = []
         self.eval_steps = []
         pbar = trange(self.params.num_steps)
+        best_risk = np.inf
         avg_return = None
+        optima = None
         for i in pbar:
             if self.params.policy_test_period != 0 and i % self.params.policy_test_period == 0:
                 self.eval_steps.append(i)
                 avg_return = self.evaluate(self.params.policies)
             bayes_risk = float(self.tf_train_step(self.acqfunction, opt, self.params.policies, x_batch, lambdas))
+            if bayes_risk < best_risk:
+                best_risk = bayes_risk
+                optima = np.squeeze(x_batch.numpy())
             self.risk_vals.append(bayes_risk)
             postfix = {"Bayes Risk": bayes_risk}
             if avg_return is not None:
                 postfix["Avg Return"] = avg_return
             pbar.set_postfix(postfix)
-        optima = np.squeeze(x_batch.numpy())
         return optima, bayes_risk
 
     def evaluate(self, policies):
