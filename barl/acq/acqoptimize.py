@@ -173,7 +173,7 @@ class KGAcqOptimizer(AcqOptimizer):
             if avg_return is not None:
                 postfix["Avg Return"] = avg_return
             pbar.set_postfix(postfix)
-        return optima, bayes_risk
+        return optima, best_risk
 
     def evaluate(self, policies):
         '''
