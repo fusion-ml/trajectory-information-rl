@@ -311,13 +311,13 @@ def get_model(config, env, obs_dim, action_dim):
         'alpha': config.env.gp.alpha,
         'sigma': config.env.gp.sigma,
         'n_dimx': obs_dim + action_dim,
-        'tf_dtype': get_tf_dtype(config.tf_precision),
     }
     if config.env.gp.periodic:
         gp_params['kernel_str'] = 'rbf_periodic'
         gp_params['periodic_dims'] = env.periodic_dimensions
         gp_params['period'] = config.env.gp.period
-    gp_model_params = {'n_dimy': obs_dim, 'gp_params': gp_params}
+    gp_model_params = {'n_dimy': obs_dim, 'gp_params': gp_params,
+                       'tf_dtype': get_tf_dtype(config.tf_precision)}
     if config.alg.kgrl or config.alg.pilco:
         gp_model_class = TFMultiGpfsGp
     else:

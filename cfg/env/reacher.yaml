@@ -22,3 +22,4 @@ mpc:
   xi: 0.3
   num_iters: 5
   actions_per_plan: 1
+tf_precision: 32

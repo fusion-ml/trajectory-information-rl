@@ -12,7 +12,7 @@ env:
     gp:
       periodic: False
       opt_max_iter: 1000
-    tf_precision: 32
+    tf_precision: 64
 alg:
     uncertainty_sampling: False
     kgrl: False
