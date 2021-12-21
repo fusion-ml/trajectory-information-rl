@@ -177,7 +177,7 @@ def get_cholesky_decomp(k11_nonoise, sigma, psd_str):
 def tf_get_cholesky_decomp(k11_nonoise, sigma, psd_str):
     """Return cholesky decomposition. Simplest implementation, can make
        smarter later."""
-    k11 = k11_nonoise + sigma ** 2 * tf.eye(k11_nonoise.shape[0], dtype=tf.float64)
+    k11 = k11_nonoise + sigma ** 2 * tf.eye(k11_nonoise.shape[0], dtype=k11_nonoise.dtype)
     return tfp.experimental.linalg.simple_robustified_cholesky(k11)
 
 

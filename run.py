@@ -9,9 +9,11 @@ from tqdm import trange
 from functools import partial
 from copy import deepcopy
 import tensorflow as tf
+from tensorflow import keras
 import hydra
 import random
 from matplotlib import pyplot as plt
+import gpflow.config
 
 from barl.models.gpfs_gp import BatchMultiGpfsGp, TFMultiGpfsGp
 from barl.models.gpflow_gp import get_gpflow_hypers_from_data
@@ -27,7 +29,7 @@ from barl.alg.mpc import MPC
 from barl import envs
 from barl.envs.wrappers import NormalizedEnv, make_normalized_reward_function, make_update_obs_fn
 from barl.envs.wrappers import make_normalized_plot_fn
-from barl.util.misc_util import Dumper, make_postmean_fn, mse, model_likelihood
+from barl.util.misc_util import Dumper, make_postmean_fn, mse, model_likelihood, get_tf_dtype
 from barl.util.control_util import get_f_batch_mpc, get_f_batch_mpc_reward, compute_return, evaluate_policy
 from barl.util.domain_util import unif_random_sample_domain
 from barl.util.timing import Timer
@@ -248,6 +250,10 @@ def configure(config):
     np.random.seed(seed)
     tf.random.set_seed(seed)
     tf.config.run_functions_eagerly(config.tf_eager)
+    tf_dtype = get_tf_dtype(config.tf_precision)
+    str_dtype = str(tf_dtype).split("'")[1]
+    keras.backend.set_floatx(str_dtype)
+    gpflow.config.set_default_float(tf_dtype)
 
     # Check fixed_start_obs and num_samples_mc compatability
     assert (not config.fixed_start_obs) or config.num_samples_mc == 1, f"Need to have a fixed start obs ({config.fixed_start_obs}) or only 1 mc sample ({config.num_samples_mc})"  # NOQA
@@ -304,7 +310,8 @@ def get_model(config, env, obs_dim, action_dim):
         'ls': config.env.gp.ls,
         'alpha': config.env.gp.alpha,
         'sigma': config.env.gp.sigma,
-        'n_dimx': obs_dim + action_dim
+        'n_dimx': obs_dim + action_dim,
+        'tf_dtype': get_tf_dtype(config.tf_precision),
     }
     if config.env.gp.periodic:
         gp_params['kernel_str'] = 'rbf_periodic'
@@ -346,6 +353,7 @@ def get_acq_fn(config, horizon, p0, reward_fn, update_fn, obs_dim, action_dim,
 def get_acq_opt(config, obs_dim, action_dim, env, start_obs):
     if config.alg.gd_opt:
         acqopt_params = {
+                "tf_dtype": get_tf_dtype(config.tf_precision),
                 "learning_rate": config.alg.learning_rate,
                 "num_steps": config.alg.num_steps,
                 "obs_dim": obs_dim,

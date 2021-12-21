@@ -114,6 +114,7 @@ class KGAcqOptimizer(AcqOptimizer):
         self.params.policy_test_period = params.policy_test_period
         self.params.num_eval_trials = params.num_eval_trials
         self.params.eval_fn = params.eval_fn
+        self.params.tf_dtype = params.tf_dtype
         self.params.policies = getattr(params, 'policies', None)
         self.risk_vals = None
         self.eval_vals = None
@@ -145,8 +146,8 @@ class KGAcqOptimizer(AcqOptimizer):
         return loss_val
 
     def optimize(self, x_batch):
-        x_batch = tf.Variable(x_batch, dtype=tf.float64)
-        lambdas = tf.random.normal((x_batch.shape[0], self.params.num_sprime_samps, self.params.obs_dim), dtype=tf.float64)
+        x_batch = tf.Variable(x_batch, dtype=self.config.tf_dtype)
+        lambdas = tf.random.normal((x_batch.shape[0], self.params.num_sprime_samps, self.params.obs_dim), dtype=self.config.tf_dtype)
         # policies = [[TanhMlpPolicy(self.params.obs_dim, self.params.action_dim, self.params.hidden_layer_sizes) for _ in range(x_batch.shape[0])]
         opt = keras.optimizers.Adam(learning_rate=self.params.learning_rate)
         if self.params.policies is None:

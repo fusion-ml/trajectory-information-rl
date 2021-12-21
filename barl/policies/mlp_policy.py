@@ -1,6 +1,5 @@
 from tensorflow import keras
 from tensorflow.keras import layers
-keras.backend.set_floatx('float64')
 
 
 def MlpPolicy(obs_dim, action_dim, hidden_layer_sizes, output_activation=None):
@@ -11,4 +10,4 @@ def MlpPolicy(obs_dim, action_dim, hidden_layer_sizes, output_activation=None):
 
 
 def TanhMlpPolicy(obs_dim, action_dim, hidden_layer_sizes):
-        return MlpPolicy(obs_dim, action_dim, hidden_layer_sizes, output_activation='tanh')
+    return MlpPolicy(obs_dim, action_dim, hidden_layer_sizes, output_activation='tanh')

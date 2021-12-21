@@ -146,3 +146,12 @@ def model_likelihood(model, x, y):
     logpdfs = logpdfs.reshape((n, -1))
     avg_likelihood = logpdfs.sum(axis=1).mean()
     return avg_likelihood
+
+
+def get_tf_dtype(precision):
+    if precision == 32:
+        return tf.float32
+    elif precision == 64:
+        return tf.float64
+    else:
+        raise ValueError(f"TF Precision {precision} not supported")

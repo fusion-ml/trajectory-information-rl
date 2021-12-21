@@ -12,6 +12,7 @@ env:
     gp:
       periodic: False
       opt_max_iter: 1000
+    tf_precision: 32
 alg:
     uncertainty_sampling: False
     kgrl: False
@@ -44,6 +45,7 @@ num_samples_mc: 1
 num_init_data: 1
 test_set_size: 1000
 tf_eager: False
+tf_precision: ${env.tf_precision}
 n_paths: 15
 sample_exe: ${env.sample_exe}
 path_sampling_fraction: 0.8
