@@ -88,12 +88,14 @@ class PathwiseGPR(GPR, PathwiseGPModel):
                      num_bases: int = None,
                      prior: AbstractSampler = None,
                      sample_axis: int = None,
+                     weights: Optional[Union[tf.Tensor, tf.Variable]] = None,
                      **kwargs) -> CompositeSampler:
 
     if prior is None:
       prior = sampling.priors.random_fourier(self.kernel,
                                              num_bases=num_bases,
                                              sample_shape=[num_samples],
+                                             weights=weights,
                                              sample_axis=sample_axis)
     elif num_bases is not None:
       assert prior.sample_shape == [num_samples]

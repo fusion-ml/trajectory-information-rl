@@ -207,10 +207,18 @@ class TFGpfsGp(TFSimpleGp):
             noise_variance=self.params.sigma**2,
         )
 
-    def initialize_function_sample_list(self, n_fsamp=1):
-        """Initialize a list of n_fsamp function samples."""
+    def initialize_function_sample_list(self, n_fsamp=1, weights=None):
+        """Initialize a list of n_fsamp function samples.
+
+        args:
+            n_fsamp, an integer number of function samples to initialize
+            weights, an optional Tensor of shape n_fsamp x 1 x n_bases
+                generated from a unit normal distribution. This can be used
+                for a reparameterization trick for pathwise sampling. Will fail an
+                assertion if shape is wrong.
+        """
         n_bases = self.params.n_bases
-        paths = self.params.model.generate_paths(num_samples=n_fsamp, num_bases=n_bases)
+        paths = self.params.model.generate_paths(num_samples=n_fsamp, num_bases=n_bases, weights=None)
         _ = self.params.model.set_paths(paths)
 
         self.n_fsamp = n_fsamp
@@ -413,12 +421,19 @@ class TFMultiGpfsGp(MultiGpfsGp):
             gp.set_data(dat)
 
 
-    def initialize_function_sample_list(self, n_samp=1):
+    def initialize_function_sample_list(self, n_samp=1, weights=None):
         """
         Initialize a list of n_samp function samples, for each GP in self.gpfsgp_list.
+        args:
+            n_fsamp, an integer number of function samples to initialize
+            weights, an optional Tensor of shape d_y x n_fsamp x 1 x n_bases
+                generated from a unit normal distribution. This can be used
+                for a reparameterization trick for pathwise sampling. Will fail an
+                assertion if shape is wrong.
         """
-        for gpfsgp in self.gpfsgp_list:
-            gpfsgp.initialize_function_sample_list(n_samp)
+        for i, gpfsgp in enumerate(self.gpfsgp_list):
+            gp_weights = weights[i, ...], else None
+            gpfsgp.initialize_function_sample_list(n_samp, weights=gp_weights)
 
     def call_function_sample_list(self, x_list):
         """
