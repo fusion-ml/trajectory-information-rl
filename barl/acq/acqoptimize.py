@@ -115,7 +115,7 @@ class KGAcqOptimizer(AcqOptimizer):
         self.params.num_eval_trials = params.num_eval_trials
         self.params.eval_fn = params.eval_fn
         self.params.tf_dtype = params.tf_dtype
-        self.params.policies = getattr(params, 'policies', None)
+        self.params.policies = params.policies
         self.risk_vals = None
         self.eval_vals = None
         self.eval_steps = None
@@ -123,6 +123,8 @@ class KGAcqOptimizer(AcqOptimizer):
 
     @staticmethod
     def get_policies(num_x, num_sprime_samps, obs_dim, action_dim, hidden_layer_sizes):
+        # don't use this in the class, use it in the run loop so that the code one level up
+        # controls how long to use them for
         policies = []
         for _ in range(num_x):
             xval_policies = []
@@ -150,9 +152,6 @@ class KGAcqOptimizer(AcqOptimizer):
         lambdas = tf.random.normal((x_batch.shape[0], self.params.num_sprime_samps, self.params.obs_dim), dtype=self.params.tf_dtype)
         # policies = [[TanhMlpPolicy(self.params.obs_dim, self.params.action_dim, self.params.hidden_layer_sizes) for _ in range(x_batch.shape[0])]
         opt = keras.optimizers.Adam(learning_rate=self.params.learning_rate)
-        if self.params.policies is None:
-            self.params.policies = self.get_policies(x_batch.shape[0], self.params.num_sprime_samps, self.params.obs_dim, self.params.action_dim,
-                                                     self.params.hidden_layer_sizes)
         self.risk_vals = []
         self.eval_vals = []
         self.eval_steps = []

@@ -529,8 +529,12 @@ def get_next_point(
             dumper.add("Policy Returns", acqopt.eval_vals, verbose=False)
             dumper.add("Policy Return ndata", acqopt.eval_steps, verbose=False)
             if i % config.alg.policy_lifetime == 0:
-                # will force acqopt to reinitialize policies
-                acqopt_params["policies"] = None
+                # reinitialize policies
+                acqopt_params["policies"] = KGAcqOptimizer.get_policies(config.n_rand_acqopt,
+                                                                        config.alg.num_sprime_samps,
+                                                                        obs_dim,
+                                                                        action_dim,
+                                                                        [128, 128])
             if config.alg.kg_policy:
                 # this relies on the fact that in the KGPolicyAcqOptimizer, advance action sequence is called
                 # as part of optimize() which sets this up for copying back
