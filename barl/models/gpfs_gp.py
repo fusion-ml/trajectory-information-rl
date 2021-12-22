@@ -432,7 +432,7 @@ class TFMultiGpfsGp(MultiGpfsGp):
                 assertion if shape is wrong.
         """
         for i, gpfsgp in enumerate(self.gpfsgp_list):
-            gp_weights = weights[i, ...], else None
+            gp_weights = weights[i, ...] if weights is not None else None
             gpfsgp.initialize_function_sample_list(n_samp, weights=gp_weights)
 
     def call_function_sample_list(self, x_list):

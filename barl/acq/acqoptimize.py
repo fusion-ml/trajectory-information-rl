@@ -9,7 +9,7 @@ from tqdm import trange
 
 from .acquisition import BaxAcqFunction
 from ..util.base import Base
-from ..util.misc_util import dict_to_namespace
+from ..util.misc_util import dict_to_namespace, flatten
 from ..util.control_util import compute_return
 from ..policies import TanhMlpPolicy
 
@@ -180,7 +180,7 @@ class KGAcqOptimizer(AcqOptimizer):
         be used by the optimizer, it is strictly for diagnostic purposes.
         '''
         all_returns = []
-        policies = [policy for plist in policies for policy in plist]
+        policies = flatten(policies)
         for policy in policies:
             policy_returns = []
             for i in range(self.params.num_eval_trials):
@@ -198,11 +198,11 @@ class KGPolicyAcqOptimizer(KGAcqOptimizer):
         params = dict_to_namespace(params)
         self.params.num_bases = getattr(params, 'num_bases', 1000)
         self.params.planning_horizon = getattr(params, 'planning_horizon', 5)
-        self.parans.action_sequence = getattr(params, 'action_sequence', None)
+        self.params.action_sequence = getattr(params, 'action_sequence', None)
         self.tf_train_step = tf.function(self.train_step)
 
     @staticmethod
-    def get_policies(num_sprime_samps, obs_dim, action_dim, hidden_layer_sizes):
+    def get_policies(num_sprime_samps, obs_dim, action_dim, hidden_layer_sizes, **kwargs):
         policies = []
         for _ in range(num_sprime_samps):
             policies.append(TanhMlpPolicy(obs_dim, action_dim, hidden_layer_sizes))
@@ -237,7 +237,7 @@ class KGPolicyAcqOptimizer(KGAcqOptimizer):
 
     def optimize(self, x_batch):
         # assume x_batch is 1x(obs_dim + action_dim)
-        current_obs = tf.Tensor(x_batch[0, :obs_dim], dtype=self.params.tf_dtype)
+        current_obs = tf.convert_to_tensor(x_batch[0][:self.params.obs_dim], dtype=self.params.tf_dtype)
         lambdas = tf.random.normal((self.params.obs_dim, self.params.num_sprime_samps, 1, self.params.num_bases),
                                    dtype=self.params.tf_dtype)
         opt = keras.optimizers.Adam(learning_rate=self.params.learning_rate)
@@ -245,7 +245,7 @@ class KGPolicyAcqOptimizer(KGAcqOptimizer):
             self.params.policies = self.get_policies(self.params.num_sprime_samps, self.params.obs_dim,
                                                      self.params.action_dim, self.params.hidden_layer_sizes)
         if self.params.action_sequence is None:
-            self.params.action_sequence = self.sample_action_sequence()
+            self.params.action_sequence = self.sample_action_sequence(self.params.planning_horizon)
         self.risk_vals = []
         self.eval_vals = []
         self.eval_steps = []
@@ -262,7 +262,6 @@ class KGPolicyAcqOptimizer(KGAcqOptimizer):
                                                   current_obs,
                                                   self.params.action_sequence,
                                                   self.params.policies,
-                                                  x_batch,
                                                   lambdas))
             if bayes_risk < best_risk:
                 best_risk = bayes_risk

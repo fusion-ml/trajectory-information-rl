@@ -114,13 +114,13 @@ def make_postmean_fn(model, use_tf=False):
         return mu_tup_for_x
     if not use_tf:
         return postmean_fn
+
     def tf_postmean_fn(x):
         x = tf.convert_to_tensor(x, dtype=tf.float32)
         mu_list, std_list = model.get_post_mu_cov(x, full_cov=False)
         mu_tup_for_x = list(mu_list.numpy())
         return mu_tup_for_x
     return tf_postmean_fn
-
 
 
 def mse(y, y_hat):
@@ -155,3 +155,13 @@ def get_tf_dtype(precision):
         return tf.float64
     else:
         raise ValueError(f"TF Precision {precision} not supported")
+
+
+def flatten(policy_list):
+    out = []
+    for item in policy_list:
+        if type(item) is list:
+            out += item
+        else:
+            out.append(item)
+    return out

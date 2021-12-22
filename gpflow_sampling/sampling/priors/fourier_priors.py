@@ -40,7 +40,6 @@ def _random_fourier(kernel: Kernel,
   if basis is None:
     basis = fourier_basis(kernel, num_bases=num_bases)
 
-  breakpoint()
   if weights is not None:
     required_shape = list(sample_shape) + [1, num_bases]
     assert list(weights.shape) == required_shape, \

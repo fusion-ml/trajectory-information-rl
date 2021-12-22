@@ -322,7 +322,7 @@ def get_model(config, env, obs_dim, action_dim):
         gp_params['period'] = config.env.gp.period
     gp_model_params = {'n_dimy': obs_dim, 'gp_params': gp_params,
                        'tf_dtype': get_tf_dtype(config.tf_precision)}
-    if config.alg.kgrl or config.alg.pilco:
+    if config.alg.kgrl or config.alg.pilco or config.alg.kg_policy:
         gp_model_class = TFMultiGpfsGp
     else:
         gp_model_class = BatchMultiGpfsGp
@@ -334,7 +334,7 @@ def get_acq_fn(config, horizon, p0, reward_fn, update_fn, obs_dim, action_dim,
     if config.alg.uncertainty_sampling:
         acqfn_params = {}
         acqfn_class = UncertaintySamplingAcqFunction
-    elif config.alg.kgrl or config.alg.pilco:
+    elif config.alg.kgrl or config.alg.pilco or config.alg.kg_policy:
         acqfn_params = {
                 'num_fs': config.alg.num_fs,
                 'num_s0': config.alg.num_s0,
@@ -349,7 +349,7 @@ def get_acq_fn(config, horizon, p0, reward_fn, update_fn, obs_dim, action_dim,
                 }
         if config.alg.kgrl:
             acqfn_class = KGRLAcqFunction
-        elif config.alg.kgrl_policy:
+        elif config.alg.kg_policy:
             acqfn_class = KGRLPolicyAcqFunction
         else:
             acqfn_class = PILCOAcqFunction
@@ -361,6 +361,10 @@ def get_acq_fn(config, horizon, p0, reward_fn, update_fn, obs_dim, action_dim,
 
 def get_acq_opt(config, obs_dim, action_dim, env, start_obs):
     if config.alg.gd_opt:
+        if config.alg.kg_policy:
+            acqopt_class = KGPolicyAcqOptimizer
+        else:
+            acqopt_class = KGAcqOptimizer
         acqopt_params = {
                 "tf_dtype": get_tf_dtype(config.tf_precision),
                 "learning_rate": config.alg.learning_rate,
@@ -370,11 +374,11 @@ def get_acq_opt(config, obs_dim, action_dim, env, start_obs):
                 "num_sprime_samps": config.alg.num_sprime_samps,
                 "policy_test_period": config.alg.policy_test_period,
                 "num_eval_trials": config.num_eval_trials,
-                "policies": KGAcqOptimizer.get_policies(config.n_rand_acqopt,
-                                                        config.alg.num_sprime_samps,
-                                                        obs_dim,
-                                                        action_dim,
-                                                        [128, 128])
+                "policies": acqopt_class.get_policies(num_x=config.n_rand_acqopt,
+                                                      num_sprime_samps=config.alg.num_sprime_samps,
+                                                      obs_dim=obs_dim,
+                                                      action_dim=action_dim,
+                                                      hidden_layer_sizes=[128, 128])
             }
         if config.alg.policy_test_period != 0:
             eval_fn = partial(evaluate_policy, env=env, start_obs=start_obs, autobatch=True)
@@ -385,10 +389,6 @@ def get_acq_opt(config, obs_dim, action_dim, env, start_obs):
             acqopt_params['hidden_layer_sizes'] = config.alg.hidden_layer_sizes
         except Exception:
             pass
-        if config.alg.kgrl_policy:
-            acqopt_class = KGPolicyAcqOptimizer
-        else:
-            acqopt_class = KGAcqOptimizer
     else:
         acqopt_params = {}
         acqopt_class = AcqOptimizer
@@ -530,11 +530,11 @@ def get_next_point(
             dumper.add("Policy Return ndata", acqopt.eval_steps, verbose=False)
             if i % config.alg.policy_lifetime == 0:
                 # reinitialize policies
-                acqopt_params["policies"] = KGAcqOptimizer.get_policies(config.n_rand_acqopt,
-                                                                        config.alg.num_sprime_samps,
-                                                                        obs_dim,
-                                                                        action_dim,
-                                                                        [128, 128])
+                acqopt_params["policies"] = acqopt_class.get_policies(num_x=config.n_rand_acqopt,
+                                                                      num_sprime_samps=config.alg.num_sprime_samps,
+                                                                      obs_dim=obs_dim,
+                                                                      action_dim=action_dim,
+                                                                      hidden_layer_sizes=[128, 128])
             if config.alg.kg_policy:
                 # this relies on the fact that in the KGPolicyAcqOptimizer, advance action sequence is called
                 # as part of optimize() which sets this up for copying back

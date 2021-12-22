@@ -10,7 +10,7 @@ from scipy.stats import norm as sps_norm
 from functools import partial
 
 from ..util.base import Base
-from ..util.misc_util import dict_to_namespace
+from ..util.misc_util import dict_to_namespace, flatten
 from ..util.timing import Timer
 from ..models.function import FunctionSample
 from ..alg.algorithms import AlgorithmSet, BatchAlgorithmSet
@@ -851,7 +851,7 @@ class PILCOAcqFunction(AcqFunction):
         Ignore the extra args so that we don't have to worry about anything besides the policies
         '''
         risks = []
-        for policy in self.flatten(policy_list):
+        for policy in flatten(policy_list):
             neg_bayes_risk = self.rollout(policy, self.model.data.x, self.model.data.y)
             risks.append(neg_bayes_risk)
         return tf.reduce_mean(risks)
@@ -917,6 +917,7 @@ class KGRLAcqFunction(PILCOAcqFunction):
     """
     def set_params(self, params):
         super().set_params(params)
+        params = dict_to_namespace(params)
         self.params.num_sprime_samps = getattr(params, 'num_sprime_samps', 5)
 
     def initialize(self):
@@ -985,6 +986,7 @@ class KGRLPolicyAcqFunction(PILCOAcqFunction):
     """
     def set_params(self, params):
         super().set_params(params)
+        params = dict_to_namespace(params)
         self.params.num_sprime_samps = getattr(params, 'num_sprime_samps', 5)
         self.params.planning_horizon = getattr(params, 'planning_horizon', 5)
 
@@ -1004,25 +1006,23 @@ class KGRLPolicyAcqFunction(PILCOAcqFunction):
 
     @staticmethod
     def execute_actions_on_fs(action_sequence, model, current_obs, update_fn, num_fs):
-        current_states = tf.repeat(current_obs, num_fs, axis=0)
+        current_states = tf.repeat(current_obs[None, :], num_fs, axis=0)
         x_list = []
         y_list = []
         f_batch_list = model.call_function_sample_list
         for t in range(action_sequence.shape[0]):
-            actions = tf.repeat(action_sequence[t, :], num_fs, axis=0)
+            actions = tf.repeat(action_sequence[t:t+1, :], num_fs, axis=0)
             flat_x = tf.concat([current_states, actions], -1)
-            x = tf.reshape(flat_x, (num_fs, 1, -1))
-            deltas = f_batch_list(x)
-            x_list.append(x)
+            deltas = tf.squeeze(f_batch_list(flat_x))
+            x_list.append(flat_x)
             y_list.append(deltas)
-            deltas = tf.squeeze(deltas)
             current_states = update_fn(current_states, deltas)
         x_batch = tf.stack(x_list)
         y_batch = tf.stack(y_list)
         return x_batch, y_batch
 
     @staticmethod
-    def kgrl_policy_acq(current_obs, 
+    def kgrl_policy_acq(current_obs,
                         policy_list,
                         action_sequence,
                         lambdas,

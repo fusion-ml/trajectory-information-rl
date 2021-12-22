@@ -8,7 +8,7 @@
 import tensorflow as tf
 
 from abc import abstractmethod
-from typing import Optional
+from typing import Optional, Union
 from contextlib import contextmanager
 from gpflow.base import TensorLike
 from gpflow.config import default_float, default_jitter
