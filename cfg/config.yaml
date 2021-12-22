@@ -16,6 +16,7 @@ env:
 alg:
     uncertainty_sampling: False
     kgrl: False
+    kg_policy: False
     pilco: False
     gd_opt: False
     eig: False

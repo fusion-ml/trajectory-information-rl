@@ -22,9 +22,10 @@ from barl.acq.acquisition import (
         MCAcqFunction,
         UncertaintySamplingAcqFunction,
         KGRLAcqFunction,
+        KGRLPolicyAcqFunction,
         PILCOAcqFunction
         )
-from barl.acq.acqoptimize import AcqOptimizer, KGAcqOptimizer
+from barl.acq.acqoptimize import AcqOptimizer, KGAcqOptimizer, KGPolicyAcqOptimizer
 from barl.alg.mpc import MPC
 from barl import envs
 from barl.envs.wrappers import NormalizedEnv, make_normalized_reward_function, make_update_obs_fn
@@ -230,6 +231,9 @@ def main(config):
             if current_t > env.horizon:
                 current_t = 0
                 current_obs = start_obs.copy() if config.fixed_start_obs else env.reset()
+                # clear action sequence if it was there (only relevant for KGRL policy, noop otherwise)
+                acqopt_params['action_sequence'] = None
+
             else:
                 delta = y_next[-obs_dim:]
                 current_obs = update_fn(current_obs, delta)
@@ -343,7 +347,12 @@ def get_acq_fn(config, horizon, p0, reward_fn, update_fn, obs_dim, action_dim,
                 'gp_model_params': gp_model_params,
                 'verbose': False,
                 }
-        acqfn_class = KGRLAcqFunction if config.alg.kgrl else PILCOAcqFunction
+        if config.alg.kgrl:
+            acqfn_class = KGRLAcqFunction
+        elif config.alg.kgrl_policy:
+            acqfn_class = KGRLPolicyAcqFunction
+        else:
+            acqfn_class = PILCOAcqFunction
     else:
         acqfn_params = {'n_path': config.n_paths, 'crop': True}
         acqfn_class = MultiBaxAcqFunction
@@ -376,7 +385,10 @@ def get_acq_opt(config, obs_dim, action_dim, env, start_obs):
             acqopt_params['hidden_layer_sizes'] = config.alg.hidden_layer_sizes
         except Exception:
             pass
-        acqopt_class = KGAcqOptimizer
+        if config.alg.kgrl_policy:
+            acqopt_class = KGPolicyAcqOptimizer
+        else:
+            acqopt_class = KGAcqOptimizer
     else:
         acqopt_params = {}
         acqopt_class = AcqOptimizer
@@ -512,13 +524,17 @@ def get_next_point(
             x_test = unif_random_sample_domain(domain, n=config.n_rand_acqopt)
         x_next, acq_val = acqopt.optimize(x_test)
         dumper.add('Acquisition Function Value', acq_val)
-        if config.alg.kgrl:
+        if config.alg.kgrl or config.alg.kg_policy:
             dumper.add("Bayes Risks", acqopt.risk_vals, verbose=False)
             dumper.add("Policy Returns", acqopt.eval_vals, verbose=False)
             dumper.add("Policy Return ndata", acqopt.eval_steps, verbose=False)
             if i % config.alg.policy_lifetime == 0:
                 # will force acqopt to reinitialize policies
                 acqopt_params["policies"] = None
+            if config.alg.kg_policy:
+                # this relies on the fact that in the KGPolicyAcqOptimizer, advance action sequence is called
+                # as part of optimize() which sets this up for copying back
+                acqopt_params["action_sequence"] = acqopt.params.action_sequence
 
     elif config.alg.use_mpc:
         model = gp_model_class(gp_model_params, data)

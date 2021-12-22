@@ -199,6 +199,7 @@ class KGPolicyAcqOptimizer(KGAcqOptimizer):
         params = dict_to_namespace(params)
         self.params.num_bases = getattr(params, 'num_bases', 1000)
         self.params.planning_horizon = getattr(params, 'planning_horizon', 5)
+        self.parans.action_sequence = getattr(params, 'action_sequence', None)
         self.tf_train_step = tf.function(self.train_step)
 
     @staticmethod
