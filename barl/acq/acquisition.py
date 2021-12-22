@@ -891,7 +891,9 @@ class PILCOAcqFunction(AcqFunction):
         obs_dim = current_states.shape[-1]
         num_s0 = current_states.shape[0]
         data = Namespace(x=x_data, y=y_data)
-        model.set_data(data)
+        # don't need to sample from posterior predictive,
+        # only function samples
+        model.set_data(data, fs_only=True)
         model.initialize_function_sample_list(num_fs)
         current_states = np.repeat(current_states[np.newaxis, :, :], num_fs, axis=0)
         current_states = tf.convert_to_tensor(current_states, dtype=x_data.dtype)
