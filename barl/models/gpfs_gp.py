@@ -192,9 +192,15 @@ class TFGpfsGp(TFSimpleGp):
 
         self.params.gpf_kernel = gpf_kernel
 
-    def set_data(self, data):
-        """Set self.data."""
-        super().set_data(data)
+    def set_data(self, data, fs_only=False):
+        """Set self.data. fs_only saves on the cholesky decomposition if it is unnecessary"""
+        if not fs_only:
+            super().set_data(data)
+        else:
+            data.x = tf.convert_to_tensor(data.x)
+            data.y = tf.convert_to_tensor(data.y)
+            self.data = data
+
         if self.params.model is None:
             self.set_model()
         self.params.model.data = (data.x, data.y)
@@ -393,6 +399,7 @@ class TFMultiGpfsGp(MultiGpfsGp):
         super().set_params(params)
         params = dict_to_namespace(params)
         self.params.tf_dtype = params.tf_dtype
+        self.params.fs_only = None
 
     def set_gpfsgp_list(self):
         """Set self.gpfsgp_list by instantiating a list of GpfsGp objects."""
@@ -405,8 +412,9 @@ class TFMultiGpfsGp(MultiGpfsGp):
             TFGpfsGp(gpp, dat, verb) for gpp, dat in zip(gp_params_list, data_list)
         ]
 
-    def set_data(self, data):
+    def set_data(self, data, fs_only=False):
         """Set self.data."""
+        self.params.fs_only = fs_only
         if data is None:
             raise NotImplementedError()
         else:
@@ -418,7 +426,7 @@ class TFMultiGpfsGp(MultiGpfsGp):
             return
         data_list = self.get_data_list(self.data)
         for gp, dat in zip(self.gpfsgp_list, data_list):
-            gp.set_data(dat)
+            gp.set_data(dat, fs_only)
 
 
     def initialize_function_sample_list(self, n_samp=1, weights=None):
@@ -459,6 +467,7 @@ class TFMultiGpfsGp(MultiGpfsGp):
 
     def get_post_mu_cov(self, x_list, full_cov=False):
         """Returns a list of mu, and a list of cov/std."""
+        assert not self.params.fs_only, "Can't get posterior values if fs_only initialization"
         x_list = tf.cast(x_list, self.params.tf_dtype)
         mu_list, cov_list = [], []
         for gp in self.gpfsgp_list:
@@ -478,6 +487,7 @@ class TFMultiGpfsGp(MultiGpfsGp):
 
         Lambdas are sampled r.vs for the reparameterization trick
         '''
+        assert not self.params.fs_only, "Can't get posterior values if fs_only initialization"
         assert len(self.data.x) > 0
         mu_list, cov_list = self.get_post_mu_cov(x_list, full_cov)
         if lambdas is None:
