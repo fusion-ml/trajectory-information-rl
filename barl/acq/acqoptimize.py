@@ -191,3 +191,86 @@ class KGAcqOptimizer(AcqOptimizer):
             all_returns.append(policy_returns)
         self.eval_vals.append(all_returns)
         return np.mean(all_returns)
+
+
+class KGPolicyAcqOptimizer(KGAcqOptimizer):
+    def set_params(self, params):
+        super().set_params(params)
+        params = dict_to_namespace(params)
+        self.params.num_bases = getattr(params, 'num_bases', 1000)
+        self.params.planning_horizon = getattr(params, 'planning_horizon', 5)
+        self.tf_train_step = tf.function(self.train_step)
+
+    @staticmethod
+    def get_policies(num_sprime_samps, obs_dim, action_dim, hidden_layer_sizes):
+        policies = []
+        for _ in range(num_sprime_samps):
+            policies.append(TanhMlpPolicy(obs_dim, action_dim, hidden_layer_sizes))
+        return policies
+
+    def sample_action_sequence(self, horizon):
+        # assumes action_sequence is in [-1, 1]^{planning_horizon x action_dim}
+        action_sequence = tf.Variable(tf.random.uniform([horizon, self.params.action_dim],
+                                             dtype=self.params.tf_dtype) * 2 - 1)
+        return action_sequence
+
+    def advance_action_sequence(self, action_sequence, current_obs):
+        current_action = action_sequence[0, :]
+        x = np.concatenate([current_obs, current_action], axis=-1)
+        new_action = self.sample_action_sequence(1)
+        # this might crash idk
+        return x, tf.Variable(tf.concat([action_sequence[1:, :], new_action], axis=0))
+
+
+    @staticmethod
+    def train_step(acqfn, opt, current_obs, action_sequence, policies, lambdas):
+        opt_vars = [action_sequence]
+        for policy in policies:
+            opt_vars += policy.trainable_variables
+        with tf.GradientTape() as tape:
+            loss_val = -1 * acqfn(current_obs, policies, action_sequence, lambdas)
+        grads = tape.gradient(loss_val, opt_vars)
+        clipped_grads = [tf.clip_by_norm(grad, clip_norm=10) for grad in grads]
+        opt.apply_gradients(zip(clipped_grads, opt_vars))
+        action_sequence.assign(tf.clip_by_value(action_sequence, -1, 1))
+        return loss_val
+
+    def optimize(self, x_batch):
+        # assume x_batch is 1x(obs_dim + action_dim)
+        current_obs = tf.Tensor(x_batch[0, :obs_dim], dtype=self.params.tf_dtype)
+        lambdas = tf.random.normal((self.params.obs_dim, self.params.num_sprime_samps, 1, self.params.num_bases),
+                                   dtype=self.params.tf_dtype)
+        opt = keras.optimizers.Adam(learning_rate=self.params.learning_rate)
+        if self.params.policies is None:
+            self.params.policies = self.get_policies(self.params.num_sprime_samps, self.params.obs_dim,
+                                                     self.params.action_dim, self.params.hidden_layer_sizes)
+        if self.params.action_sequence is None:
+            self.params.action_sequence = self.sample_action_sequence()
+        self.risk_vals = []
+        self.eval_vals = []
+        self.eval_steps = []
+        pbar = trange(self.params.num_steps)
+        best_risk = np.inf
+        avg_return = None
+        optima = None
+        for i in pbar:
+            if self.params.policy_test_period != 0 and i % self.params.policy_test_period == 0:
+                self.eval_steps.append(i)
+                avg_return = self.evaluate(self.params.policies)
+            bayes_risk = float(self.tf_train_step(self.acqfunction,
+                                                  opt,
+                                                  current_obs,
+                                                  self.params.action_sequence,
+                                                  self.params.policies,
+                                                  x_batch,
+                                                  lambdas))
+            if bayes_risk < best_risk:
+                best_risk = bayes_risk
+                optimum = self.params.action_sequence.numpy()
+            self.risk_vals.append(bayes_risk)
+            postfix = {"Bayes Risk": bayes_risk}
+            if avg_return is not None:
+                postfix["Avg Return"] = avg_return
+            pbar.set_postfix(postfix)
+        optimum, self.params.action_sequence = self.advance_action_sequence(optimum, current_obs)
+        return optimum, best_risk

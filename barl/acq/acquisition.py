@@ -242,7 +242,7 @@ class BaxAcqFunction(AlgoAcqFunction):
         # -----
         print('\t- clust_idx_list initial details:')
         len_list = [len(clust) for clust in cluster_idx_list]
-        print(f'\t\t- min len_list: {np.min(len_list)},  max len_list: {np.max(len_list)},  len(len_list): {len(len_list)}')
+        print(f'\t\t- min len_list: {np.min(len_list)},  max len_list: {np.max(len_list)},  len(len_list): {len(len_list)}')  # NOQA
         # -----
 
         # Filter clusters that are too small (looping to find optimal dist_thresh)
@@ -838,15 +838,6 @@ class PILCOAcqFunction(AcqFunction):
     def initialize(self):
         self.start_states = [self.params.p0() for _ in range(self.params.num_s0)]
         self.conditioned_model = self.params.gp_model_class(self.params.gp_model_params, self.model.data)
-        '''
-        self.rollout = tf.function(partial(self.execute_policy_on_fs,
-            model=self.conditioned_model,
-            start_states=self.start_states,
-            num_fs=self.params.num_fs,
-            rollout_horizon=self.params.rollout_horizon,
-            update_fn=self.params.update_fn,
-            reward_fn=self.params.reward_fn))
-        '''
         self.rollout = partial(self.execute_policy_on_fs,
             model=self.conditioned_model,
             start_states=self.start_states,
@@ -977,4 +968,94 @@ class KGRLAcqFunction(PILCOAcqFunction):
                 risk_samps.append(neg_bayes_risk)
             risks.append(tf.reduce_mean(risk_samps))
 
+        return tf.reduce_mean(risks)
+
+
+class KGRLPolicyAcqFunction(PILCOAcqFunction):
+    """
+    Implements the KG for RL idea given in the overleaf.
+
+    This version is a standard acquisition function that is only aiming to acquire
+    a single state-action pair that maximizes the expected H-entropy gain
+    for the cost function. To do this, it should run gradient descent on both the policy
+    parameters and the point being acquired.
+
+    This function is intended to be used for gradient-based acquisition and therefore
+    doesn't compute the first term of the h-entropy.
+    """
+    def set_params(self, params):
+        super().set_params(params)
+        self.params.num_sprime_samps = getattr(params, 'num_sprime_samps', 5)
+        self.params.planning_horizon = getattr(params, 'planning_horizon', 5)
+
+    def initialize(self):
+        super().initialize()
+        self.tf_acqfn = tf.function(partial(self.kgrl_policy_acq,
+            model=self.conditioned_model,
+            num_sprime_samps=self.params.num_sprime_samps,
+            start_states=self.start_states,
+            num_fs=self.params.num_fs,
+            rollout_horizon=self.params.rollout_horizon,
+            update_fn=self.params.update_fn,
+            reward_fn=self.params.reward_fn))
+
+    def __call__(self, current_obs, policy_list, action_sequence, lambdas):
+        return self.tf_acqfn(current_obs, policy_list, action_sequence, lambdas)
+
+    @staticmethod
+    def execute_actions_on_fs(action_sequence, model, current_obs, update_fn, num_fs):
+        current_states = tf.repeat(current_obs, num_fs, axis=0)
+        x_list = []
+        y_list = []
+        f_batch_list = model.call_function_sample_list
+        for t in range(action_sequence.shape[0]):
+            actions = tf.repeat(action_sequence[t, :], num_fs, axis=0)
+            flat_x = tf.concat([current_states, actions], -1)
+            x = tf.reshape(flat_x, (num_fs, 1, -1))
+            deltas = f_batch_list(x)
+            x_list.append(x)
+            y_list.append(deltas)
+            deltas = tf.squeeze(deltas)
+            current_states = update_fn(current_states, deltas)
+        x_batch = tf.stack(x_list)
+        y_batch = tf.stack(y_list)
+        return x_batch, y_batch
+
+    @staticmethod
+    def kgrl_policy_acq(current_obs, 
+                        policy_list,
+                        action_sequence,
+                        lambdas,
+                        model,
+                        num_sprime_samps,
+                        start_states,
+                        num_fs,
+                        rollout_horizon,
+                        update_fn,
+                        reward_fn):
+        model.initialize_function_sample_list(num_sprime_samps, weights=lambdas)
+        # this needs to return num_sprime_samps x action_sequence.shape[0] x obs_dim tensor of all the xs and ys
+        # observed in the execution
+        sampled_new_data_x, sampled_new_data_y = KGRLPolicyAcqFunction.execute_actions_on_fs(action_sequence,
+                                                                                             model,
+                                                                                             current_obs,
+                                                                                             update_fn,
+                                                                                             num_sprime_samps)
+        risks = []
+        for i in range(num_sprime_samps):
+            samp_batch_x = sampled_new_data_x[i, ...]
+            samp_batch_y = sampled_new_data_y[i, ...]
+            policy = policy_list[i]
+            x_data = tf.concat([model.data.x, samp_batch_x], axis=0)
+            y_data = tf.concat([model.data.y, samp_batch_y], axis=0)
+            neg_bayes_risk = KGRLPolicyAcqFunction.execute_policy_on_fs(policy,
+                                                                  x_data,
+                                                                  y_data,
+                                                                  model,
+                                                                  start_states,
+                                                                  num_fs,
+                                                                  rollout_horizon,
+                                                                  update_fn,
+                                                                  reward_fn)
+            risks.append(neg_bayes_risk)
         return tf.reduce_mean(risks)
