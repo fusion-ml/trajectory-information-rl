@@ -140,12 +140,13 @@ class KGAcqOptimizer(AcqOptimizer):
             for policy in x_policies:
                 opt_vars += policy.trainable_variables
         with tf.GradientTape() as tape:
-            loss_val = -1 * acqfn(policies, x_batch, lambdas)
+            risks = -1 * acqfn(policies, x_batch, lambdas)
+            loss_val = tf.reduce_mean(risks)
         grads = tape.gradient(loss_val, opt_vars)
         clipped_grads = [tf.clip_by_norm(grad, clip_norm=10) for grad in grads]
         opt.apply_gradients(zip(clipped_grads, opt_vars))
         x_batch.assign(tf.clip_by_value(x_batch, -1, 1))
-        return loss_val
+        return loss_val, risks
 
     def optimize(self, x_batch):
         x_batch = tf.Variable(x_batch, dtype=self.params.tf_dtype)
@@ -163,10 +164,12 @@ class KGAcqOptimizer(AcqOptimizer):
             if self.params.policy_test_period != 0 and i % self.params.policy_test_period == 0:
                 self.eval_steps.append(i)
                 avg_return = self.evaluate(self.params.policies)
-            bayes_risk = float(self.tf_train_step(self.acqfunction, opt, self.params.policies, x_batch, lambdas))
+            loss_val, bayes_risks = self.tf_train_step(self.acqfunction, opt, self.params.policies, x_batch, lambdas)
+            best_risk_index = np.argmin(bayes_risks)
+            bayes_risk = float(bayes_risks[best_risk_index])
             if bayes_risk < best_risk:
                 best_risk = bayes_risk
-                optima = np.squeeze(x_batch.numpy())
+                optima = np.squeeze(x_batch.numpy()[best_risk_index, :])
             self.risk_vals.append(bayes_risk)
             postfix = {"Bayes Risk": bayes_risk}
             if avg_return is not None:

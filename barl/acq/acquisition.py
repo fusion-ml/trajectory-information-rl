@@ -932,8 +932,10 @@ class KGRLAcqFunction(PILCOAcqFunction):
 
     def initialize(self):
         super().initialize()
+        self.fs_model = copy.deepcopy(self.model)
         self.tf_acqfn = tf.function(partial(self.kgrl_acq,
             model=self.conditioned_model,
+            fs_model=self.fs_model,
             num_sprime_samps=self.params.num_sprime_samps,
             start_states=self.start_states,
             num_fs=self.params.num_fs,
@@ -949,6 +951,7 @@ class KGRLAcqFunction(PILCOAcqFunction):
                  x_list,
                  lambdas,
                  model,
+                 fs_model,
                  num_sprime_samps,
                  start_states,
                  num_fs,
@@ -970,7 +973,7 @@ class KGRLAcqFunction(PILCOAcqFunction):
                 neg_bayes_risk = KGRLAcqFunction.execute_policy_on_fs(policy,
                                                                       x_data,
                                                                       y_data,
-                                                                      model,
+                                                                      fs_model,
                                                                       start_states,
                                                                       num_fs,
                                                                       rollout_horizon,
@@ -979,4 +982,4 @@ class KGRLAcqFunction(PILCOAcqFunction):
                 risk_samps.append(neg_bayes_risk)
             risks.append(tf.reduce_mean(risk_samps))
 
-        return tf.reduce_mean(risks)
+        return tf.stack(risks)
