@@ -14,4 +14,4 @@ learning_rate: 0.001
 num_steps: 2000
 hidden_layer_sizes: [128, 128]
 policy_test_period: 200
-policy_lifetime: 20
+policy_lifetime: 0
