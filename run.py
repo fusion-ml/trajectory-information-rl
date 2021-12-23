@@ -516,7 +516,7 @@ def get_next_point(
             dumper.add("Bayes Risks", acqopt.risk_vals, verbose=False)
             dumper.add("Policy Returns", acqopt.eval_vals, verbose=False)
             dumper.add("Policy Return ndata", acqopt.eval_steps, verbose=False)
-            if i % config.alg.policy_lifetime == 0:
+            if config.alg.policy_lifetime != 0 and i % config.alg.policy_lifetime == 0:
                 # reinitialize policies
                 acqopt_params["policies"] = KGAcqOptimizer.get_policies(config.n_rand_acqopt,
                                                         config.alg.num_sprime_samps,
