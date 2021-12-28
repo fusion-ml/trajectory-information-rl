@@ -119,7 +119,23 @@ class KGAcqOptimizer(AcqOptimizer):
         self.risk_vals = None
         self.eval_vals = None
         self.eval_steps = None
-        self.tf_train_step = tf.function(self.train_step)
+        self.x_data = tf.convert_to_tensor(self.params.x_data, dtype=self.params.tf_dtype)
+        self.y_data = tf.convert_to_tensor(self.params.y_data, dtype=self.params.tf_dtype)
+        self.smats = tf.convert_to_tensor(self.params.smats, dtype=self.params.tf_dtype)
+        self.lmats = tf.convert_to_tensor(self.params.lmats, dtype=self.params.tf_dtype)
+        self.tf_train_step = getattr(params, 'train_step',
+                                     tf.function(self.train_step),
+                                     input_signature=[
+                                         None,
+                                         None,
+                                         None,
+                                         tf.TensorSpec((None, params.obs_dim + params.action_dim), params.tf_dtype),
+                                         tf.TensorSpec((None, params.num_sprime_samps, self.params.obs_dim), params.tf_dtype),
+                                         tf.TensorSpec((None, params.obs_dim + params.action_dim), params.tf_dtype),
+                                         tf.TensorSpec((None, params.obs_dim), params.tf_dtype),
+                                         tf.TensorSpec((params.obs_dim, None, None), params.tf_dtype),
+                                         tf.TensorSpec((params.obs_dim, None, None), params.tf_dtype),
+                                         ])
 
     @staticmethod
     def get_policies(num_x, num_sprime_samps, obs_dim, action_dim, hidden_layer_sizes):
@@ -134,13 +150,13 @@ class KGAcqOptimizer(AcqOptimizer):
         return policies
 
     @staticmethod
-    def train_step(acqfn, opt, policies, x_batch, lambdas):
+    def train_step(acqfn, opt, policies, x_batch, lambdas, x_data, y_data, smats, lmats):
         opt_vars = [x_batch]
         for x_policies in policies:
             for policy in x_policies:
                 opt_vars += policy.trainable_variables
         with tf.GradientTape() as tape:
-            risks = -1 * acqfn(policies, x_batch, lambdas)
+            risks = -1 * acqfn(policies, x_batch, lambdas, x_data, y_data, smats, lmats)
             loss_val = tf.reduce_mean(risks)
         grads = tape.gradient(loss_val, opt_vars)
         clipped_grads = [tf.clip_by_norm(grad, clip_norm=10) for grad in grads]
@@ -164,7 +180,7 @@ class KGAcqOptimizer(AcqOptimizer):
             if self.params.policy_test_period != 0 and i % self.params.policy_test_period == 0:
                 self.eval_steps.append(i)
                 avg_return = self.evaluate(self.params.policies)
-            loss_val, bayes_risks = self.tf_train_step(self.acqfunction, opt, self.params.policies, x_batch, lambdas)
+            loss_val, bayes_risks = self.tf_train_step(self.acqfunction, opt, self.params.policies, x_batch, lambdas, self.x_data, self.y_data, self.smats, self.lmats)
             best_risk_index = np.argmin(bayes_risks)
             bayes_risk = float(bayes_risks[best_risk_index])
             if bayes_risk < best_risk:

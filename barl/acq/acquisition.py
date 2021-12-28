@@ -933,6 +933,7 @@ class KGRLAcqFunction(PILCOAcqFunction):
     def initialize(self):
         super().initialize()
         self.fs_model = copy.deepcopy(self.model)
+        '''
         self.tf_acqfn = tf.function(partial(self.kgrl_acq,
             model=self.conditioned_model,
             fs_model=self.fs_model,
@@ -942,14 +943,28 @@ class KGRLAcqFunction(PILCOAcqFunction):
             rollout_horizon=self.params.rollout_horizon,
             update_fn=self.params.update_fn,
             reward_fn=self.params.reward_fn))
+        '''
+        self.tf_acqfn = partial(self.kgrl_acq,
+            model=self.conditioned_model,
+            fs_model=self.fs_model,
+            num_sprime_samps=self.params.num_sprime_samps,
+            start_states=self.start_states,
+            num_fs=self.params.num_fs,
+            rollout_horizon=self.params.rollout_horizon,
+            update_fn=self.params.update_fn,
+            reward_fn=self.params.reward_fn)
 
-    def __call__(self, policy_list, x_list, lambdas):
+    def __call__(self, policy_list, x_list, lambdas, x_data, y_data, smats, lmats):
         return self.tf_acqfn(policy_list, x_list, lambdas)
 
     @staticmethod
     def kgrl_acq(policy_list,
                  x_list,
                  lambdas,
+                 x_data,
+                 y_data,
+                 smats, # d_y x n_x x n_x Tensor
+                 lmats, # d_y x n_x x n_x Tensor
                  model,
                  fs_model,
                  num_sprime_samps,
@@ -958,6 +973,8 @@ class KGRLAcqFunction(PILCOAcqFunction):
                  rollout_horizon,
                  update_fn,
                  reward_fn):
+        data = Namespace(x=x_data, y=y_data)
+        model.set_data(data, smats=smats, lmats=lmats)
         post_samples = model.sample_post_list(x_list, num_sprime_samps, lambdas)
         risks = []
         for i in range(post_samples.shape[0]):

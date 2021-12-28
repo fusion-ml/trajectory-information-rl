@@ -299,7 +299,7 @@ class TFSimpleGp(SimpleGp):
             # will implement this in tf when needed
             raise NotImplementedError()
 
-    def set_data(self, data):
+    def set_data(self, data, lmat=None, smat=None):
         '''
         Data should be given as a dict or Namespace where
         data.x is an n x d_x tf tensor and
@@ -318,11 +318,15 @@ class TFSimpleGp(SimpleGp):
         alpha = self.params.alpha
         sigma = self.params.sigma
 
-        k11_nonoise = kernel(x_train, x_train, ls, alpha)
-        self.lmat = tf_get_cholesky_decomp(k11_nonoise, sigma, 'try_first')
-        self.smat = tf_solve_upper_triangular(tf.transpose(self.lmat), tf_solve_lower_triangular(self.lmat, y_train))
-        # if self.smat.ndim == 1:
-        #     self.smat = self.smat[None, :]
+        assert (lmat is None) == (smat is None)
+        if lmat is not None:
+            self.lmat = lmat
+            self.smat = smat
+        else:
+            k11_nonoise = kernel(x_train, x_train, ls, alpha)
+            self.lmat = tf_get_cholesky_decomp(k11_nonoise, sigma, 'try_first')
+            self.smat = tf_solve_upper_triangular(tf.transpose(self.lmat),
+                                                  tf_solve_lower_triangular(self.lmat, y_train))
 
     def get_prior_mu_cov(self, x_list, full_cov=True):
         raise NotImplementedError()
@@ -363,7 +367,6 @@ class TFSimpleGp(SimpleGp):
         # Return mean and cov matrix (or std-dev array if full_cov=False)
         mu = tf.squeeze(mu2)
         return mu, k2
-
 
     def gp_post_wrapper(self, x_list, data, full_cov=True):
         raise NotImplementedError()

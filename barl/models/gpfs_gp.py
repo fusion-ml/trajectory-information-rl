@@ -192,10 +192,10 @@ class TFGpfsGp(TFSimpleGp):
 
         self.params.gpf_kernel = gpf_kernel
 
-    def set_data(self, data, fs_only=False):
+    def set_data(self, data, fs_only=False, smat=None, lmat=None):
         """Set self.data. fs_only saves on the cholesky decomposition if it is unnecessary"""
         if not fs_only:
-            super().set_data(data)
+            super().set_data(data, smat=smat, lmat=lmat)
         else:
             data.x = tf.convert_to_tensor(data.x)
             data.y = tf.convert_to_tensor(data.y)
@@ -278,6 +278,14 @@ class MultiGpfsGp(Base):
         else:
             data = dict_to_namespace(data)
             self.data = copy.deepcopy(data)
+
+    @property
+    def smats(self):
+        return [gp.smat for gp in self.gpfsgp_list]
+
+    @property
+    def lmats(self):
+        return [gp.lmat for gp in self.gpfsgp_list]
 
     def set_gpfsgp_list(self):
         """Set self.gpfsgp_list by instantiating a list of GpfsGp objects."""
@@ -404,9 +412,10 @@ class TFMultiGpfsGp(MultiGpfsGp):
             TFGpfsGp(gpp, dat, verb) for gpp, dat in zip(gp_params_list, data_list)
         ]
 
-    def set_data(self, data, fs_only=False):
+    def set_data(self, data, fs_only=False, smats=None, lmats=None):
         """Set self.data."""
         self.params.fs_only = fs_only
+        assert (smats is None) == (lmats is None)
         if data is None:
             raise NotImplementedError()
         else:
@@ -417,8 +426,11 @@ class TFMultiGpfsGp(MultiGpfsGp):
         if len(self.gpfsgp_list) == 0:
             return
         data_list = self.get_data_list(self.data)
-        for gp, dat in zip(self.gpfsgp_list, data_list):
-            gp.set_data(dat, fs_only)
+        if smats is None:
+            smats = [None for gp in self.gpfsgp_list]
+            lmats = [None for gp in self.gpfsgp_list]
+        for i, (gp, dat) in enumerate(zip(self.gpfsgp_list, data_list))
+            gp.set_data(dat, fs_only, smat=smats[i], lmat=lmats[i])
 
 
     def initialize_function_sample_list(self, n_samp=1):

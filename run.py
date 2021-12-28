@@ -489,6 +489,10 @@ def get_next_point(
             acqfn = MCAcqFunction(acqfn_base, {"num_samples_mc": config.num_samples_mc})
         else:
             acqfn = acqfn_base
+        acqopt_params["x_data"] = data.x
+        acqopt_params["y_data"] = data.y
+        acqopt_params["smats"] = model.smats
+        acqopt_params["lmats"] = model.lmats
         acqopt = acqopt_class(params=acqopt_params)
         acqopt.initialize(acqfn)
         if config.alg.rollout_sampling:
@@ -516,6 +520,7 @@ def get_next_point(
             dumper.add("Bayes Risks", acqopt.risk_vals, verbose=False)
             dumper.add("Policy Returns", acqopt.eval_vals, verbose=False)
             dumper.add("Policy Return ndata", acqopt.eval_steps, verbose=False)
+            acqopt_params["train_step"] = acqopt.tf_train_step
             if config.alg.policy_lifetime != 0 and i % config.alg.policy_lifetime == 0:
                 # reinitialize policies
                 acqopt_params["policies"] = KGAcqOptimizer.get_policies(config.n_rand_acqopt,
