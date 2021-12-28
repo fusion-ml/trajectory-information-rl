@@ -429,7 +429,7 @@ class TFMultiGpfsGp(MultiGpfsGp):
         if smats is None:
             smats = [None for gp in self.gpfsgp_list]
             lmats = [None for gp in self.gpfsgp_list]
-        for i, (gp, dat) in enumerate(zip(self.gpfsgp_list, data_list))
+        for i, (gp, dat) in enumerate(zip(self.gpfsgp_list, data_list)):
             gp.set_data(dat, fs_only, smat=smats[i], lmat=lmats[i])
 
 

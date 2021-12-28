@@ -119,12 +119,12 @@ class KGAcqOptimizer(AcqOptimizer):
         self.risk_vals = None
         self.eval_vals = None
         self.eval_steps = None
-        self.x_data = tf.convert_to_tensor(self.params.x_data, dtype=self.params.tf_dtype)
-        self.y_data = tf.convert_to_tensor(self.params.y_data, dtype=self.params.tf_dtype)
-        self.smats = tf.convert_to_tensor(self.params.smats, dtype=self.params.tf_dtype)
-        self.lmats = tf.convert_to_tensor(self.params.lmats, dtype=self.params.tf_dtype)
+        self.x_data = tf.convert_to_tensor(params.x_data, dtype=self.params.tf_dtype)
+        self.y_data = tf.convert_to_tensor(params.y_data, dtype=self.params.tf_dtype)
+        self.smats = tf.convert_to_tensor(params.smats, dtype=self.params.tf_dtype)
+        self.lmats = tf.convert_to_tensor(params.lmats, dtype=self.params.tf_dtype)
         self.tf_train_step = getattr(params, 'train_step',
-                                     tf.function(self.train_step),
+                                     tf.function(self.train_step,
                                      input_signature=[
                                          None,
                                          None,
@@ -135,7 +135,7 @@ class KGAcqOptimizer(AcqOptimizer):
                                          tf.TensorSpec((None, params.obs_dim), params.tf_dtype),
                                          tf.TensorSpec((params.obs_dim, None, None), params.tf_dtype),
                                          tf.TensorSpec((params.obs_dim, None, None), params.tf_dtype),
-                                         ])
+                                         ]))
 
     @staticmethod
     def get_policies(num_x, num_sprime_samps, obs_dim, action_dim, hidden_layer_sizes):
