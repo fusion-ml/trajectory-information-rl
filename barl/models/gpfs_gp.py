@@ -66,10 +66,10 @@ class GpfsGp(SimpleGp):
 
         self.params.gpf_kernel = gpf_kernel
 
-    def set_data(self, data, fs_only=False):
+    def set_data(self, data, fs_only=False, lmat=None, smat=None):
         """Set self.data."""
         if not fs_only:
-            super().set_data(data)
+            super().set_data(data, lmat=lmat, smat=smat)
         self.tf_data = Namespace()
         self.tf_data.x = tf.convert_to_tensor(np.array(self.data.x))
         self.tf_data.y = tf.convert_to_tensor(
@@ -193,10 +193,10 @@ class TFGpfsGp(TFSimpleGp):
 
         self.params.gpf_kernel = gpf_kernel
 
-    def set_data(self, data, fs_only=False):
+    def set_data(self, data, fs_only=False, lmat=None, smat=None):
         """Set self.data. fs_only saves on the cholesky decomposition if it is unnecessary"""
         if not fs_only:
-            super().set_data(data)
+            super().set_data(data, lmat=lmat, smat=smat)
         else:
             data.x = tf.convert_to_tensor(data.x)
             data.y = tf.convert_to_tensor(data.y)
@@ -280,7 +280,7 @@ class MultiGpfsGp(Base):
         self.params.n_dimy = getattr(params, 'n_dimy', 1)
         self.params.gp_params = getattr(params, 'gp_params', {})
 
-    def set_data(self, data, fs_only=False):
+    def set_data(self, data, fs_only=False, smat=None, lmat=None):
         """Set self.data."""
         if data is None:
             self.data = Namespace(x=[], y=[])
@@ -290,12 +290,12 @@ class MultiGpfsGp(Base):
         if len(self.gpfsgp_list) == 0:
             return
         data_list = self.get_data_list(self.data)
-        smat = None
-        lmat = None
         for gp, dat in zip(self.gpfsgp_list, data_list):
             gp.set_data(dat, fs_only, lmat=lmat, smat=smat)
             lmat = gp.lmat
             smat = gp.smat
+        self.lmat = gp.lmat
+        self.smat = gp.smat
 
     def set_gpfsgp_list(self):
         """Set self.gpfsgp_list by instantiating a list of GpfsGp objects."""
