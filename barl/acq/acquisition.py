@@ -6,6 +6,8 @@ from argparse import Namespace
 import copy
 import numpy as np
 import tensorflow as tf
+from copy import deepcopy
+from collections import defaultdict
 from scipy.stats import norm as sps_norm
 from functools import partial
 
@@ -688,6 +690,92 @@ class MultiBaxAcqFunction(AlgoAcqFunction):
         acq_list = self.get_acq_list_batch(x_list)
         return acq_list
 
+
+class MultiSetBaxAcqFunction(AlgoAcqFunction):
+    """
+    Class for computing BAX acquisition functions.
+    """
+
+    def set_params(self, params):
+        """Set self.params, the parameters for the AcqFunction."""
+        super().set_params(params)
+
+        params = dict_to_namespace(params)
+        self.params.name = getattr(params, 'name', 'MultiBaxAcqFunction')
+        self.smats = defaultdict(None)
+        self.lmats = defaultdict(None)
+
+    def acq_exe_normal(self, post_stds, samp_stds_list):
+        """
+        Since everything about this acquisition function is the same except for the log det of the covariance, it is simply much easier to do that
+        """
+
+        # Compute entropies for posterior predictive
+        h_post = np.linalg.slogdet(post_stds)
+
+        # Compute entropies for posterior predictive given execution path samples
+        h_samp_list = []
+        for samp_stds in samp_stds_list:
+            h_samp = np.linalg.slogdet(samp_stds)
+            h_samp_list.append(h_samp)
+
+        avg_h_samp = np.mean(h_samp_list)
+        acq_exe = h_post - avg_h_samp
+        return acq_exe
+
+    def get_acq_list_batch(self, x_list):
+        """Return acquisition function for a batch of inputs x_set_list."""
+
+        # Compute posterior, and post given each execution path sample, for x_list
+        with Timer(f"Compute acquisition function for a batch of {len(x_list)} points"):
+            acq_list = []
+            conditioning_model = deepcopy(self.model)
+            # NOTE: self.model is multimodel so the following returns a list of mus and
+            # a list of stds
+            # going to implement this with a loop first, maybe we can make it more efficient later
+            for x_set in x_list:
+                mus, stds = self.model.get_post_mu_cov(x_set, full_cov=True)
+                assert isinstance(mus, list)
+                assert isinstance(stds, list)
+
+                # Compute mean and std arrays for posterior given execution path samples
+                mus_list = []
+                stds_list = []
+                for i, exe_path in enumerate(self.exe_path_list):
+                    comb_data = Namespace()
+                    comb_data.x = self.model.data.x + exe_path.x
+                    comb_data.y = self.model.data.y + exe_path.y
+                    self.conditioning_model.set_data(comb_data, lmat=self.lmats[i], smat=self.smats[i])
+                    self.lmats[i] = self.conditioning_model.lmat
+                    self.smats[i] = self.conditioning_model.smat
+
+                    # NOTE: self.model is multimodel so the following returns a list of mus
+                    # and a list of stds
+                    samp_mus, samp_stds = self.model.gp_post_wrapper(
+                        x_list, comb_data, full_cov=False
+                    )
+                    mus_list.append(samp_mus)
+                    stds_list.append(samp_stds)
+
+            # Compute acq_list, the acqfunction value for each x in x_list
+            acq_list.append(self.acq_exe_normal(stds, stds_list))
+
+        # Package and store acq_vars
+        self.acq_vars = {
+            "mus": mus,
+            "stds": stds,
+            "mus_list": mus_list,
+            "stds_list": stds_list,
+            "acq_list": acq_list,
+        }
+
+        # Return list of acquisition function on x in x_list
+        return acq_list
+
+    def __call__(self, x_set_list):
+        """Class is callable and returns acquisition function on x_set_list."""
+        acq_list = self.get_acq_list_batch(x_set_list)
+        return acq_list
 
 class MCAcqFunction(AcqFunction):
     """
