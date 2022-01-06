@@ -30,7 +30,7 @@ class SimpleGp(Base):
     Simple GP model without external backend.
     """
 
-    def __init__(self, params=None, data=None, verbose=True):
+    def __init__(self, params=None, data=None, verbose=True, lmat=None, smat=None):
         """
         Parameters
         ----------
@@ -42,7 +42,7 @@ class SimpleGp(Base):
             If True, print description string.
         """
         super().__init__(params, verbose)
-        self.set_data(data)
+        self.set_data(data, lmat=lmat, smat=smat)
 
     def set_params(self, params):
         """Set self.params, the parameters for this model."""
@@ -80,7 +80,7 @@ class SimpleGp(Base):
 
             self.params.kernel = kern
 
-    def set_data(self, data):
+    def set_data(self, data, lmat=None, smat=None):
         """Set self.data."""
         if data is None:
             # Initialize self.data to be empty
@@ -98,9 +98,14 @@ class SimpleGp(Base):
             alpha = self.params.alpha
             sigma = self.params.sigma
 
-            k11_nonoise = kernel(x_train, x_train, ls, alpha)
-            self.lmat = get_cholesky_decomp(k11_nonoise, sigma, 'try_first')
-            self.smat = solve_upper_triangular(self.lmat.T, solve_lower_triangular(self.lmat, y_train))
+            assert (lmat is None) == (smat is None)
+            if lmat is not None:
+                self.lmat = lmat
+                self.smat = smat
+            else:
+                k11_nonoise = kernel(x_train, x_train, ls, alpha)
+                self.lmat = get_cholesky_decomp(k11_nonoise, sigma, 'try_first')
+                self.smat = solve_upper_triangular(self.lmat.T, solve_lower_triangular(self.lmat, y_train))
 
     def get_prior_mu_cov(self, x_list, full_cov=True):
         """
@@ -299,7 +304,7 @@ class TFSimpleGp(SimpleGp):
             # will implement this in tf when needed
             raise NotImplementedError()
 
-    def set_data(self, data):
+    def set_data(self, data, lmat=None, smat=None):
         '''
         Data should be given as a dict or Namespace where
         data.x is an n x d_x tf tensor and
@@ -317,10 +322,15 @@ class TFSimpleGp(SimpleGp):
         ls = self.params.ls
         alpha = self.params.alpha
         sigma = self.params.sigma
+        assert (lmat is None) == (smat is None)
 
-        k11_nonoise = kernel(x_train, x_train, ls, alpha)
-        self.lmat = tf_get_cholesky_decomp(k11_nonoise, sigma, 'try_first')
-        self.smat = tf_solve_upper_triangular(tf.transpose(self.lmat), tf_solve_lower_triangular(self.lmat, y_train))
+        if lmat is not None:
+            self.lmat = lmat
+            self.smat = smat
+        else:
+            k11_nonoise = kernel(x_train, x_train, ls, alpha)
+            self.lmat = tf_get_cholesky_decomp(k11_nonoise, sigma, 'try_first')
+            self.smat = tf_solve_upper_triangular(tf.transpose(self.lmat), tf_solve_lower_triangular(self.lmat, y_train))
         # if self.smat.ndim == 1:
         #     self.smat = self.smat[None, :]
 
