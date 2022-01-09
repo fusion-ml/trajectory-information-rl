@@ -10,7 +10,7 @@ from tqdm import trange
 from .acquisition import BaxAcqFunction
 from ..util.base import Base
 from ..util.misc_util import dict_to_namespace, flatten
-from ..util.control_util import compute_return
+from ..util.control_util import compute_return, iCEM_generate_samples
 from ..policies import TanhMlpPolicy
 
 
@@ -99,6 +99,79 @@ class AcqOptimizer(Base):
     def set_print_params(self):
         """Set self.print_params."""
         self.print_params = copy.deepcopy(self.params)
+
+
+class PolicyAcqOptimizer(AcqOptimizer):
+    '''
+    An optimizer that finds an action sequence that optimizes the MultiSetBaxAcqFunction
+    uses posterior function samples in order to figure out what samples will come from future actions.
+    '''
+    def set_params(self, params):
+        super().set_params(params)
+        params = dict_to_namespace(params)
+        # TODO: what are the params
+        self.params.obs_dim = params.obs_dim
+        self.params.action_dim = params.action_dim
+        self.params.initial_variance_divisor = getattr(params, "initial_variance_divisor", 4)
+        self.params.base_nsamps = getattr(params, "base_nsamps", 8)
+        self.params.planning_horizon = getattr(params, "planning_horizon", 10)
+        self.params.n_elites = getattr(params, "n_elites", 4)
+        self.params.beta = getattr(params, "beta", 3)
+        self.params.gamma = getattr(params, "gamma", 1.25)
+        self.params.xi = getattr(params, "xi", 0.3)
+        self.params.num_iters = getattr(params, "num_iters", 3)
+        self.params.verbose = getattr(params, "verbose", False)
+
+    def initialize(self, acqfunction):
+        # Set self.acqfunction
+        self.set_acqfunction(acqfunction)
+        self.acqfunction.initialize()
+
+    def optimize(self, x_batch):
+        # TODO: handle replanning frequency and shifting observations
+        # assume x_batch is 1x(obs_dim + action_dim)
+        breakpoint()
+        current_obs = x_batch[0][:self.params.obs_dim]
+        horizon = self.params.planning_horizon
+        beta = self.params.beta
+        mean = np.zeros((self.params.planning_horizon, self.params.action_dim))
+        initial_variance_divisor = 4
+        action_upper_bound = self.params.action_upper_bound
+        action_lower_bound = self.params.action_lower_bound
+        var = np.ones_like(mean) * ((action_upper_bound - action_lower_bound) / initial_variance_divisor) ** 2
+
+        elites, elite_returns = None, None
+        best_sample, best_return = None, None, -np.inf
+        for i in trange(self.params.num_iters, disable=not self.params.verbose):
+            num_traj = int(max(self.params.base_nsamps * (self.params.gamma ** -i), 2 * self.params.n_elites))
+            samples = iCEM_generate_samples(num_traj, horizon, beta, mean, var, action_lower_bound, action_upper_bound)
+            if i == 0:
+                pass
+                # do we need to do something specific here?
+            if i + 1 == self.params.num_iters:
+                samples = np.concatenate([samples, mean[None, :]], axis=0)
+            returns = self.evaluate_samples(current_obs, samples)
+            if i > 0:
+                elite_subset_idx = np.random.choice(self.params.n_elites, int(self.params.n_elites * self.params.xi),
+                                                    replace=False)
+                elite_subset = elites[elite_subset_idx, ...]
+                elite_return_subset = elite_returns[elite_subset_idx]
+                samples = np.concatenate([samples, elite_subset], axis=0)
+                returns = np.concatenate([returns, elite_return_subset])
+            elite_idx = np.argsort(returns)[-self.params.n_elites:]
+            elites = samples[elite_idx, ...]
+            elite_returns = returns[elite_idx]
+            mean = np.mean(elites, axis=0)
+            var = np.var(elites, axis=0)
+            best_idx = np.argmax(returns)
+            best_current_return = returns[best_idx]
+            if best_current_return > best_return:
+                best_return = best_current_return
+                best_sample = samples[best_idx, ...]
+
+        optimum = np.concatenate([current_obs, best_sample[0, :]])
+        return optimum
+
 
 
 class KGAcqOptimizer(AcqOptimizer):
@@ -252,7 +325,6 @@ class KGPolicyAcqOptimizer(KGAcqOptimizer):
         pbar = trange(self.params.num_steps)
         best_risk = np.inf
         avg_return = None
-        optima = None
         for i in pbar:
             if self.params.policy_test_period != 0 and i % self.params.policy_test_period == 0:
                 self.eval_steps.append(i)
