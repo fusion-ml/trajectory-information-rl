@@ -109,7 +109,6 @@ class PolicyAcqOptimizer(AcqOptimizer):
     def set_params(self, params):
         super().set_params(params)
         params = dict_to_namespace(params)
-        # TODO: what are the params
         self.params.obs_dim = params.obs_dim
         self.params.action_dim = params.action_dim
         self.params.initial_variance_divisor = getattr(params, "initial_variance_divisor", 4)
@@ -172,7 +171,22 @@ class PolicyAcqOptimizer(AcqOptimizer):
         optimum = np.concatenate([current_obs, best_sample[0, :]])
         return optimum
 
-
+    def evaluate_samples(self, current_obs, samples):
+        current_obs = np.repeat(current_obs, (self.params.num_fs, samples.shape[0], 1))
+        current_obs = current_obs.reshape((-1, self.params.obs_dim))
+        samples = np.repeat(samples, (self.params.num_fs, 1, 1))
+        f_batch_list = self.acqfunction.model.call_function_sample_list
+        x_list = []
+        for t in range(self.params.planning_horizon):
+            actions = samples[:, 0, :].reshape(-1, self.params.action_dim)
+            x = np.concatenate([current_obs, actions], axis=-1)
+            x_list.append(x)
+            deltas = f_batch_list(x)
+            current_states = self.params.update_fn(current_states, deltas)
+        x_list = np.array(x_list).transpose((1, 0, 2))
+        eigs = self.acqfunction(x_list)
+        eigs = np.mean(np.array(eigs).reshape((self.params.num_fs, -1)), axis=0)
+        return eigs
 
 class KGAcqOptimizer(AcqOptimizer):
     def set_params(self, params):
