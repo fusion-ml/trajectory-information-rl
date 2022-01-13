@@ -19,13 +19,14 @@ from barl.models.gpfs_gp import BatchMultiGpfsGp, TFMultiGpfsGp
 from barl.models.gpflow_gp import get_gpflow_hypers_from_data
 from barl.acq.acquisition import (
         MultiBaxAcqFunction,
+        MultiSetBaxAcqFunction,
         MCAcqFunction,
         UncertaintySamplingAcqFunction,
         KGRLAcqFunction,
         KGRLPolicyAcqFunction,
         PILCOAcqFunction
         )
-from barl.acq.acqoptimize import AcqOptimizer, KGAcqOptimizer, KGPolicyAcqOptimizer
+from barl.acq.acqoptimize import AcqOptimizer, KGAcqOptimizer, KGPolicyAcqOptimizer, PolicyAcqOptimizer
 from barl.alg.mpc import MPC
 from barl import envs
 from barl.envs.wrappers import NormalizedEnv, make_normalized_reward_function, make_update_obs_fn
@@ -355,7 +356,12 @@ def get_acq_fn(config, horizon, p0, reward_fn, update_fn, obs_dim, action_dim,
             acqfn_class = PILCOAcqFunction
     else:
         acqfn_params = {'n_path': config.n_paths, 'crop': True}
-        acqfn_class = MultiBaxAcqFunction
+        if not config.alg.rollout_sampling:
+            # standard barl
+            acqfn_class = MultiBaxAcqFunction
+        else:
+            # new rollout barl
+            acqfn_params = MultiSetBaxAcqFunction
     return acqfn_class, acqfn_params
 
 
@@ -389,6 +395,21 @@ def get_acq_opt(config, obs_dim, action_dim, env, start_obs):
             acqopt_params['hidden_layer_sizes'] = config.alg.hidden_layer_sizes
         except Exception:
             pass
+    elif config.alg.eig and config.alg.rollout_sampling:
+        # TODO: Install Policy Acqoptimizer
+        acqopt_params = {
+                "obs_dim": obs_dim,
+                "action_dim": action_dim,
+                "base_nsamps": config.eigmpc.nsamps,
+                "planning_horizon": config.eigmpc.planning_horizon,
+                "n_elites": config.eigmpc.n_elites,
+                "beta": config.eigmpc.beta,
+                "gamma": config.eigmpc.gamma,
+                "xi": config.eigmpc.xi,
+                "num_iters": config.eigmpc.num_iters,
+                "actions_per_plan": config.eigmpc.actions_per_plan,
+                }
+        acqopt_class = PolicyAcqOptimizer
     else:
         acqopt_params = {}
         acqopt_class = AcqOptimizer
@@ -535,10 +556,16 @@ def get_next_point(
                                                                       obs_dim=obs_dim,
                                                                       action_dim=action_dim,
                                                                       hidden_layer_sizes=[128, 128])
-            if config.alg.kg_policy:
+            if config.alg.rollout_sampling:
                 # this relies on the fact that in the KGPolicyAcqOptimizer, advance action sequence is called
                 # as part of optimize() which sets this up for copying back
-                acqopt_params["action_sequence"] = acqopt.params.action_sequence
+                try:
+                    # here both KG Policy and Policy acqopts have an action sequence
+                    # but only Policy has actions_until_plan
+                    acqopt_params["action_sequence"] = acqopt.params.action_sequence
+                    acqopt_params["actions_until_plan"] = acqopt.params.actions_until_plan
+                except AttributeError:
+                    pass
 
     elif config.alg.use_mpc:
         model = gp_model_class(gp_model_params, data)

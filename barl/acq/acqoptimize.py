@@ -91,7 +91,7 @@ class AcqOptimizer(Base):
                         (tup for tup in enumerate(x_batch) if all(tup[1] == x))
                     )
                     del x_batch[idx]
-                except:
+                except Exception:
                     break
 
         return x_batch
@@ -112,28 +112,44 @@ class PolicyAcqOptimizer(AcqOptimizer):
         self.params.obs_dim = params.obs_dim
         self.params.action_dim = params.action_dim
         self.params.initial_variance_divisor = getattr(params, "initial_variance_divisor", 4)
-        self.params.base_nsamps = getattr(params, "base_nsamps", 8)
-        self.params.planning_horizon = getattr(params, "planning_horizon", 10)
-        self.params.n_elites = getattr(params, "n_elites", 4)
-        self.params.beta = getattr(params, "beta", 3)
-        self.params.gamma = getattr(params, "gamma", 1.25)
-        self.params.xi = getattr(params, "xi", 0.3)
-        self.params.num_iters = getattr(params, "num_iters", 3)
+        self.params.base_nsamps = params.base_nsamps,
+        self.params.planning_horizon = params.planning_horizon,
+        self.params.n_elites = params.n_elites,
+        self.params.beta = params.beta,
+        self.params.gamma = params.gamma
+        self.params.xi = params.xi
+        self.params.num_iters = params.num_iters
         self.params.verbose = getattr(params, "verbose", False)
+        self.params.actions_per_plan = getattr(params, "actions_per_plan", 1)
+        self.params.actions_until_plan = 0
+        self.params.action_sequence = getattr(params, 'action_sequence', None)
 
     def initialize(self, acqfunction):
         # Set self.acqfunction
         self.set_acqfunction(acqfunction)
         self.acqfunction.initialize()
 
+    def get_initial_mean(self, action_sequence):
+        if action_sequence is None:
+            return np.zeros((self.params.planning_horizon, self.params.action_dim))
+        else:
+            new_action_sequence = np.concatenate([action_sequence[1:, :], np.zeros((1, self.params.action_dim)],
+                axis=0)
+            return new_action_sequence
+
     def optimize(self, x_batch):
-        # TODO: handle replanning frequency and shifting observations
         # assume x_batch is 1x(obs_dim + action_dim)
         breakpoint()
         current_obs = x_batch[0][:self.params.obs_dim]
         horizon = self.params.planning_horizon
         beta = self.params.beta
-        mean = np.zeros((self.params.planning_horizon, self.params.action_dim))
+        mean = self.get_initial_mean(self.params.action_sequence)
+        if self.params.actions_until_plan > 0:
+            self.params.action_sequence = mean
+            query = np.concatenate([current_obs, mean[0, :]])
+            self.params.actions_until_plan -= 1
+            return query
+
         initial_variance_divisor = 4
         action_upper_bound = self.params.action_upper_bound
         action_lower_bound = self.params.action_lower_bound
@@ -169,6 +185,8 @@ class PolicyAcqOptimizer(AcqOptimizer):
                 best_sample = samples[best_idx, ...]
 
         optimum = np.concatenate([current_obs, best_sample[0, :]])
+        self.params.action_sequence = best_sample
+        self.params.actions_until_plan = self.params.actions_per_plan
         return optimum
 
     def evaluate_samples(self, current_obs, samples):

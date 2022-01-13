@@ -29,6 +29,15 @@ mpc:
   xi: ${env.mpc.xi}
   num_iters: ${env.mpc.num_iters}
   actions_per_plan: ${env.mpc.actions_per_plan}
+eigmpc:
+  nsamps: ${env.eigmpc.nsamps}
+  planning_horizon: ${env.eigmpc.planning_horizon}
+  n_elites: ${env.eigmpc.n_elites}
+  beta: ${env.eigmpc.n_elites}
+  gamma: ${env.eigmpc.gamma}
+  xi: ${env.eigmpc.xi}
+  num_iters: ${env.eigmpc.num_iters}
+  actions_per_plan: ${env.eigmpc.actions_per_plan}
 test_mpc:
   nsamps: ${env.mpc.nsamps}
   planning_horizon: ${env.mpc.planning_horizon}
