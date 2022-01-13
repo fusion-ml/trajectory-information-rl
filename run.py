@@ -361,7 +361,7 @@ def get_acq_fn(config, horizon, p0, reward_fn, update_fn, obs_dim, action_dim,
             acqfn_class = MultiBaxAcqFunction
         else:
             # new rollout barl
-            acqfn_params = MultiSetBaxAcqFunction
+            acqfn_class = MultiSetBaxAcqFunction
     return acqfn_class, acqfn_params
 
 

@@ -112,10 +112,10 @@ class PolicyAcqOptimizer(AcqOptimizer):
         self.params.obs_dim = params.obs_dim
         self.params.action_dim = params.action_dim
         self.params.initial_variance_divisor = getattr(params, "initial_variance_divisor", 4)
-        self.params.base_nsamps = params.base_nsamps,
-        self.params.planning_horizon = params.planning_horizon,
-        self.params.n_elites = params.n_elites,
-        self.params.beta = params.beta,
+        self.params.base_nsamps = params.base_nsamps
+        self.params.planning_horizon = params.planning_horizon
+        self.params.n_elites = params.n_elites
+        self.params.beta = params.beta
         self.params.gamma = params.gamma
         self.params.xi = params.xi
         self.params.num_iters = params.num_iters
@@ -123,6 +123,8 @@ class PolicyAcqOptimizer(AcqOptimizer):
         self.params.actions_per_plan = getattr(params, "actions_per_plan", 1)
         self.params.actions_until_plan = 0
         self.params.action_sequence = getattr(params, 'action_sequence', None)
+        self.params.action_upper_bound = getattr(params, 'action_upper_bound', 1)
+        self.params.action_lower_bound = getattr(params, 'action_lower_bound', -1)
 
     def initialize(self, acqfunction):
         # Set self.acqfunction
@@ -133,7 +135,7 @@ class PolicyAcqOptimizer(AcqOptimizer):
         if action_sequence is None:
             return np.zeros((self.params.planning_horizon, self.params.action_dim))
         else:
-            new_action_sequence = np.concatenate([action_sequence[1:, :], np.zeros((1, self.params.action_dim)],
+            new_action_sequence = np.concatenate([action_sequence[1:, :], np.zeros((1, self.params.action_dim))],
                 axis=0)
             return new_action_sequence
 
@@ -156,7 +158,7 @@ class PolicyAcqOptimizer(AcqOptimizer):
         var = np.ones_like(mean) * ((action_upper_bound - action_lower_bound) / initial_variance_divisor) ** 2
 
         elites, elite_returns = None, None
-        best_sample, best_return = None, None, -np.inf
+        best_sample, best_return = None, -np.inf
         for i in trange(self.params.num_iters, disable=not self.params.verbose):
             num_traj = int(max(self.params.base_nsamps * (self.params.gamma ** -i), 2 * self.params.n_elites))
             samples = iCEM_generate_samples(num_traj, horizon, beta, mean, var, action_lower_bound, action_upper_bound)
