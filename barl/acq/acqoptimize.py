@@ -130,6 +130,9 @@ class PolicyAcqOptimizer(AcqOptimizer):
         # Set self.acqfunction
         self.set_acqfunction(acqfunction)
         self.acqfunction.initialize()
+        # TODO: handle function sample initialzaiton and model separation between rollout
+        # of actions and actual tau_star samples
+        # then test the evaluate_samples function
 
     def get_initial_mean(self, action_sequence):
         if action_sequence is None:
