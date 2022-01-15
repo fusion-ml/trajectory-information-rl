@@ -113,6 +113,7 @@ class GpfsGp(SimpleGp):
         self.fsl_xvars = np.array(x_list)
 
         y_tf = self.call_fsl_on_xvars(self.params.model, self.fsl_xvars)
+        #TODO get function sample list and make this numpy
         y_list = list(y_tf.numpy().reshape(-1))
         return y_list
 
