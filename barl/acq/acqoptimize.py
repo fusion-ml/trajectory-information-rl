@@ -118,6 +118,7 @@ class PolicyAcqOptimizer(AcqOptimizer):
         self.params.beta = params.beta
         self.params.gamma = params.gamma
         self.params.xi = params.xi
+        self.params.num_fs = params.num_fs
         self.params.num_iters = params.num_iters
         self.params.verbose = getattr(params, "verbose", False)
         self.params.actions_per_plan = getattr(params, "actions_per_plan", 1)
@@ -142,7 +143,6 @@ class PolicyAcqOptimizer(AcqOptimizer):
 
     def optimize(self, x_batch):
         # assume x_batch is 1x(obs_dim + action_dim)
-        breakpoint()
         current_obs = x_batch[0][:self.params.obs_dim]
         horizon = self.params.planning_horizon
         beta = self.params.beta
@@ -193,9 +193,10 @@ class PolicyAcqOptimizer(AcqOptimizer):
         return optimum
 
     def evaluate_samples(self, current_obs, samples):
-        current_obs = np.repeat(current_obs, (self.params.num_fs, samples.shape[0], 1))
+        breakpoint()
+        current_obs = np.tile(current_obs, (self.params.num_fs, samples.shape[0], 1))
         current_obs = current_obs.reshape((-1, self.params.obs_dim))
-        samples = np.repeat(samples, (self.params.num_fs, 1, 1))
+        samples = np.tile(samples, (self.params.num_fs, 1, 1))
         f_batch_list = self.acqfunction.model.call_function_sample_list
         x_list = []
         for t in range(self.params.planning_horizon):

@@ -404,6 +404,7 @@ def get_acq_opt(config, obs_dim, action_dim, env, start_obs):
                 "planning_horizon": config.eigmpc.planning_horizon,
                 "n_elites": config.eigmpc.n_elites,
                 "beta": config.eigmpc.beta,
+                "num_fs": config.alg.num_fs,
                 "gamma": config.eigmpc.gamma,
                 "xi": config.eigmpc.xi,
                 "num_iters": config.eigmpc.num_iters,

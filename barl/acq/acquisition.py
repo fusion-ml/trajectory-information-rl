@@ -704,7 +704,14 @@ class MultiSetBaxAcqFunction(AlgoAcqFunction):
         self.params.name = getattr(params, 'name', 'MultiBaxAcqFunction')
         self.smats = defaultdict(None)
         self.lmats = defaultdict(None)
-        self.conditioning_model = deepcopy(self.model)
+
+    def set_model(self, model):
+        """Set self.model, the model underlying the acquisition function."""
+        if not model:
+            raise ValueError("The model input parameter cannot be None.")
+        else:
+            self.model = copy.deepcopy(model)
+            self.conditioning_model = copy.deepcopy(model)
 
     def acq_exe_normal(self, post_stds, samp_stds_list):
         """
