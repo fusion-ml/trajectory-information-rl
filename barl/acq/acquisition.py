@@ -704,6 +704,7 @@ class MultiSetBaxAcqFunction(AlgoAcqFunction):
         self.params.name = getattr(params, 'name', 'MultiBaxAcqFunction')
         self.smats = defaultdict(None)
         self.lmats = defaultdict(None)
+        self.conditioning_model = deepcopy(self.model)
 
     def acq_exe_normal(self, post_stds, samp_stds_list):
         """
@@ -729,7 +730,6 @@ class MultiSetBaxAcqFunction(AlgoAcqFunction):
         # Compute posterior, and post given each execution path sample, for x_list
         with Timer(f"Compute acquisition function for a batch of {len(x_list)} points"):
             acq_list = []
-            conditioning_model = deepcopy(self.model)
             # NOTE: self.model is multimodel so the following returns a list of mus and
             # a list of stds
             # going to implement this with a loop first, maybe we can make it more efficient later
