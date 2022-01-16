@@ -163,6 +163,7 @@ class PolicyAcqOptimizer(AcqOptimizer):
         best_sample, best_return = None, -np.inf
         for i in trange(self.params.num_iters, disable=not self.params.verbose):
             num_traj = int(max(self.params.base_nsamps * (self.params.gamma ** -i), 2 * self.params.n_elites))
+            # these are num_samples x horizon x action_dim
             samples = iCEM_generate_samples(num_traj, horizon, beta, mean, var, action_lower_bound, action_upper_bound)
             if i == 0:
                 pass
@@ -194,17 +195,22 @@ class PolicyAcqOptimizer(AcqOptimizer):
         return optimum
 
     def evaluate_samples(self, current_obs, samples):
+        # samples are initially num_samples x horizon x action_dim
         breakpoint()
+        # num_fs x num_samples x obs_dim
         current_obs = np.tile(current_obs, (self.params.num_fs, samples.shape[0], 1))
-        current_obs = current_obs.reshape((-1, self.params.obs_dim))
-        samples = np.tile(samples, (self.params.num_fs, 1, 1))
+        # current_obs = current_obs.reshape((-1, self.params.obs_dim))
+        # num_fs x num_samples x horizon x action_dim
+        samples = np.tile(samples, (self.params.num_fs, 1, 1, 1))
         f_batch_list = self.acqfunction.model.call_function_sample_list
         x_list = []
         for t in range(self.params.planning_horizon):
-            actions = samples[:, 0, :].reshape(-1, self.params.action_dim)
+            actions = samples[:, :, t, :]
+            # now actions is num_fs x num_samples x action_dim
             x = np.concatenate([current_obs, actions], axis=-1)
             x_list.append(x)
             deltas = f_batch_list(x)
+            # might need to flatten tensors for this
             current_states = self.params.update_fn(current_states, deltas)
         x_list = np.array(x_list).transpose((1, 0, 2))
         eigs = self.acqfunction(x_list)
