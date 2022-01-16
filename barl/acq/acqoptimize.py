@@ -126,6 +126,7 @@ class PolicyAcqOptimizer(AcqOptimizer):
         self.params.action_sequence = getattr(params, 'action_sequence', None)
         self.params.action_upper_bound = getattr(params, 'action_upper_bound', 1)
         self.params.action_lower_bound = getattr(params, 'action_lower_bound', -1)
+        self.params.update_fn = params.update_fn
 
     def initialize(self, acqfunction):
         # Set self.acqfunction

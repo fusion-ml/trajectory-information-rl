@@ -120,7 +120,7 @@ def main(config):
     # Set acqfunction
     acqfn_class, acqfn_params = get_acq_fn(config, env.horizon, p0, reward_function, update_fn,
                                            obs_dim, action_dim, gp_model_class, gp_model_params)
-    acqopt_class, acqopt_params = get_acq_opt(config, obs_dim, action_dim, env, start_obs)
+    acqopt_class, acqopt_params = get_acq_opt(config, obs_dim, action_dim, env, start_obs, update_fn)
 
     # ==============================================
     #   Computing groundtruth trajectories
@@ -365,7 +365,7 @@ def get_acq_fn(config, horizon, p0, reward_fn, update_fn, obs_dim, action_dim,
     return acqfn_class, acqfn_params
 
 
-def get_acq_opt(config, obs_dim, action_dim, env, start_obs):
+def get_acq_opt(config, obs_dim, action_dim, env, start_obs, update_fn):
     if config.alg.gd_opt:
         if config.alg.kg_policy:
             acqopt_class = KGPolicyAcqOptimizer
@@ -409,6 +409,7 @@ def get_acq_opt(config, obs_dim, action_dim, env, start_obs):
                 "xi": config.eigmpc.xi,
                 "num_iters": config.eigmpc.num_iters,
                 "actions_per_plan": config.eigmpc.actions_per_plan,
+                "update_fn": update_fn,
                 }
         acqopt_class = PolicyAcqOptimizer
     else:

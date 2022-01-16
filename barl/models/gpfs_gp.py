@@ -113,7 +113,11 @@ class GpfsGp(SimpleGp):
         self.fsl_xvars = np.array(x_list)
 
         y_tf = self.call_fsl_on_xvars(self.params.model, self.fsl_xvars)
-        y_list = list(y_tf.numpy().reshape(-1))
+        if x_list is list:
+            y_list = list(y_tf.numpy().reshape(-1))
+        else:
+            # must be ndarray if not list
+            y_list = y_tf.numpy().reshape(-1)
         return y_list
 
     def call_function_sample_list_mean(self, x):
