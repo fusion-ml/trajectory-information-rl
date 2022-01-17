@@ -8,6 +8,7 @@ import tensorflow.keras as keras
 from tqdm import trange
 
 from .acquisition import BaxAcqFunction
+from ..util.timing import Timer
 from ..util.base import Base
 from ..util.misc_util import dict_to_namespace, flatten
 from ..util.control_util import compute_return, iCEM_generate_samples
@@ -143,6 +144,11 @@ class PolicyAcqOptimizer(AcqOptimizer):
             return new_action_sequence
 
     def optimize(self, x_batch):
+        # wrapper so we can add timing info
+        with Timer("Optimize acquisition function using cross-entropy"):
+            return self._optimize(x_batch)
+
+    def _optimize(self, x_batch):
         # assume x_batch is 1x(obs_dim + action_dim)
         current_obs = x_batch[0][:self.params.obs_dim]
         horizon = self.params.planning_horizon
@@ -192,7 +198,7 @@ class PolicyAcqOptimizer(AcqOptimizer):
         optimum = np.concatenate([current_obs, best_sample[0, :]])
         self.params.action_sequence = best_sample
         self.params.actions_until_plan = self.params.actions_per_plan
-        return optimum
+        return optimum, best_return
 
     def evaluate_samples(self, current_obs, samples):
         # samples are initially num_samples x horizon x action_dim

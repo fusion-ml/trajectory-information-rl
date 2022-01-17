@@ -177,7 +177,8 @@ def main(config):
         #   Periodically run evaluation and plot
         # ==============================================
         if i % config.eval_frequency == 0 or i + 1 == config.num_iters:
-            if model is None:
+            # if model is None:
+            if True:
                 model = gp_model_class(gp_model_params, data)
             # =======================================================================
             #    Evaluate MPC:
@@ -232,6 +233,7 @@ def main(config):
             if current_t > env.horizon:
                 current_t = 0
                 current_obs = start_obs.copy() if config.fixed_start_obs else env.reset()
+                logging.info("Explore episode complette, resetting")
                 # clear action sequence if it was there (only relevant for KGRL policy, noop otherwise)
                 acqopt_params['action_sequence'] = None
 
@@ -640,6 +642,7 @@ def evaluate_mpc(
         algo.old_exe_paths = []
         dumper.add('Eval Returns', real_returns, log_mean_std=True)
         dumper.add('Eval ndata', len(data.x))
+        breakpoint()
         current_mpc_mse = np.mean(mses)
         current_mpc_likelihood = model_likelihood(model, all_x_mpc, all_y_mpc)
         test_y_hat = postmean_fn(test_data.x)

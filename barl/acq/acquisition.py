@@ -10,6 +10,7 @@ from copy import deepcopy
 from collections import defaultdict
 from scipy.stats import norm as sps_norm
 from functools import partial
+from tqdm import tqdm
 
 from ..util.base import Base
 from ..util.misc_util import dict_to_namespace, flatten
@@ -719,12 +720,13 @@ class MultiSetBaxAcqFunction(AlgoAcqFunction):
         """
 
         # Compute entropies for posterior predictive
-        h_post = np.linalg.slogdet(post_stds)
+        h_post = np.sum(np.linalg.slogdet(post_stds)[1])
 
         # Compute entropies for posterior predictive given execution path samples
         h_samp_list = []
         for samp_stds in samp_stds_list:
-            h_samp = np.linalg.slogdet(samp_stds)
+            dets = np.linalg.slogdet(samp_stds)[1]
+            h_samp = np.sum(dets)
             h_samp_list.append(h_samp)
 
         avg_h_samp = np.mean(h_samp_list)
@@ -740,8 +742,7 @@ class MultiSetBaxAcqFunction(AlgoAcqFunction):
             # NOTE: self.model is multimodel so the following returns a list of mus and
             # a list of stds
             # going to implement this with a loop first, maybe we can make it more efficient later
-            breakpoint()
-            for x_set in x_list:
+            for x_set in tqdm(x_list):
                 mus, stds = self.model.get_post_mu_cov(x_set, full_cov=True)
                 assert isinstance(mus, list)
                 assert isinstance(stds, list)
@@ -760,13 +761,13 @@ class MultiSetBaxAcqFunction(AlgoAcqFunction):
                     # NOTE: self.model is multimodel so the following returns a list of mus
                     # and a list of stds
                     samp_mus, samp_stds = self.model.gp_post_wrapper(
-                        x_list, comb_data, full_cov=False
+                        x_set, comb_data, full_cov=True,
                     )
                     mus_list.append(samp_mus)
                     stds_list.append(samp_stds)
 
-            # Compute acq_list, the acqfunction value for each x in x_list
-            acq_list.append(self.acq_exe_normal(stds, stds_list))
+                # Compute acq_list, the acqfunction value for each x in x_list
+                acq_list.append(self.acq_exe_normal(stds, stds_list))
 
         # Package and store acq_vars
         self.acq_vars = {
