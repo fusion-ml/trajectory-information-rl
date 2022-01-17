@@ -177,8 +177,7 @@ def main(config):
         #   Periodically run evaluation and plot
         # ==============================================
         if i % config.eval_frequency == 0 or i + 1 == config.num_iters:
-            # if model is None:
-            if True:
+            if model is None:
                 model = gp_model_class(gp_model_params, data)
             # =======================================================================
             #    Evaluate MPC:
@@ -560,16 +559,16 @@ def get_next_point(
                                                                       obs_dim=obs_dim,
                                                                       action_dim=action_dim,
                                                                       hidden_layer_sizes=[128, 128])
-            if config.alg.rollout_sampling:
-                # this relies on the fact that in the KGPolicyAcqOptimizer, advance action sequence is called
-                # as part of optimize() which sets this up for copying back
-                try:
-                    # here both KG Policy and Policy acqopts have an action sequence
-                    # but only Policy has actions_until_plan
-                    acqopt_params["action_sequence"] = acqopt.params.action_sequence
-                    acqopt_params["actions_until_plan"] = acqopt.params.actions_until_plan
-                except AttributeError:
-                    pass
+        if config.alg.rollout_sampling:
+            # this relies on the fact that in the KGPolicyAcqOptimizer, advance action sequence is called
+            # as part of optimize() which sets this up for copying back
+            try:
+                # here both KG Policy and Policy acqopts have an action sequence
+                # but only Policy has actions_until_plan
+                acqopt_params["action_sequence"] = acqopt.params.action_sequence
+                acqopt_params["actions_until_plan"] = acqopt.params.actions_until_plan
+            except AttributeError:
+                pass
 
     elif config.alg.use_mpc:
         model = gp_model_class(gp_model_params, data)
@@ -642,7 +641,6 @@ def evaluate_mpc(
         algo.old_exe_paths = []
         dumper.add('Eval Returns', real_returns, log_mean_std=True)
         dumper.add('Eval ndata', len(data.x))
-        breakpoint()
         current_mpc_mse = np.mean(mses)
         current_mpc_likelihood = model_likelihood(model, all_x_mpc, all_y_mpc)
         test_y_hat = postmean_fn(test_data.x)
