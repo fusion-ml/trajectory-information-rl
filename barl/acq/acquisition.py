@@ -760,8 +760,8 @@ class MultiSetBaxAcqFunction(AlgoAcqFunction):
 
                     # NOTE: self.model is multimodel so the following returns a list of mus
                     # and a list of stds
-                    samp_mus, samp_stds = self.model.gp_post_wrapper(
-                        x_set, comb_data, full_cov=True,
+                    samp_mus, samp_stds = self.model.get_post_mu_cov(
+                        x_set, full_cov=True,
                     )
                     mus_list.append(samp_mus)
                     stds_list.append(samp_stds)
