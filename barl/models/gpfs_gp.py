@@ -704,14 +704,18 @@ class BatchMultiGpfsGp(MultiGpfsGp):
             gpfsgp.call_function_sample_list(x_batch_list) for gpfsgp in self.gpfsgp_list
         ]
 
-        # We define y_batch_multi_list to be a list, where each element is: a list of
-        # multi-output-y (one per n_batch)
-        y_batch_multi_list = [list(zip(*ybl)) for ybl in zip(*y_batch_list_list)] # ugly
+        if x_batch_list is list:
+            # We define y_batch_multi_list to be a list, where each element is: a list of
+            # multi-output-y (one per n_batch)
+            y_batch_multi_list = [list(zip(*ybl)) for ybl in zip(*y_batch_list_list)] # ugly
 
-        # Convert from list of lists of tuples to all lists
-        y_batch_multi_list = [[list(tup) for tup in li] for li in y_batch_multi_list]
+            # Convert from list of lists of tuples to all lists
+            y_batch_multi_list = [[list(tup) for tup in li] for li in y_batch_multi_list]
+            return y_batch_multi_list
+        else:
+            y_batch = np.concatenate(y_batch_list_list, axis=-1)
+            return y_batch
 
-        return y_batch_multi_list
 
     def call_function_sample_list_mean(self, x):
         """
