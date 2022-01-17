@@ -578,6 +578,8 @@ def get_next_point(
         x_next = np.concatenate([current_obs, action])
     else:
         x_next = unif_random_sample_domain(domain, 1)[0]
+    if config.alg.rollout_sampling:
+        assert np.allclose(current_obs, x_next[:obs_dim]), "For rollout cases, we can only give queries which are from the current state"
     return x_next, exe_path_list, model
 
 
