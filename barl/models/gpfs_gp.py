@@ -607,6 +607,7 @@ class BatchGpfsGp(GpfsGp):
         """
         Call a set of posterior function samples on respective x_batch (a list of
         inputs) in x_batch_list.
+        x_batch_list is a nested list or ndarray of shape num_fs x batch_size (can be ragged list) x x_dim
         """
 
         # Replace empty x_batch and convert all x_batch to max batch size
@@ -697,6 +698,7 @@ class BatchMultiGpfsGp(MultiGpfsGp):
         """
         Call a set of posterior function samples on respective x in x_list, for each GP
         in self.gpfsgp_list.
+        x_batch_list is a nested list or ndarray of shape num_fs x batch_size (can be ragged list) x x_dim
         """
         y_batch_list_list = [
             gpfsgp.call_function_sample_list(x_batch_list) for gpfsgp in self.gpfsgp_list
