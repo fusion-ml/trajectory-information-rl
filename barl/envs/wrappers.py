@@ -190,8 +190,8 @@ def make_update_obs_fn(env, teleport=False, use_tf=False):
         if not teleport:
             return output
         shifted_output = output - env.observation_space.low
-        if x.ndim == 2:
-            mask = np.tile(periodic, (x.shape[0], 1))
+        if x.ndim >= 2:
+            mask = np.tile(periodic, x.shape[:-1] + (1,))
         else:
             mask = periodic
         np.remainder(shifted_output, obs_range, where=mask, out=shifted_output)

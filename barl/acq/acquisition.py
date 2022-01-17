@@ -702,8 +702,8 @@ class MultiSetBaxAcqFunction(AlgoAcqFunction):
 
         params = dict_to_namespace(params)
         self.params.name = getattr(params, 'name', 'MultiBaxAcqFunction')
-        self.smats = defaultdict(None)
-        self.lmats = defaultdict(None)
+        self.smats = defaultdict(lambda: None)
+        self.lmats = defaultdict(lambda: None)
 
     def set_model(self, model):
         """Set self.model, the model underlying the acquisition function."""
@@ -740,6 +740,7 @@ class MultiSetBaxAcqFunction(AlgoAcqFunction):
             # NOTE: self.model is multimodel so the following returns a list of mus and
             # a list of stds
             # going to implement this with a loop first, maybe we can make it more efficient later
+            breakpoint()
             for x_set in x_list:
                 mus, stds = self.model.get_post_mu_cov(x_set, full_cov=True)
                 assert isinstance(mus, list)

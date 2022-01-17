@@ -196,9 +196,11 @@ class PolicyAcqOptimizer(AcqOptimizer):
 
     def evaluate_samples(self, current_obs, samples):
         # samples are initially num_samples x horizon x action_dim
-        breakpoint()
         # num_fs x num_samples x obs_dim
-        current_obs = np.tile(current_obs, (self.params.num_fs, samples.shape[0], 1))
+        num_samples = samples.shape[0]
+        horizon = samples.shape[1]
+        assert horizon == self.params.planning_horizon
+        current_obs = np.tile(current_obs, (self.params.num_fs, num_samples, 1))
         # current_obs = current_obs.reshape((-1, self.params.obs_dim))
         # num_fs x num_samples x horizon x action_dim
         samples = np.tile(samples, (self.params.num_fs, 1, 1, 1))
@@ -211,10 +213,15 @@ class PolicyAcqOptimizer(AcqOptimizer):
             x_list.append(x)
             deltas = f_batch_list(x)
             # might need to flatten tensors for this
-            current_states = self.params.update_fn(current_states, deltas)
-        x_list = np.array(x_list).transpose((1, 0, 2))
+            current_obs = self.params.update_fn(current_obs, deltas)
+        # 4d tensor horizon x num_fs x num_samples x (obs_dim + action_dim)
+        x_list = np.array(x_list)
+        # num_samples x num_fs x horizon x (obs_dim + action_dim)
+        x_list = x_list.transpose((2, 1, 0, 3))
+        # (num_samples x num_fs) x horizon x (obs_dim + action_dim)
+        x_list = x_list.reshape((-1, horizon, self.params.obs_dim + self.params.action_dim))
         eigs = self.acqfunction(x_list)
-        eigs = np.mean(np.array(eigs).reshape((self.params.num_fs, -1)), axis=0)
+        eigs = np.mean(np.array(eigs).reshape((num_samples, self.params.num_fs)), axis=1)
         return eigs
 
 class KGAcqOptimizer(AcqOptimizer):
