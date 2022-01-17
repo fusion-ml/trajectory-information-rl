@@ -610,7 +610,11 @@ class BatchGpfsGp(GpfsGp):
         """
 
         # Replace empty x_batch and convert all x_batch to max batch size
-        x_batch_list_new, max_n_batch = self.reformat_x_batch_list(x_batch_list)
+        if type(x_batch_list) is list:
+            x_batch_list_new, max_n_batch = self.reformat_x_batch_list(x_batch_list)
+        else:
+            x_batch_list_new = x_batch_list
+            max_n_batch = x_batch_list_new.shape[1]
 
         # Only re-initialize fsl_xvars if max_n_batch is larger than self.max_n_batch
         # note: I observerd that this doesn't work -- it still crashes if you pass in a batch that is smaller than
@@ -630,10 +634,13 @@ class BatchGpfsGp(GpfsGp):
         y_tf = self.call_fsl_on_xvars(self.params.model, self.fsl_xvars)
 
         # Return list of y_batch lists, each cropped to same size as original x_batch
-        y_batch_list = []
-        for yarr, x_batch in zip(y_tf.numpy(), x_batch_list):
-            y_batch = list(yarr.reshape(-1))[:len(x_batch)]
-            y_batch_list.append(y_batch)
+        if type(x_batch_list) is list:
+            y_batch_list = []
+            for yarr, x_batch in zip(y_tf.numpy(), x_batch_list):
+                y_batch = list(yarr.reshape(-1))[:len(x_batch)]
+                y_batch_list.append(y_batch)
+        else:
+            y_batch_list = y_tf.numpy()
 
         return y_batch_list
 
