@@ -284,7 +284,7 @@ class MultiGpfsGp(Base):
         self.params.n_dimy = getattr(params, 'n_dimy', 1)
         self.params.gp_params = getattr(params, 'gp_params', {})
 
-    def set_data(self, data, fs_only=False, smat=None, lmat=None):
+    def set_data(self, data, fs_only=False, smats=None, lmats=None):
         """Set self.data."""
         if data is None:
             self.data = Namespace(x=[], y=[])
@@ -293,13 +293,19 @@ class MultiGpfsGp(Base):
             self.data = copy.deepcopy(data)
         if len(self.gpfsgp_list) == 0:
             return
+        if lmats is None:
+            lmats = smats = [None] * len(self.gpfsgp_list)
         data_list = self.get_data_list(self.data)
-        for gp, dat in zip(self.gpfsgp_list, data_list):
+        for gp, dat, lmat, smat in zip(self.gpfsgp_list, data_list, lmats, smats):
             gp.set_data(dat, fs_only, lmat=lmat, smat=smat)
-            lmat = gp.lmat
-            smat = gp.smat
-        self.lmat = gp.lmat
-        self.smat = gp.smat
+
+    @property
+    def lmats(self):
+        return [gp.lmat for gp in self.gpfsgp_list]
+
+    @property
+    def smats(self):
+        return [gp.smat for gp in self.gpfsgp_list]
 
     def set_gpfsgp_list(self):
         """Set self.gpfsgp_list by instantiating a list of GpfsGp objects."""
@@ -309,15 +315,8 @@ class MultiGpfsGp(Base):
         # Each GpfsGp verbose set to same as self.params.verbose
         verb = self.params.verbose
         self.gpfsgp_list = []
-        # we know that lmat and smat will be the same across GPs since the x points are the sae
-        lmat = None
-        smat = None
         for gpp, dat in zip(gp_params_list, data_list):
-            gpfs_gp = GpfsGp(gpp, dat, verb, lmat=lmat, smat=smat)
-            # this means that the matrices will be reused after the first computation,
-            # saves a few matrix inverses
-            lmat = gpfs_gp.lmat
-            smat = gpfs_gp.smat
+            gpfs_gp = GpfsGp(gpp, dat, verb)
             self.gpfsgp_list.append(gpfs_gp)
 
     def initialize_function_sample_list(self, n_samp=1):
@@ -431,18 +430,11 @@ class TFMultiGpfsGp(MultiGpfsGp):
         # Each GpfsGp verbose set to same as self.params.verbose
         verb = self.params.verbose
         self.gpfsgp_list = []
-        # we know that lmat and smat will be the same across GPs since the x points are the sae
-        lmat = None
-        smat = None
         for gpp, dat in zip(gp_params_list, data_list):
-            gpfs_gp = TFGpfsGp(gpp, dat, verb, lmat=lmat, smat=smat)
-            # this means that the matrices will be reused after the first computation,
-            # saves a few matrix inverses
-            lmat = gpfs_gp.lmat
-            smat = gpfs_gp.smat
+            gpfs_gp = TFGpfsGp(gpp, dat, verb)
             self.gpfsgp_list.append(gpfs_gp)
 
-    def set_data(self, data, fs_only=False):
+    def set_data(self, data, lmats=None, smats=None, fs_only=False):
         """Set self.data."""
         self.params.fs_only = fs_only
         if data is None:
@@ -454,13 +446,11 @@ class TFMultiGpfsGp(MultiGpfsGp):
             self.data = data
         if len(self.gpfsgp_list) == 0:
             return
+        if lmats is None:
+            lmats = smats = [None] * len(self.gpfsgp_list)
         data_list = self.get_data_list(self.data)
-        smat = None
-        lmat = None
-        for gp, dat in zip(self.gpfsgp_list, data_list):
+        for gp, dat, lmat, smat in zip(self.gpfsgp_list, data_list, lmats, smats):
             gp.set_data(dat, fs_only, lmat=lmat, smat=smat)
-            lmat = gp.lmat
-            smat = gp.smat
 
 
     def initialize_function_sample_list(self, n_samp=1, weights=None):
@@ -683,15 +673,8 @@ class BatchMultiGpfsGp(MultiGpfsGp):
         # Each GpfsGp verbose set to same as self.params.verbose
         verb = self.params.verbose
         self.gpfsgp_list = []
-        # we know that lmat and smat will be the same across GPs since the x points are the sae
-        lmat = None
-        smat = None
         for gpp, dat in zip(gp_params_list, data_list):
-            gpfs_gp = BatchGpfsGp(gpp, dat, verb, lmat=lmat, smat=smat)
-            # this means that the matrices will be reused after the first computation,
-            # saves a few matrix inverses
-            lmat = gpfs_gp.lmat
-            smat = gpfs_gp.smat
+            gpfs_gp = BatchGpfsGp(gpp, dat, verb)
             self.gpfsgp_list.append(gpfs_gp)
 
     def call_function_sample_list(self, x_batch_list):

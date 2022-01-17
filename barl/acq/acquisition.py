@@ -754,9 +754,9 @@ class MultiSetBaxAcqFunction(AlgoAcqFunction):
                     comb_data = Namespace()
                     comb_data.x = self.model.data.x + exe_path.x
                     comb_data.y = self.model.data.y + exe_path.y
-                    self.conditioning_model.set_data(comb_data, lmat=self.lmats[i], smat=self.smats[i])
-                    self.lmats[i] = self.conditioning_model.lmat
-                    self.smats[i] = self.conditioning_model.smat
+                    self.conditioning_model.set_data(comb_data, lmats=self.lmats[i], smats=self.smats[i])
+                    self.lmats[i] = self.conditioning_model.lmats
+                    self.smats[i] = self.conditioning_model.smats
 
                     # NOTE: self.model is multimodel so the following returns a list of mus
                     # and a list of stds
