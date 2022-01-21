@@ -702,7 +702,9 @@ class MultiSetBaxAcqFunction(AlgoAcqFunction):
         super().set_params(params)
 
         params = dict_to_namespace(params)
-        self.params.name = getattr(params, 'name', 'MultiBaxAcqFunction')
+        self.params.name = getattr(params, 'name', 'MultiSetBaxAcqFunction')
+        self.base_smat = None
+        self.base_lmat = None
         self.smats = defaultdict(lambda: None)
         self.lmats = defaultdict(lambda: None)
 
@@ -714,7 +716,8 @@ class MultiSetBaxAcqFunction(AlgoAcqFunction):
             self.model = copy.deepcopy(model)
             self.conditioning_model = copy.deepcopy(model)
 
-    def acq_exe_normal(self, post_stds, samp_stds_list):
+    @staticmethod
+    def acq_exe_normal(post_stds, samp_stds_list):
         """
         Since everything about this acquisition function is the same except for the log det of the covariance, it is simply much easier to do that
         """
@@ -733,12 +736,51 @@ class MultiSetBaxAcqFunction(AlgoAcqFunction):
         acq_exe = h_post - avg_h_samp
         return acq_exe
 
+
+
+    @staticmethod
+    def _get_pred_covs(x_data, y_data, x_pred, smat, lmat):
+        pass
+
+
+    def fast_get_acq_list_batch(self, x_list):
+        """Return acquisition function for a batch of inputs x_set_list, but do it fast."""
+
+        # Compute posterior, and post given each execution path sample, for x_list
+        with Timer(f"Compute acquisition function for a batch of {len(x_list)} points"):
+            # NOTE: self.model is multimodel so the following returns a list of mus and
+            # a list of stds
+            # going to implement this with a loop first, maybe we can make it more efficient later
+            # TODO: compute predictive variance for standard dataset
+            x = self.model.data.x
+            y = self.model.data.y
+            if self.base_lmat is None:
+                self.base_lmats, self.base_smats = self.get_lmats_smats(x, y)
+            covs = self.get_pred_covs(x, y, self.base_lmat, self.base_smat, x_list)
+
+            samp_cov_list = []
+            for i, exe_path in enumerate(self.exe_path_list):
+                x = self.model.data.x + exe_path.x
+                y = self.model.data.y + exe_path.y
+                if self.lmats[i] is None:
+                    self.lmats[i], self.smats[i] = self.get_lmats_smats(x, y)
+                samp_covs = self.get_pred_covs(x, y, self.lmats[i], self.smats[i], x_list)
+                samp_cov_list.append(samp_covs)
+
+            # TODO: compute information gains from variances
+            acqs = self.get_acq_vals(covs, samp_cov_list)
+        self.acq_vars = {
+            "acq_list": acq_list,
+        }
+
+        # Return list of acquisition function on x in x_list
+        return acq_list
+
     def get_acq_list_batch(self, x_list):
         """Return acquisition function for a batch of inputs x_set_list."""
 
         # Compute posterior, and post given each execution path sample, for x_list
         with Timer(f"Compute acquisition function for a batch of {len(x_list)} points"):
-            acq_list = []
             # NOTE: self.model is multimodel so the following returns a list of mus and
             # a list of stds
             # going to implement this with a loop first, maybe we can make it more efficient later
