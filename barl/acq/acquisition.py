@@ -6,6 +6,8 @@ from argparse import Namespace
 import copy
 import numpy as np
 import tensorflow as tf
+import jax
+import jax.numpy as jnp
 from copy import deepcopy
 from collections import defaultdict
 from scipy.stats import norm as sps_norm
@@ -16,6 +18,7 @@ from ..util.base import Base
 from ..util.misc_util import dict_to_namespace, flatten
 from ..util.timing import Timer
 from ..models.function import FunctionSample
+from ..models.gp.jax_gp_utils import get_lmats_smats, get_pred_covs, construct_jax_kernels
 from ..alg.algorithms import AlgorithmSet, BatchAlgorithmSet
 
 
@@ -183,6 +186,7 @@ class AlgoAcqFunction(AcqFunction):
 
             # Get crop of each exe_path in exe_path_list
             exe_path_list = algoset.get_exe_path_list_crop()
+        breakpoint()
 
         return exe_path_list, output_list, exe_path_full_list
 
@@ -707,8 +711,8 @@ class MultiSetBaxAcqFunction(AlgoAcqFunction):
         self.base_lmat = None
         self.smats = defaultdict(lambda: None)
         self.lmats = defaultdict(lambda: None)
-        self.kernels = construct_jax_kernels(params.gp_params)
-        sigma = params.gp_params.sigma
+        self.kernels = construct_jax_kernels(params.gp_model_params)
+        sigma = params.gp_model_params['gp_params']['sigma']
         self.get_lmats_smats = partial(get_lmats_smats, kernels=self.kernels, sigma=sigma)
 
     def set_model(self, model):
@@ -766,8 +770,9 @@ class MultiSetBaxAcqFunction(AlgoAcqFunction):
             # a list of stds
             # going to implement this with a loop first, maybe we can make it more efficient later
             # TODO: compute predictive variance for standard dataset
-            x = self.model.data.x
-            y = self.model.data.y
+            x = jnp.array(self.model.data.x)
+            y = jnp.array(self.model.data.y)
+            breakpoint()
             if self.base_lmat is None:
                 self.base_lmats, self.base_smats = self.get_lmats_smats(x, y)
             covs = jax.vmap(get_pred_covs, in_axes=[None, None, 0, None, None, None])(
@@ -781,10 +786,11 @@ class MultiSetBaxAcqFunction(AlgoAcqFunction):
 
             samp_cov_list = []
             for i, exe_path in enumerate(self.exe_path_list):
-                x = self.model.data.x + exe_path.x
-                y = self.model.data.y + exe_path.y
+                x = jnp.array(self.model.data.x + exe_path.x)
+                y = jnp.array(self.model.data.y + exe_path.y)
                 if self.lmats[i] is None:
                     self.lmats[i], self.smats[i] = self.get_lmats_smats(x, y)
+                breakpoint()
                 samp_covs = jax.vmap(get_pred_covs, in_axes=[None, None, 0, None, None, None])(
                              x,
                              y,
@@ -854,7 +860,7 @@ class MultiSetBaxAcqFunction(AlgoAcqFunction):
 
     def __call__(self, x_set_list):
         """Class is callable and returns acquisition function on x_set_list."""
-        acq_list = self.get_acq_list_batch(x_set_list)
+        acq_list = self.fast_get_acq_list_batch(x_set_list)
         return acq_list
 
 class MCAcqFunction(AcqFunction):

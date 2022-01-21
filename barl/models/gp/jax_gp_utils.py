@@ -6,10 +6,11 @@ functional decoupled GP implementation.
 This was initially designed for use by the MultiSetBaxAcqFunction
 and still play nicely with the gp_params used by the BARL library
 '''
-import jax
 import jax.numpy as jnp
 from jax.scipy.linalg import solve_triangular
+from functools import partial
 import copy
+import collections
 
 
 def kern_exp_quad_ard(xmat1, xmat2, ls, alpha):
@@ -26,14 +27,14 @@ def kern_exp_quad_ard(xmat1, xmat2, ls, alpha):
     return kern
 
 
-def get_gp_params_list(gp_params):
+def get_gp_params_list(gp_params, n_dimy):
     """
     Return list of gp_params dicts by parsing gp_params.
 
     Copied and modified to be a pure function from MultiGpfsGp.
     """
     gp_params_list = [
-        copy.deepcopy(gp_params) for _ in range(gp_params['n_dimy'])
+        copy.deepcopy(gp_params) for _ in range(n_dimy)
     ]
 
     hyps = ['ls', 'alpha', 'sigma']
@@ -41,23 +42,22 @@ def get_gp_params_list(gp_params):
         if not isinstance(gp_params.get(hyp, 1), (float, int)):
             # If hyp exists in dict, and is not (float, int), assume is list of hyp
             for idx, gpp in enumerate(gp_params_list):
-                gpp[hyp] = self.params.gp_params[hyp][idx]
+                gpp[hyp] = gp_params[hyp][idx]
 
     return gp_params_list
 
 
-def construct_jax_kernels(gp_params):
+def construct_jax_kernels(params):
     """
     make kernel functions for JAX from BARL gp params
     """
-    assert gp_params['kernel_str'] == 'rbf', "rbf is the only supported kernel right now"
-    param_list = get_gp_params_list(gp_params)
+    assert params.get('kernel_str', 'rbf') == 'rbf', "rbf is the only supported kernel right now"
+    param_list = get_gp_params_list(params['gp_params'], params['n_dimy'])
     kernels = []
     # this part copied from MultiGpfsGP
-    hyps = ['ls', 'alpha', 'sigma']
     for params in param_list:
         if not isinstance(params['ls'], collections.abc.Sequence):
-            ls = jnp.array([self.params.ls for _ in range(self.params.n_dimx)])
+            ls = jnp.array([params.ls for _ in range(params.n_dimx)])
         else:
             ls = jnp.array(params['ls'])
         kernel = partial(kern_exp_quad_ard, ls=ls, alpha=params['alpha'])
@@ -90,7 +90,7 @@ def get_cholesky_decomp(k11_nonoise, sigma):
 def get_lmat_smat(x, y, kernel, sigma):
     k11_nonoise = kernel(x, x)
     lmat = get_cholesky_decomp(k11_nonoise, sigma)
-    smat = solve_upper_triangular(lmat.T, solve_lower_triangular(lmat, y_train))
+    smat = solve_upper_triangular(lmat.T, solve_lower_triangular(lmat, y))
     return lmat, smat
 
 
@@ -99,6 +99,8 @@ def get_lmats_smats(x, y, kernels, sigma):
     smats = []
     for kernel in kernels:
         lmat, smat = get_lmat_smat(x, y, kernel, sigma)
+        lmats.append(lmat)
+        smats.append(smat)
     return jnp.stack(lmats), jnp.stack(smats)
 
 
@@ -115,6 +117,6 @@ def solve_upper_triangular(amat, b):
 def solve_triangular_base(amat, b, lower):
     """Solves amat*x=b when amat is a triangular matrix."""
     if amat.size == 0 and b.shape[0] == 0:
-        return np.zeros((b.shape))
+        return jnp.zeros((b.shape))
     else:
         return solve_triangular(amat, b, lower=lower)
