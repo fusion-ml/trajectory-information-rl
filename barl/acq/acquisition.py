@@ -707,6 +707,9 @@ class MultiSetBaxAcqFunction(AlgoAcqFunction):
         self.base_lmat = None
         self.smats = defaultdict(lambda: None)
         self.lmats = defaultdict(lambda: None)
+        self.kernels = construct_jax_kernels(params.gp_params)
+        sigma = params.gp_params.sigma
+        self.get_lmats_smats = partial(get_lmats_smats, kernels=self.kernels, sigma=sigma)
 
     def set_model(self, model):
         """Set self.model, the model underlying the acquisition function."""
@@ -736,12 +739,23 @@ class MultiSetBaxAcqFunction(AlgoAcqFunction):
         acq_exe = h_post - avg_h_samp
         return acq_exe
 
-
-
     @staticmethod
-    def _get_pred_covs(x_data, y_data, x_pred, smat, lmat):
-        pass
+    def fast_acq_exe_normal(post_covs, samp_covs_list):
+        h_post = jnp.sum(jnp.linalg.slogdet(post_covs)[1])
 
+        h_samp_list = []
+
+        @jax.vmap
+        def get_hsamp(samp_covs):
+            dets = jnp.linalg.slogdet(samp_covs)[1]
+            h_samp = jnp.sum(dets)
+            return h_samp
+
+        h_samp_list = get_hsamp(samp_covs_list)
+
+        avg_h_samp = jnp.mean(h_samp_list)
+        acq_exe = h_post - avg_h_samp
+        return acq_exe
 
     def fast_get_acq_list_batch(self, x_list):
         """Return acquisition function for a batch of inputs x_set_list, but do it fast."""
@@ -756,7 +770,14 @@ class MultiSetBaxAcqFunction(AlgoAcqFunction):
             y = self.model.data.y
             if self.base_lmat is None:
                 self.base_lmats, self.base_smats = self.get_lmats_smats(x, y)
-            covs = self.get_pred_covs(x, y, self.base_lmat, self.base_smat, x_list)
+            covs = jax.vmap(get_pred_covs, in_axes=[None, None, 0, None, None, None])(
+                    x,
+                    y,
+                    x_list,
+                    self.base_smats,
+                    self.base_lmats,
+                    self.kernels
+                    )
 
             samp_cov_list = []
             for i, exe_path in enumerate(self.exe_path_list):
@@ -764,11 +785,19 @@ class MultiSetBaxAcqFunction(AlgoAcqFunction):
                 y = self.model.data.y + exe_path.y
                 if self.lmats[i] is None:
                     self.lmats[i], self.smats[i] = self.get_lmats_smats(x, y)
-                samp_covs = self.get_pred_covs(x, y, self.lmats[i], self.smats[i], x_list)
+                samp_covs = jax.vmap(get_pred_covs, in_axes=[None, None, 0, None, None, None])(
+                             x,
+                             y,
+                             x_list,
+                             self.smats[i],
+                             self.lmats[i],
+                             self.kernels
+                             )
                 samp_cov_list.append(samp_covs)
 
             # TODO: compute information gains from variances
-            acqs = self.get_acq_vals(covs, samp_cov_list)
+            acqs = self.fast_acq_exe_normal(covs, samp_cov_list)
+            acq_list = list(acqs)
         self.acq_vars = {
             "acq_list": acq_list,
         }

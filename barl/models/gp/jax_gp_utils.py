@@ -67,10 +67,11 @@ def construct_jax_kernels(gp_params):
 
 def get_pred_covs(x_data, y_data, x_pred, smats, lmats, kernels):
     covs = []
-    for y, kernel, smat, lmat in zip(y_data, kernels, smats, lmats):
+    for y, kernel, smat, lmat in zip(y_data.T, kernels, smats, lmats):
         cov = get_pred_cov(x_data, y, x_pred, smat, lmat, kernel)
         covs.append(cov)
-    return cov
+    return jnp.stack(covs)
+
 
 def get_pred_cov(x_data, y_data, x_pred, smat, lmat, kernel):
     k21 = kernel(x_pred, x_data)
@@ -85,18 +86,21 @@ def get_cholesky_decomp(k11_nonoise, sigma):
     k11 = k11_nonoise + sigma ** 2
     return jnp.linalg.cholesky(k11)
 
+
 def get_lmat_smat(x, y, kernel, sigma):
     k11_nonoise = kernel(x, x)
     lmat = get_cholesky_decomp(k11_nonoise, sigma)
     smat = solve_upper_triangular(lmat.T, solve_lower_triangular(lmat, y_train))
     return lmat, smat
 
+
 def get_lmats_smats(x, y, kernels, sigma):
     lmats = []
     smats = []
     for kernel in kernels:
         lmat, smat = get_lmat_smat(x, y, kernel, sigma)
-    return lmats, smats
+    return jnp.stack(lmats), jnp.stack(smats)
+
 
 def solve_lower_triangular(amat, b):
     """Solves amat*x=b when amat is lower triangular."""
