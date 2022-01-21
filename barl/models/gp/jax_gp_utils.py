@@ -83,13 +83,18 @@ def get_pred_cov(x_data, y_data, x_pred, smat, lmat, kernel):
 
 def get_cholesky_decomp(k11_nonoise, sigma):
     # this is gonna be naive at first
-    k11 = k11_nonoise + sigma ** 2
+    k11 = k11_nonoise + sigma ** 2 * jnp.eye(k11_nonoise.shape[0])
     return jnp.linalg.cholesky(k11)
 
 
 def get_lmat_smat(x, y, kernel, sigma):
     k11_nonoise = kernel(x, x)
-    lmat = get_cholesky_decomp(k11_nonoise, sigma)
+    while True:
+        lmat = get_cholesky_decomp(k11_nonoise, sigma)
+        if jnp.isnan(lmat).any():
+            sigma *= 2
+        else:
+            break
     smat = solve_upper_triangular(lmat.T, solve_lower_triangular(lmat, y))
     return lmat, smat
 

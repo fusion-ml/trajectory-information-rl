@@ -186,7 +186,6 @@ class AlgoAcqFunction(AcqFunction):
 
             # Get crop of each exe_path in exe_path_list
             exe_path_list = algoset.get_exe_path_list_crop()
-        breakpoint()
 
         return exe_path_list, output_list, exe_path_full_list
 
@@ -769,10 +768,8 @@ class MultiSetBaxAcqFunction(AlgoAcqFunction):
             # NOTE: self.model is multimodel so the following returns a list of mus and
             # a list of stds
             # going to implement this with a loop first, maybe we can make it more efficient later
-            # TODO: compute predictive variance for standard dataset
             x = jnp.array(self.model.data.x)
             y = jnp.array(self.model.data.y)
-            breakpoint()
             if self.base_lmat is None:
                 self.base_lmats, self.base_smats = self.get_lmats_smats(x, y)
             covs = jax.vmap(get_pred_covs, in_axes=[None, None, 0, None, None, None])(
@@ -790,7 +787,6 @@ class MultiSetBaxAcqFunction(AlgoAcqFunction):
                 y = jnp.array(self.model.data.y + exe_path.y)
                 if self.lmats[i] is None:
                     self.lmats[i], self.smats[i] = self.get_lmats_smats(x, y)
-                breakpoint()
                 samp_covs = jax.vmap(get_pred_covs, in_axes=[None, None, 0, None, None, None])(
                              x,
                              y,
@@ -801,8 +797,7 @@ class MultiSetBaxAcqFunction(AlgoAcqFunction):
                              )
                 samp_cov_list.append(samp_covs)
 
-            # TODO: compute information gains from variances
-            acqs = self.fast_acq_exe_normal(covs, samp_cov_list)
+            acqs = jax.vmap(self.fast_acq_exe_normal)(covs, samp_cov_list)
             acq_list = list(acqs)
         self.acq_vars = {
             "acq_list": acq_list,
