@@ -760,7 +760,7 @@ class MultiSetBaxAcqFunction(AlgoAcqFunction):
 
                     # NOTE: self.model is multimodel so the following returns a list of mus
                     # and a list of stds
-                    samp_mus, samp_stds = self.model.get_post_mu_cov(
+                    samp_mus, samp_stds = self.conditioning_model.get_post_mu_cov(
                         x_set, full_cov=True,
                     )
                     mus_list.append(samp_mus)

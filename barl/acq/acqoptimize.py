@@ -158,7 +158,7 @@ class PolicyAcqOptimizer(AcqOptimizer):
             self.params.action_sequence = mean
             query = np.concatenate([current_obs, mean[0, :]])
             self.params.actions_until_plan -= 1
-            return query
+            return query, 0.
 
         initial_variance_divisor = 4
         action_upper_bound = self.params.action_upper_bound
