@@ -822,9 +822,7 @@ class MultiSetBaxAcqFunction(AlgoAcqFunction):
                     comb_data = Namespace()
                     comb_data.x = self.model.data.x + exe_path.x
                     comb_data.y = self.model.data.y + exe_path.y
-                    x_data = jnp.array(comb_data.x)
-                    k1_jmat = self.kernels[0](x_data, x_data)
-                    self.conditioning_model.set_data(comb_data), lmats=self.lmats[i], smats=self.smats[i])
+                    self.conditioning_model.set_data(comb_data, lmats=self.lmats[i], smats=self.smats[i])
                     self.lmats[i] = self.conditioning_model.lmats
                     self.smats[i] = self.conditioning_model.smats
 
