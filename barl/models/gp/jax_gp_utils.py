@@ -72,6 +72,14 @@ def get_pred_covs(x_data, y_data, x_pred, smats, lmats, kernels):
         covs.append(cov)
     return jnp.stack(covs)
 
+def bget_pred_covs(x_data, y_data, x_pred, smats, lmats, kernels):
+    breakpoint()
+    covs = []
+    for y, kernel, smat, lmat in zip(y_data.T, kernels, smats, lmats):
+        cov = get_pred_cov(x_data, y, x_pred, smat, lmat, kernel)
+        covs.append(cov)
+    return jnp.stack(covs)
+
 
 def get_pred_cov(x_data, y_data, x_pred, smat, lmat, kernel):
     k21 = kernel(x_pred, x_data)
@@ -102,8 +110,8 @@ def get_lmat_smat(x, y, kernel, sigma):
 def get_lmats_smats(x, y, kernels, sigma):
     lmats = []
     smats = []
-    for kernel in kernels:
-        lmat, smat = get_lmat_smat(x, y, kernel, sigma)
+    for i, kernel in enumerate(kernels):
+        lmat, smat = get_lmat_smat(x, y[:, i], kernel, sigma)
         lmats.append(lmat)
         smats.append(smat)
     return jnp.stack(lmats), jnp.stack(smats)
