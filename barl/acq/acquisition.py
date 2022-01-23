@@ -6,7 +6,8 @@ from argparse import Namespace
 import copy
 import numpy as np
 import tensorflow as tf
-from copy import deepcopy
+import jax
+import jax.numpy as jnp
 from collections import defaultdict
 from scipy.stats import norm as sps_norm
 from functools import partial
@@ -16,6 +17,7 @@ from ..util.base import Base
 from ..util.misc_util import dict_to_namespace, flatten
 from ..util.timing import Timer
 from ..models.function import FunctionSample
+from ..models.gp.jax_gp_utils import get_lmats_smats, get_pred_covs, construct_jax_kernels, bget_pred_covs
 from ..alg.algorithms import AlgorithmSet, BatchAlgorithmSet
 
 
@@ -702,9 +704,14 @@ class MultiSetBaxAcqFunction(AlgoAcqFunction):
         super().set_params(params)
 
         params = dict_to_namespace(params)
-        self.params.name = getattr(params, 'name', 'MultiBaxAcqFunction')
+        self.params.name = getattr(params, 'name', 'MultiSetBaxAcqFunction')
+        self.base_smat = None
+        self.base_lmat = None
         self.smats = defaultdict(lambda: None)
         self.lmats = defaultdict(lambda: None)
+        self.kernels = construct_jax_kernels(params.gp_model_params)
+        sigma = params.gp_model_params['gp_params']['sigma']
+        self.get_lmats_smats = partial(get_lmats_smats, kernels=self.kernels, sigma=sigma)
 
     def set_model(self, model):
         """Set self.model, the model underlying the acquisition function."""
@@ -714,34 +721,95 @@ class MultiSetBaxAcqFunction(AlgoAcqFunction):
             self.model = copy.deepcopy(model)
             self.conditioning_model = copy.deepcopy(model)
 
-    def acq_exe_normal(self, post_stds, samp_stds_list):
+    @staticmethod
+    def acq_exe_normal(post_covs, samp_covs_list):
         """
         Since everything about this acquisition function is the same except for the log det of the covariance, it is simply much easier to do that
         """
 
         # Compute entropies for posterior predictive
-        h_post = np.sum(np.linalg.slogdet(post_stds)[1])
-
+        signs, dets = np.linalg.slogdet(post_covs)
+        h_post = np.sum(dets, axis=-1)
         # Compute entropies for posterior predictive given execution path samples
-        h_samp_list = []
-        for samp_stds in samp_stds_list:
-            dets = np.linalg.slogdet(samp_stds)[1]
-            h_samp = np.sum(dets)
-            h_samp_list.append(h_samp)
-
-        avg_h_samp = np.mean(h_samp_list)
+        signs, dets = np.linalg.slogdet(samp_covs_list)
+        h_samp = np.sum(dets, axis=-1)
+        avg_h_samp = np.mean(h_samp, axis=-1)
         acq_exe = h_post - avg_h_samp
         return acq_exe
+
+    @staticmethod
+    def fast_acq_exe_normal(post_covs, samp_covs_list):
+        signs, dets = jnp.linalg.slogdet(post_covs)
+        h_post = jnp.sum(dets, axis=-1)
+        signs, dets = jnp.linalg.slogdet(samp_covs_list)
+        h_samp = jnp.sum(dets, axis=-1)
+        avg_h_samp = jnp.mean(h_samp, axis=-1)
+        acq_exe = h_post - avg_h_samp
+        return acq_exe
+
+    def fast_get_acq_list_batch(self, x_list):
+        """Return acquisition function for a batch of inputs x_set_list, but do it fast."""
+
+        # Compute posterior, and post given each execution path sample, for x_list
+        with Timer(f"Compute acquisition function for a batch of {len(x_list)} points"):
+            # NOTE: self.model is multimodel so the following returns a list of mus and
+            # a list of stds
+            # going to implement this with a loop first, maybe we can make it more efficient later
+            x = jnp.array(self.model.data.x)
+            y = jnp.array(self.model.data.y)
+            if self.base_lmat is None:
+                self.base_lmats, self.base_smats = self.get_lmats_smats(x, y)
+            covs = jax.vmap(get_pred_covs, in_axes=[None, None, 0, None, None, None])(
+                    x,
+                    y,
+                    x_list,
+                    self.base_smats,
+                    self.base_lmats,
+                    self.kernels
+                    )
+            samp_cov_list = []
+            for i, exe_path in enumerate(self.exe_path_list):
+                x = jnp.array(self.model.data.x + exe_path.x)
+                y = jnp.array(self.model.data.y + exe_path.y)
+                if self.lmats[i] is None:
+                    self.lmats[i], self.smats[i] = self.get_lmats_smats(x, y)
+                samp_covs = jax.vmap(get_pred_covs, in_axes=[None, None, 0, None, None, None])(
+                             x,
+                             y,
+                             x_list,
+                             self.smats[i],
+                             self.lmats[i],
+                             self.kernels
+                             )
+                samp_cov_list.append(samp_covs)
+
+
+            samp_cov_list = jnp.stack(samp_cov_list)
+            samp_cov_list = jnp.transpose(samp_cov_list, (1, 0, 2, 3, 4))
+            # ev = np.linalg.eig(samp_cov_list)[0]
+            # regularization, maybe
+            reg = jnp.eye(samp_cov_list.shape[-1])[None, None, None, ...] * 1e-5
+            covs2 = covs + reg
+            samp_cov_list2 = samp_cov_list + reg
+            # ev2 = np.linalg.eig(samp_cov_list2)[0]
+            acq = self.acq_exe_normal(covs2, samp_cov_list2)
+            # fast_acq = self.fast_acq_exe_normal(covs, samp_cov_list)
+
+        self.acq_vars = {
+            "acq_list": list(acq),
+        }
+
+        return acq
 
     def get_acq_list_batch(self, x_list):
         """Return acquisition function for a batch of inputs x_set_list."""
 
         # Compute posterior, and post given each execution path sample, for x_list
         with Timer(f"Compute acquisition function for a batch of {len(x_list)} points"):
-            acq_list = []
             # NOTE: self.model is multimodel so the following returns a list of mus and
             # a list of stds
             # going to implement this with a loop first, maybe we can make it more efficient later
+            acq_list = []
             for x_set in tqdm(x_list):
                 mus, stds = self.model.get_post_mu_cov(x_set, full_cov=True)
                 assert isinstance(mus, list)
@@ -754,7 +822,9 @@ class MultiSetBaxAcqFunction(AlgoAcqFunction):
                     comb_data = Namespace()
                     comb_data.x = self.model.data.x + exe_path.x
                     comb_data.y = self.model.data.y + exe_path.y
-                    self.conditioning_model.set_data(comb_data, lmats=self.lmats[i], smats=self.smats[i])
+                    x_data = jnp.array(comb_data.x)
+                    k1_jmat = self.kernels[0](x_data, x_data)
+                    self.conditioning_model.set_data(comb_data), lmats=self.lmats[i], smats=self.smats[i])
                     self.lmats[i] = self.conditioning_model.lmats
                     self.smats[i] = self.conditioning_model.smats
 
@@ -767,6 +837,8 @@ class MultiSetBaxAcqFunction(AlgoAcqFunction):
                     stds_list.append(samp_stds)
 
                 # Compute acq_list, the acqfunction value for each x in x_list
+                # jax_stds = self.jax_input_list[j][0]
+                # jax_samp_stds = self.jax_input_list[j][0]
                 acq_list.append(self.acq_exe_normal(stds, stds_list))
 
         # Package and store acq_vars
@@ -779,12 +851,13 @@ class MultiSetBaxAcqFunction(AlgoAcqFunction):
         }
 
         # Return list of acquisition function on x in x_list
-        return acq_list
+        return np.array(acq_list)
 
     def __call__(self, x_set_list):
         """Class is callable and returns acquisition function on x_set_list."""
-        acq_list = self.get_acq_list_batch(x_set_list)
-        return acq_list
+        fast_acq_list = self.fast_get_acq_list_batch(x_set_list)
+        # slow_acq_list = self.get_acq_list_batch(x_set_list)
+        return list(fast_acq_list)
 
 class MCAcqFunction(AcqFunction):
     """
