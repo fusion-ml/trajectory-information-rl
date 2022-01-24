@@ -144,6 +144,7 @@ def main(config):
     # Set current_obs as fixed start_obs or reset env
     current_obs = start_obs.copy() if config.fixed_start_obs else env.reset()
     current_t = 0
+    current_rewards = []
 
     for i in range(config.num_iters):
         logging.info('---' * 5 + f' Start iteration i={i} ' + '---' * 5)
@@ -229,16 +230,21 @@ def main(config):
         # happens in the right place
         if config.alg.rollout_sampling:
             current_t += 1
+            delta = y_next[-obs_dim:]
+            # current_obs will get overwritten if the episode is over
+            current_obs = update_fn(current_obs, delta)
+            reward = reward_function(x_next, current_obs)
+            current_rewards.append(reward)
+            logging.info(f"Reward: {reward}")
             if current_t > env.horizon:
+                current_return = compute_return(current_rewards, 1.)
+                logging.info(f"Explore episode complette with return {current_return}, resetting")
+                dumper.add('Exploration Episode Rewards', current_rewards)
+                current_rewards = []
                 current_t = 0
                 current_obs = start_obs.copy() if config.fixed_start_obs else env.reset()
-                logging.info("Explore episode complette, resetting")
                 # clear action sequence if it was there (only relevant for KGRL policy, noop otherwise)
                 acqopt_params['action_sequence'] = None
-
-            else:
-                delta = y_next[-obs_dim:]
-                current_obs = update_fn(current_obs, delta)
 
         # Dumper save
         dumper.save()
