@@ -22,7 +22,7 @@ mpc:
   xi: 0.3
   num_iters: 5
   actions_per_plan: 1
-tf_precision: 32
+tf_precision: 64
 eigmpc:
   nsamps: 100
   planning_horizon: 15
