@@ -23,3 +23,12 @@ mpc:
   num_iters: 5
   actions_per_plan: 1
 tf_precision: 32
+eigmpc:
+  nsamps: 100
+  planning_horizon: 15
+  n_elites: 15
+  beta: 3
+  gamma: 1.25
+  xi: 0.3
+  num_iters: 5
+  actions_per_plan: 1
