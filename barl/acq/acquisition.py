@@ -844,7 +844,6 @@ class MultiSetBaxAcqFunction(AlgoAcqFunction):
                 path_x_data = jnp.concatenate([x_data, exe_path[0]])
                 path_y_data = jnp.concatenate([y_data, exe_path[1]])
                 lmats[i], smats[i] = self.get_lmats_smats(path_x_data, path_y_data)
-            '''
             self.jit_fast_acq = jax.vmap(jax.jit(partial(self.fast_get_acq_list_batch,
                                                 x_data=x_data,
                                                 y_data=y_data,
@@ -864,6 +863,7 @@ class MultiSetBaxAcqFunction(AlgoAcqFunction):
                                                 kernels=self.kernels,
                                                 lmats=lmats,
                                                 smats=smats))
+            '''
         with Timer(f"Compute acquisition function for a batch of {x_set_list.shape[0]} points"):
             fast_acq_list = self.jit_fast_acq(x_set_list)
         # slow_acq_list = self.get_acq_list_batch(x_set_list)

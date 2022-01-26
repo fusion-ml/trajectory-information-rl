@@ -168,14 +168,14 @@ class PolicyAcqOptimizer(AcqOptimizer):
         elites, elite_returns = None, None
         best_sample, best_return = None, -np.inf
         for i in trange(self.params.num_iters, disable=not self.params.verbose):
-            num_traj = int(max(self.params.base_nsamps * (self.params.gamma ** -i), 2 * self.params.n_elites))
             # these are num_samples x horizon x action_dim
-            samples = iCEM_generate_samples(num_traj, horizon, beta, mean, var, action_lower_bound, action_upper_bound)
+            samples = iCEM_generate_samples(self.params.base_nsamps, horizon, beta, mean, var, action_lower_bound, action_upper_bound)
             if i == 0:
                 pass
                 # do we need to do something specific here?
             if i + 1 == self.params.num_iters:
                 samples = np.concatenate([samples, mean[None, :]], axis=0)
+                samples = samples[1:, ...]
             returns = self.evaluate_samples(current_obs, samples)
             if i > 0:
                 elite_subset_idx = np.random.choice(self.params.n_elites, int(self.params.n_elites * self.params.xi),
