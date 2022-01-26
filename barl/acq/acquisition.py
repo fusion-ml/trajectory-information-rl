@@ -17,7 +17,7 @@ from ..util.base import Base
 from ..util.misc_util import dict_to_namespace, flatten
 from ..util.timing import Timer
 from ..models.function import FunctionSample
-from ..models.gp.jax_gp_utils import get_lmats_smats, get_pred_covs, construct_jax_kernels, bget_pred_covs
+from ..models.gp.jax_gp_utils import get_lmats_smats, get_pred_covs, construct_jax_kernels
 from ..alg.algorithms import AlgorithmSet, BatchAlgorithmSet
 
 
@@ -712,6 +712,7 @@ class MultiSetBaxAcqFunction(AlgoAcqFunction):
         self.kernels = construct_jax_kernels(params.gp_model_params)
         sigma = params.gp_model_params['gp_params']['sigma']
         self.get_lmats_smats = partial(get_lmats_smats, kernels=self.kernels, sigma=sigma)
+        self.jit_fast_acq = getattr(params, 'jit_fast_acq', None)
 
     def set_model(self, model):
         """Set self.model, the model underlying the acquisition function."""
@@ -747,58 +748,35 @@ class MultiSetBaxAcqFunction(AlgoAcqFunction):
         acq_exe = h_post - avg_h_samp
         return acq_exe
 
-    def fast_get_acq_list_batch(self, x_list):
+    @staticmethod
+    def fast_get_acq_list_batch(x_set, x_data, y_data, base_lmats, base_smats, exe_path_list, kernels, lmats, smats):
         """Return acquisition function for a batch of inputs x_set_list, but do it fast."""
 
         # Compute posterior, and post given each execution path sample, for x_list
-        with Timer(f"Compute acquisition function for a batch of {len(x_list)} points"):
-            # NOTE: self.model is multimodel so the following returns a list of mus and
-            # a list of stds
-            # going to implement this with a loop first, maybe we can make it more efficient later
-            x = jnp.array(self.model.data.x)
-            y = jnp.array(self.model.data.y)
-            if self.base_lmat is None:
-                self.base_lmats, self.base_smats = self.get_lmats_smats(x, y)
-            covs = jax.vmap(get_pred_covs, in_axes=[None, None, 0, None, None, None])(
-                    x,
-                    y,
-                    x_list,
-                    self.base_smats,
-                    self.base_lmats,
-                    self.kernels
-                    )
-            samp_cov_list = []
-            for i, exe_path in enumerate(self.exe_path_list):
-                x = jnp.array(self.model.data.x + exe_path.x)
-                y = jnp.array(self.model.data.y + exe_path.y)
-                if self.lmats[i] is None:
-                    self.lmats[i], self.smats[i] = self.get_lmats_smats(x, y)
-                samp_covs = jax.vmap(get_pred_covs, in_axes=[None, None, 0, None, None, None])(
-                             x,
-                             y,
-                             x_list,
-                             self.smats[i],
-                             self.lmats[i],
-                             self.kernels
-                             )
-                samp_cov_list.append(samp_covs)
+        x = x_data
+        y = y_data
+        pred_cov = get_pred_covs(x, y, x_set, base_lmats, base_smats, kernels)
+        samp_cov_list = []
+        for i, exe_path in enumerate(exe_path_list):
+            x = jnp.concatenate([x_data, exe_path[0]], axis=0)
+            y = jnp.concatenate([y_data, exe_path[1]], axis=0)
+            samp_covs = get_pred_covs(
+                         x,
+                         y,
+                         x_set,
+                         lmats[i],
+                         smats[i],
+                         kernels
+                         )
+            samp_cov_list.append(samp_covs)
 
 
-            samp_cov_list = jnp.stack(samp_cov_list)
-            samp_cov_list = jnp.transpose(samp_cov_list, (1, 0, 2, 3, 4))
-            # ev = np.linalg.eig(samp_cov_list)[0]
-            # regularization, maybe
-            reg = jnp.eye(samp_cov_list.shape[-1])[None, None, None, ...] * 1e-5
-            covs2 = covs + reg
-            samp_cov_list2 = samp_cov_list + reg
-            # ev2 = np.linalg.eig(samp_cov_list2)[0]
-            acq = self.acq_exe_normal(covs2, samp_cov_list2)
-            # fast_acq = self.fast_acq_exe_normal(covs, samp_cov_list)
-
-        self.acq_vars = {
-            "acq_list": list(acq),
-        }
-
+        samp_cov_list = jnp.stack(samp_cov_list)
+        # regularization, maybe
+        reg = jnp.eye(samp_cov_list.shape[-1])[None, None, ...] * 1e-5
+        reg_pred_cov = pred_cov + reg
+        reg_samp_cov_list = samp_cov_list + reg
+        acq = MultiSetBaxAcqFunction.fast_acq_exe_normal(reg_pred_cov, reg_samp_cov_list)
         return acq
 
     def get_acq_list_batch(self, x_list):
@@ -853,7 +831,41 @@ class MultiSetBaxAcqFunction(AlgoAcqFunction):
 
     def __call__(self, x_set_list):
         """Class is callable and returns acquisition function on x_set_list."""
-        fast_acq_list = self.fast_get_acq_list_batch(x_set_list)
+        x_set_list = jnp.array(x_set_list)
+        if self.jit_fast_acq is None:
+            x_data = jnp.array(self.model.data.x)
+            y_data = jnp.array(self.model.data.y)
+            exe_paths = []
+            for exe_path in self.exe_path_list:
+                exe_paths.append((jnp.array(exe_path.x), jnp.array(exe_path.y)))
+            lmats, smats = {}, {}
+            base_lmat, base_smat = self.get_lmats_smats(x_data, y_data)
+            for i, exe_path in enumerate(exe_paths):
+                path_x_data = jnp.concatenate([x_data, exe_path[0]])
+                path_y_data = jnp.concatenate([y_data, exe_path[1]])
+                lmats[i], smats[i] = self.get_lmats_smats(path_x_data, path_y_data)
+            '''
+            self.jit_fast_acq = jax.vmap(jax.jit(partial(self.fast_get_acq_list_batch,
+                                                x_data=x_data,
+                                                y_data=y_data,
+                                                base_lmats=base_lmat,
+                                                base_smats=base_smat,
+                                                exe_path_list=exe_paths,
+                                                kernels=self.kernels,
+                                                lmats=lmats,
+                                                smats=smats)))
+            '''
+            self.jit_fast_acq = jax.vmap(partial(self.fast_get_acq_list_batch,
+                                                x_data=x_data,
+                                                y_data=y_data,
+                                                base_lmats=base_lmat,
+                                                base_smats=base_smat,
+                                                exe_path_list=exe_paths,
+                                                kernels=self.kernels,
+                                                lmats=lmats,
+                                                smats=smats))
+        with Timer(f"Compute acquisition function for a batch of {x_set_list.shape[0]} points"):
+            fast_acq_list = self.jit_fast_acq(x_set_list)
         # slow_acq_list = self.get_acq_list_batch(x_set_list)
         return list(fast_acq_list)
 

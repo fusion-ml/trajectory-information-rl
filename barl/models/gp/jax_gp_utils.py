@@ -65,15 +65,7 @@ def construct_jax_kernels(params):
     return kernels
 
 
-def get_pred_covs(x_data, y_data, x_pred, smats, lmats, kernels):
-    covs = []
-    for y, kernel, smat, lmat in zip(y_data.T, kernels, smats, lmats):
-        cov = get_pred_cov(x_data, y, x_pred, smat, lmat, kernel)
-        covs.append(cov)
-    return jnp.stack(covs)
-
-def bget_pred_covs(x_data, y_data, x_pred, smats, lmats, kernels):
-    breakpoint()
+def get_pred_covs(x_data, y_data, x_pred, lmats, smats, kernels):
     covs = []
     for y, kernel, smat, lmat in zip(y_data.T, kernels, smats, lmats):
         cov = get_pred_cov(x_data, y, x_pred, smat, lmat, kernel)
