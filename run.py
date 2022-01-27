@@ -236,7 +236,7 @@ def main(config):
             reward = reward_function(x_next, current_obs)
             current_rewards.append(reward)
             logging.info(f"Reward: {reward}")
-            if current_t > env.horizon:
+            if current_t == env.horizon:
                 current_return = compute_return(current_rewards, 1.)
                 logging.info(f"Explore episode complette with return {current_return}, resetting")
                 dumper.add('Exploration Episode Rewards', current_rewards)
