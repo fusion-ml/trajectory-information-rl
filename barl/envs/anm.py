@@ -60,6 +60,21 @@ class SimpleEnvironment(ANMEnv):
 
         return np.array([P_load, aux])
 
+    def reset(self, obs=None):
+        if obs is not None:
+            raise NotImplementedError("ANM doesn't support reset to state")
+        return super().reset()
+
+
+def simpleANMRewardFunction(x, next_obs):
+    # steps to get this
+    # write down the components of the obs
+    # write down the constants needed
+    # figure out how they correspond to the hardcoded parameters above
+    # implement the actual reward function logic using next_obs
+    pass
+
+
 if __name__ == '__main__':
     env = SimpleEnvironment()
     env.reset()
