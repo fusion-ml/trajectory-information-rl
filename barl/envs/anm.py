@@ -79,6 +79,7 @@ if __name__ == '__main__':
     env = SimpleEnvironment()
     env.reset()
 
+    breakpoint()
     for t in range(10):
         a = env.action_space.sample()
         o, r, done, _ = env.step(a)
