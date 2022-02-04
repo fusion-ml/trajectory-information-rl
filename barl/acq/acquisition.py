@@ -8,6 +8,7 @@ import numpy as np
 import tensorflow as tf
 import jax
 import jax.numpy as jnp
+import logging
 from collections import defaultdict
 from scipy.stats import norm as sps_norm
 from functools import partial
@@ -866,6 +867,11 @@ class MultiSetBaxAcqFunction(AlgoAcqFunction):
             '''
         with Timer(f"Compute acquisition function for a batch of {x_set_list.shape[0]} points"):
             fast_acq_list = self.jit_fast_acq(x_set_list)
+        not_finites = ~jnp.isfinite(fast_acq_list)
+        num_not_finite = jnp.sum(not_finites)
+        if num_not_finite > 0:
+            logging.warning(f"{num_not_finite} acq function results were not finite.")
+            fast_acq_list = fast_acq_list.at[not_finites].set(-np.inf)
         # slow_acq_list = self.get_acq_list_batch(x_set_list)
         return list(fast_acq_list)
 
