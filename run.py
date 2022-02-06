@@ -150,6 +150,7 @@ def main(config):
         logging.info('---' * 5 + f' Start iteration i={i} ' + '---' * 5)
         logging.info(f'Length of data.x: {len(data.x)}')
         logging.info(f'Length of data.y: {len(data.y)}')
+        time_left = env.horizon - current_t
 
         # =====================================================
         #   Figure out what the next point to query should be
@@ -172,7 +173,8 @@ def main(config):
                 deepcopy(data),
                 dumper,
                 obs_dim,
-                action_dim)
+                action_dim,
+                time_left)
 
         # ==============================================
         #   Periodically run evaluation and plot
@@ -236,9 +238,9 @@ def main(config):
             reward = reward_function(x_next, current_obs)
             current_rewards.append(reward)
             logging.info(f"Reward: {reward}")
-            if current_t > env.horizon:
+            if current_t >= env.horizon:
                 current_return = compute_return(current_rewards, 1.)
-                logging.info(f"Explore episode complette with return {current_return}, resetting")
+                logging.info(f"Explore episode complete with return {current_return}, resetting")
                 dumper.add('Exploration Episode Rewards', current_rewards)
                 current_rewards = []
                 current_t = 0
@@ -419,6 +421,9 @@ def get_acq_opt(config, obs_dim, action_dim, env, start_obs, update_fn):
                 "actions_per_plan": config.eigmpc.actions_per_plan,
                 "update_fn": update_fn,
                 }
+        if config.alg.open_loop:
+            acqopt_params['planning_horizon'] = env.horizon
+            acqopt_params['actions_per_plan'] = env.horizon
         acqopt_class = PolicyAcqOptimizer
     else:
         acqopt_params = {}
@@ -521,6 +526,7 @@ def get_next_point(
         dumper,
         obs_dim,
         action_dim,
+        time_left,
         ):
     exe_path_list = []
     model = None
@@ -532,6 +538,7 @@ def get_next_point(
             acqfn = MCAcqFunction(acqfn_base, {"num_samples_mc": config.num_samples_mc})
         else:
             acqfn = acqfn_base
+        acqopt_params['time_left'] = time_left
         acqopt = acqopt_class(params=acqopt_params)
         acqopt.initialize(acqfn)
         if config.alg.rollout_sampling:

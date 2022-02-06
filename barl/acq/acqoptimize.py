@@ -114,7 +114,7 @@ class PolicyAcqOptimizer(AcqOptimizer):
         self.params.action_dim = params.action_dim
         self.params.initial_variance_divisor = getattr(params, "initial_variance_divisor", 4)
         self.params.base_nsamps = params.base_nsamps
-        self.params.planning_horizon = params.planning_horizon
+        self.params.planning_horizon = min(params.planning_horizon, params.time_left)
         self.params.n_elites = params.n_elites
         self.params.beta = params.beta
         self.params.gamma = params.gamma
@@ -123,7 +123,8 @@ class PolicyAcqOptimizer(AcqOptimizer):
         self.params.num_iters = params.num_iters
         self.params.verbose = getattr(params, "verbose", False)
         self.params.actions_per_plan = getattr(params, "actions_per_plan", 1)
-        self.params.actions_until_plan = 0
+        self.params.actions_until_plan = getattr(params, "actions_until_plan", 0)
+        print(f"{self.params.actions_until_plan=}")
         self.params.action_sequence = getattr(params, 'action_sequence', None)
         self.params.action_upper_bound = getattr(params, 'action_upper_bound', 1)
         self.params.action_lower_bound = getattr(params, 'action_lower_bound', -1)
@@ -132,8 +133,9 @@ class PolicyAcqOptimizer(AcqOptimizer):
     def initialize(self, acqfunction):
         # Set self.acqfunction
         self.set_acqfunction(acqfunction)
-        self.acqfunction.initialize()
-        self.acqfunction.model.initialize_function_sample_list(self.params.num_fs)
+        if self.params.actions_until_plan == 0:
+            self.acqfunction.initialize()
+            self.acqfunction.model.initialize_function_sample_list(self.params.num_fs)
 
     def get_initial_mean(self, action_sequence):
         if action_sequence is None:
@@ -197,7 +199,8 @@ class PolicyAcqOptimizer(AcqOptimizer):
 
         optimum = np.concatenate([current_obs, best_sample[0, :]])
         self.params.action_sequence = best_sample
-        self.params.actions_until_plan = self.params.actions_per_plan
+        # subtract one since we are already doing this action
+        self.params.actions_until_plan = self.params.actions_per_plan - 1
         return optimum, best_return
 
     def evaluate_samples(self, current_obs, samples):

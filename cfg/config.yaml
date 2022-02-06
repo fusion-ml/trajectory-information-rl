@@ -20,6 +20,7 @@ alg:
     pilco: False
     gd_opt: False
     eig: False
+    open_loop: False
 mpc:
   nsamps: ${env.mpc.nsamps}
   planning_horizon: ${env.mpc.planning_horizon}
