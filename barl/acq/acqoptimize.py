@@ -5,6 +5,7 @@ import copy
 import numpy as np
 import tensorflow as tf
 import tensorflow.keras as keras
+import logging
 from tqdm import trange
 
 from .acquisition import BaxAcqFunction
@@ -193,6 +194,7 @@ class PolicyAcqOptimizer(AcqOptimizer):
             var = np.var(elites, axis=0)
             best_idx = np.argmax(returns)
             best_current_return = returns[best_idx]
+            logging.info(f"{best_current_return=}")
             if best_current_return > best_return:
                 best_return = best_current_return
                 best_sample = samples[best_idx, ...]

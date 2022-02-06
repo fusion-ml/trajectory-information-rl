@@ -24,7 +24,7 @@ mpc:
   actions_per_plan: 1
 tf_precision: 64
 eigmpc:
-  nsamps: 100
+  nsamps: 80
   planning_horizon: 15
   n_elites: 15
   beta: 3
