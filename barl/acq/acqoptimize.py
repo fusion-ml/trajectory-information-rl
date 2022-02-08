@@ -132,7 +132,7 @@ class PolicyAcqOptimizer(AcqOptimizer):
         # TODO: add this knob
         self.params.num_s0_samps = params.num_s0_samps
         # TODO: make this sampler
-        self.params.s0_uniform_sampler = None
+        self.params.s0_sampler = params.s0_sampler
         self.params.update_fn = params.update_fn
 
     def initialize(self, acqfunction):
@@ -157,7 +157,7 @@ class PolicyAcqOptimizer(AcqOptimizer):
                 return self._optimize(x_batch)
             best_query, best_action_sequence, best_return = None, -np.inf
             for i in range(self.params.num_s0_samps):
-                s0 = self.params.s0_uniform_sampler()
+                s0 = self.params.s0_sampler()
                 optimum, value = self._optimize([s0])
                 if value > best_return:
                     best_query = optimum

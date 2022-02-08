@@ -125,7 +125,7 @@ def main(config):
     # Set acqfunction
     acqfn_class, acqfn_params = get_acq_fn(config, env.horizon, p0, reward_function, update_fn,
                                            obs_dim, action_dim, gp_model_class, gp_model_params)
-    acqopt_class, acqopt_params = get_acq_opt(config, obs_dim, action_dim, env, start_obs, update_fn)
+    acqopt_class, acqopt_params = get_acq_opt(config, obs_dim, action_dim, env, start_obs, update_fn, p0)
 
     # ==============================================
     #   Computing groundtruth trajectories
@@ -148,7 +148,7 @@ def main(config):
 
     # Set current_obs as fixed start_obs or reset env
     # TODO: rearrange this to not choose a state if we get a choice of start state for explroation
-    current_obs = start_obs.copy() if config.fixed_start_obs else env.reset()
+    current_obs = get_start_obs(config)
     current_t = 0
     current_rewards = []
 
@@ -163,7 +163,7 @@ def main(config):
         # =====================================================
         # exe_path_list can be [] if there are no paths
         # model can be None if it isn't needed here
-        x_next, exe_path_list, model = get_next_point(
+        x_next, exe_path_list, model, current_obs = get_next_point(
                 i,
                 config,
                 algo,
@@ -381,7 +381,7 @@ def get_acq_fn(config, horizon, p0, reward_fn, update_fn, obs_dim, action_dim,
     return acqfn_class, acqfn_params
 
 
-def get_acq_opt(config, obs_dim, action_dim, env, start_obs, update_fn):
+def get_acq_opt(config, obs_dim, action_dim, env, start_obs, update_fn, s0_sampler):
     if config.alg.gd_opt:
         if config.alg.kg_policy:
             acqopt_class = KGPolicyAcqOptimizer
@@ -412,7 +412,6 @@ def get_acq_opt(config, obs_dim, action_dim, env, start_obs, update_fn):
         except Exception:
             pass
     elif config.alg.eig and config.alg.rollout_sampling:
-        # TODO: Install Policy Acqoptimizer
         acqopt_params = {
                 "obs_dim": obs_dim,
                 "action_dim": action_dim,
@@ -426,6 +425,8 @@ def get_acq_opt(config, obs_dim, action_dim, env, start_obs, update_fn):
                 "num_iters": config.eigmpc.num_iters,
                 "actions_per_plan": config.eigmpc.actions_per_plan,
                 "update_fn": update_fn,
+                "num_s0_samps": config.alg.num_s0_samps,
+                "s0_sampler": s0_sampler,
                 }
         if config.alg.open_loop:
             acqopt_params['planning_horizon'] = env.horizon
@@ -548,7 +549,10 @@ def get_next_point(
         acqopt = acqopt_class(params=acqopt_params)
         acqopt.initialize(acqfn)
         if config.alg.rollout_sampling:
-            x_test = [np.concatenate([current_obs, action_space.sample()]) for _ in range(config.n_rand_acqopt)]
+            if current_obs is not None:
+                x_test = [np.concatenate([current_obs, action_space.sample()]) for _ in range(config.n_rand_acqopt)]
+            else:
+                x_test = None
         elif config.alg.eig and config.sample_exe:
             all_x = []
             for path in acqfn.exe_path_full_list:
@@ -599,9 +603,12 @@ def get_next_point(
         x_next = np.concatenate([current_obs, action])
     else:
         x_next = unif_random_sample_domain(domain, 1)[0]
-    if config.alg.rollout_sampling:
+    if config.alg.rollout_sampling and current_obs is not None:
         assert np.allclose(current_obs, x_next[:obs_dim]), "For rollout cases, we can only give queries which are from the current state"
-    return x_next, exe_path_list, model
+    if current_obs is None:
+
+        current_obs = x_next[:obs_dim].copy()
+    return x_next, exe_path_list, model, current_obs
 
 
 def evaluate_mpc(
@@ -675,6 +682,15 @@ def evaluate_mpc(
         dumper.add('Model Likelihood (random test set)', random_likelihood)
         dumper.add('Model Likelihood (GT MPC)', gt_mpc_likelihood)
         return real_paths_mpc
+
+
+def get_start_obs(config, start_obs, env):
+    if config.fixed_start_obs:
+        return start_obs.copy()
+    elif config.alg.choose_start_state:
+        return None
+    else:
+        return env.reset()
 
 
 def make_plots(

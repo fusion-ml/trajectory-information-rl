@@ -21,6 +21,9 @@ alg:
     gd_opt: False
     eig: False
     open_loop: False
+    choose_start_state: False
+    num_samples_mc: 1
+    num_s0_samps: 1
 mpc:
   nsamps: ${env.mpc.nsamps}
   planning_horizon: ${env.mpc.planning_horizon}
@@ -52,7 +55,7 @@ test_mpc:
 num_iters: ${alg.num_iters}
 seed: 13
 fixed_start_obs: False
-num_samples_mc: 1
+num_samples_mc: ${alg.num_samples_mc}
 num_init_data: 1
 test_set_size: 1000
 tf_eager: False
