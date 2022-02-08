@@ -302,10 +302,31 @@ class MPC(BatchAlgorithm):
                 break
         return exe_path_crop
 
-    def execute_mpc(self, obs, f, samples_to_pass=[], return_samps=False):
+    def execute_mpc(self, obs, f, samples_to_pass=[], return_samps=False, open_loop=False):
         """Run MPC on a state, returns the optimal action."""
-        old_horizon = self.params.env_horizon
+        if open_loop:
+            # check if samples_to_pass is not empty, if it is then just return the first elt
+            if len(samples_to_pass) > 0:
+                action = samples_to_pass.pop(0)
+                return action, samples_to_pass
+            else:
+                assert self.params.env_horizon == self.params.planning_horizon, "required for open loop evaluation"
+                logging.info("Conducting open-loop planning at evaluation")
+                horizon = self.params.env_horizon
+                # samples_to_pass has to be empty, so we don't have to pass it
+                self.initialize()
+                old_start_obs = self.params.start_obs
+                self.params.start_obs = obs
+                # this doesn't do anything rn but maybe will in future (it did in debugging too)
+                self.is_test = True
+                exe_path, output = self.run_algorithm_on_f(f)
+                self.is_test = False
+                self.params.start_obs = old_start_obs
+                planned_actions = output[1]
+                action = planned_actions.pop(0)
+                return action, planned_actions
         old_start_obs = self.params.start_obs
+        old_horizon = self.params.env_horizon
         old_app = self.params.actions_per_plan
         self.params.actions_per_plan = 1
         self.params.env_horizon = 1

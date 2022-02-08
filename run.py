@@ -84,6 +84,9 @@ def main(config):
             crop_to_domain=config.crop_to_domain,
             update_fn=update_fn,
     )
+    if cfg.alg.open_loop:
+        cfg.test_mpc = cfg.eigmpc
+        logging.info("Swapped config because of open loop control")
     test_algo_params = dict(
             start_obs=start_obs,
             env=env,
@@ -626,7 +629,7 @@ def evaluate_mpc(
         pbar = trange(config.num_eval_trials)
         for j in pbar:
             real_obs, real_actions, real_rewards = evaluate_policy(policy, env, start_obs=start_obs,
-                                                                   mpc_pass=True)
+                                                                   mpc_pass=True, open_loop=config.alg.open_loop)
             real_return = compute_return(real_rewards, 1)
             real_returns.append(real_return)
             real_path_mpc = Namespace()
