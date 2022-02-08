@@ -129,6 +129,10 @@ class PolicyAcqOptimizer(AcqOptimizer):
         self.params.action_sequence = getattr(params, 'action_sequence', None)
         self.params.action_upper_bound = getattr(params, 'action_upper_bound', 1)
         self.params.action_lower_bound = getattr(params, 'action_lower_bound', -1)
+        # TODO: add this knob
+        self.params.num_s0_samps = params.num_s0_samps
+        # TODO: make this sampler
+        self.params.s0_uniform_sampler = None
         self.params.update_fn = params.update_fn
 
     def initialize(self, acqfunction):
@@ -146,10 +150,22 @@ class PolicyAcqOptimizer(AcqOptimizer):
                 axis=0)
             return new_action_sequence
 
-    def optimize(self, x_batch):
+    def optimize(self, x_batch=None):
         # wrapper so we can add timing info
         with Timer("Optimize acquisition function using cross-entropy"):
-            return self._optimize(x_batch)
+            if x_batch is not None:
+                return self._optimize(x_batch)
+            best_query, best_action_sequence, best_return = None, -np.inf
+            for i in range(self.params.num_s0_samps):
+                s0 = self.params.s0_uniform_sampler()
+                optimum, value = self._optimize([s0])
+                if value > best_return:
+                    best_query = optimum
+                    best_return = value
+                    best_action_sequence = self.params.action_sequence
+            self.params.action_sequence = best_action_sequence
+            return best_query, best_return
+
 
     def _optimize(self, x_batch):
         # assume x_batch is 1x(obs_dim + action_dim)

@@ -147,6 +147,7 @@ def main(config):
     # ==============================================
 
     # Set current_obs as fixed start_obs or reset env
+    # TODO: rearrange this to not choose a state if we get a choice of start state for explroation
     current_obs = start_obs.copy() if config.fixed_start_obs else env.reset()
     current_t = 0
     current_rewards = []
