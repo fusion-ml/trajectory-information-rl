@@ -784,7 +784,7 @@ class MultiSetBaxAcqFunction(AlgoAcqFunction):
         """Return acquisition function for a batch of inputs x_set_list."""
 
         # Compute posterior, and post given each execution path sample, for x_list
-        with Timer(f"Compute acquisition function for a batch of {len(x_list)} points"):
+        with Timer(f"Compute acquisition function for a batch of {len(x_list)} points", level=logging.DEBUG):
             # NOTE: self.model is multimodel so the following returns a list of mus and
             # a list of stds
             # going to implement this with a loop first, maybe we can make it more efficient later
@@ -865,7 +865,7 @@ class MultiSetBaxAcqFunction(AlgoAcqFunction):
                                                 lmats=lmats,
                                                 smats=smats))
             '''
-        with Timer(f"Compute acquisition function for a batch of {x_set_list.shape[0]} points"):
+        with Timer(f"Compute acquisition function for a batch of {x_set_list.shape[0]} points", level=logging.DEBUG):
             fast_acq_list = self.jit_fast_acq(x_set_list)
         not_finites = ~jnp.isfinite(fast_acq_list)
         num_not_finite = jnp.sum(not_finites)
@@ -921,6 +921,10 @@ class MCAcqFunction(AcqFunction):
         for fn in self.acq_function_copies:
             lists.append(fn(x_list))
         return list(np.mean(lists, axis=0))
+
+    @property
+    def model(self):
+        return self.acq_function_copies[0].model
 
 
 class UncertaintySamplingAcqFunction(AcqFunction):

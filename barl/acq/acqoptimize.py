@@ -152,10 +152,10 @@ class PolicyAcqOptimizer(AcqOptimizer):
 
     def optimize(self, x_batch=None):
         # wrapper so we can add timing info
-        with Timer("Optimize acquisition function using cross-entropy"):
+        with Timer("Optimize acquisition function using cross-entropy", level=logging.INFO):
             if x_batch is not None:
                 return self._optimize(x_batch)
-            best_query, best_action_sequence, best_return = None, -np.inf
+            best_query, best_action_sequence, best_return = None, None, -np.inf
             for i in range(self.params.num_s0_samps):
                 s0 = self.params.s0_sampler()
                 optimum, value = self._optimize([s0])
@@ -210,7 +210,7 @@ class PolicyAcqOptimizer(AcqOptimizer):
             var = np.var(elites, axis=0)
             best_idx = np.argmax(returns)
             best_current_return = returns[best_idx]
-            logging.info(f"{best_current_return=}")
+            logging.debug(f"{best_current_return=}")
             if best_current_return > best_return:
                 best_return = best_current_return
                 best_sample = samples[best_idx, ...]
