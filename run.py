@@ -148,7 +148,7 @@ def main(config):
 
     # Set current_obs as fixed start_obs or reset env
     # TODO: rearrange this to not choose a state if we get a choice of start state for explroation
-    current_obs = get_start_obs(config)
+    current_obs = get_start_obs(config, start_obs, env)
     current_t = 0
     current_rewards = []
 
@@ -604,7 +604,7 @@ def get_next_point(
     else:
         x_next = unif_random_sample_domain(domain, 1)[0]
     if config.alg.rollout_sampling and current_obs is not None:
-        assert np.allclose(current_obs, x_next[:obs_dim]), "For rollout cases, we can only give queries which are from the current state"
+        assert np.allclose(current_obs, x_next[:obs_dim]), "For rollout cases, we can only give queries which are from the current state"  # NOQA
     if current_obs is None:
 
         current_obs = x_next[:obs_dim].copy()
