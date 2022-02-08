@@ -17,3 +17,12 @@ mpc:
   xi: 0.3
   num_iters: 3
   actions_per_plan: 2
+eigmpc:
+  nsamps: 25
+  planning_horizon: 5
+  n_elites: 3
+  beta: 3
+  gamma: 1.25
+  xi: 0.3
+  num_iters: 3
+  actions_per_plan: 1
