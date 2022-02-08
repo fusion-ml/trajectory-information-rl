@@ -84,8 +84,10 @@ def main(config):
             crop_to_domain=config.crop_to_domain,
             update_fn=update_fn,
     )
-    if cfg.alg.open_loop:
-        cfg.test_mpc = cfg.eigmpc
+    if config.alg.open_loop:
+        config.test_mpc = config.eigmpc
+        config.test_mpc.planning_horizon = env.horizon
+        config.test_mpc.actions_per_plan = env.horizon
         logging.info("Swapped config because of open loop control")
     test_algo_params = dict(
             start_obs=start_obs,
@@ -619,7 +621,7 @@ def evaluate_mpc(
         algo.initialize()
 
         postmean_fn = make_postmean_fn(model, use_tf=config.alg.gd_opt)
-        policy = partial(algo.execute_mpc, f=postmean_fn)
+        policy = partial(algo.execute_mpc, f=postmean_fn, open_loop=config.alg.open_loop)
         real_returns = []
         mses = []
         all_x_mpc = []
@@ -628,15 +630,14 @@ def evaluate_mpc(
         real_paths_mpc = []
         pbar = trange(config.num_eval_trials)
         for j in pbar:
-            real_obs, real_actions, real_rewards = evaluate_policy(policy, env, start_obs=start_obs,
-                                                                   mpc_pass=True, open_loop=config.alg.open_loop)
+            real_obs, real_actions, real_rewards = evaluate_policy(policy, env, start_obs=start_obs, mpc_pass=True)
             real_return = compute_return(real_rewards, 1)
             real_returns.append(real_return)
             real_path_mpc = Namespace()
 
             real_path_mpc.x = [np.concatenate([obs, action]) for obs, action in zip(real_obs, real_actions)]
             plan_set_size = sum([len(path.x) for path in algo.old_exe_paths])
-            mpc_sample_indices = random.sample(range(plan_set_size), config.test_set_size)
+            mpc_sample_indices = random.sample(range(plan_set_size), min(plan_set_size, config.test_set_size))
             x_mpc = []
             y_hat_mpc = []
             for path in algo.old_exe_paths:

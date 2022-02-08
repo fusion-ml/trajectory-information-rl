@@ -127,7 +127,7 @@ class MPC(BatchAlgorithm):
         # at this point the *_done should be correct
         if self.samples_done and self.iter_num + 1 == self.params.num_iters:
             shift_actions = self.save_planned_actions()
-            if self.current_t + 1 >= self.params.env_horizon:
+            if self.current_t >= self.params.env_horizon:
                 # done planning
                 return []
             self.reset_CEM(shift_actions)
@@ -324,6 +324,7 @@ class MPC(BatchAlgorithm):
                 self.params.start_obs = old_start_obs
                 planned_actions = output[1]
                 action = planned_actions.pop(0)
+                self.old_exe_paths.append(self.exe_path)
                 return action, planned_actions
         old_start_obs = self.params.start_obs
         old_horizon = self.params.env_horizon
