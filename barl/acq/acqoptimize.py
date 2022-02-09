@@ -148,7 +148,7 @@ class PolicyAcqOptimizer(AcqOptimizer):
         else:
             new_action_sequence = np.concatenate([action_sequence[1:, :], np.zeros((1, self.params.action_dim))],
                 axis=0)
-            return new_action_sequence
+            return new_action_sequence[:self.params.planning_horizon, ...]
 
     def optimize(self, x_batch=None):
         # wrapper so we can add timing info
