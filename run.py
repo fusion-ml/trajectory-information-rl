@@ -250,7 +250,7 @@ def main(config):
                 dumper.add('Exploration Episode Rewards', current_rewards)
                 current_rewards = []
                 current_t = 0
-                current_obs = start_obs.copy() if config.fixed_start_obs else env.reset()
+                current_obs = get_start_obs(config, start_obs, env)
                 # clear action sequence if it was there (only relevant for KGRL policy, noop otherwise)
                 acqopt_params['action_sequence'] = None
 

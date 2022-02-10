@@ -48,6 +48,10 @@ class NormalizedEnv(Env):
     def horizon(self):
         return self._wrapped_env.horizon
 
+    @horizon.setter
+    def horizon(self, h):
+        self._wrapped_env.horizon = h
+
     def terminate(self):
         if hasattr(self.wrapped_env, "terminate"):
             self.wrapped_env.terminate()

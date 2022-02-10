@@ -115,7 +115,7 @@ class PolicyAcqOptimizer(AcqOptimizer):
         self.params.action_dim = params.action_dim
         self.params.initial_variance_divisor = getattr(params, "initial_variance_divisor", 4)
         self.params.base_nsamps = params.base_nsamps
-        self.params.planning_horizon = min(params.planning_horizon, params.time_left)
+        self.params.planning_horizon = max(min(params.planning_horizon, params.time_left), 2)
         self.params.n_elites = params.n_elites
         self.params.beta = params.beta
         self.params.gamma = params.gamma
@@ -125,7 +125,6 @@ class PolicyAcqOptimizer(AcqOptimizer):
         self.params.verbose = getattr(params, "verbose", False)
         self.params.actions_per_plan = getattr(params, "actions_per_plan", 1)
         self.params.actions_until_plan = getattr(params, "actions_until_plan", 0)
-        print(f"{self.params.actions_until_plan=}")
         self.params.action_sequence = getattr(params, 'action_sequence', None)
         self.params.action_upper_bound = getattr(params, 'action_upper_bound', 1)
         self.params.action_lower_bound = getattr(params, 'action_lower_bound', -1)
