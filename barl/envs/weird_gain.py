@@ -5,12 +5,11 @@ to be tested in an environment that is easy to plot and understand.
 Viraj Mehta, 2022
 '''
 
-import logging
 import gym
 from gym import spaces
-from gym.utils import seeding
 import numpy as np
 
+GOAL = np.array([6, 9])
 
 
 class WeirdGainEnv(gym.Env):
@@ -21,6 +20,8 @@ class WeirdGainEnv(gym.Env):
         self.x = None
         self.start_space_low = np.array([-10, -10])
         self.start_space_high = np.array([-5, -5])
+        self.periodic_dimensions = []
+        self.horizon
 
     def reset(self, obs=None):
         if obs is not None:
@@ -29,12 +30,25 @@ class WeirdGainEnv(gym.Env):
             self.x = obs
 
     def get_B(self):
-        # TODO: make this more interesting
-        return np.eye(2)
+        # just some arbitrary continuous function from state to 2x2 mx
+        theta = np.linalg.norm(self.x)
+        rotation = np.array([[np.cos(theta), -np.sin(theta)], [np.sin(theta), np.cos(theta)]])
+        scaling = np.array([[3 * self.x[1], 0], [0, 0.5 * self.x[0]]])
+
+        return scaling @ rotation
 
     def step(self, action):
         B = self.get_B()
         delta_x = B @ action
         self.x += delta_x
-        rew = weird_gain_rew(self.x)
+        self.x = np.clip(self.x, self.observation_space.low, self.observation_space.high)
+        rew = _weird_gain_rew(self.x)
         return self.x, rew, False, {}
+
+
+def _weird_gain_rew(x):
+    return np.sum(np.square(x - GOAL))
+
+
+def weird_gain_reward(x, next_obs):
+    return _weird_gain_rew(next_obs)
