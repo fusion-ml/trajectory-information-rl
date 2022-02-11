@@ -21,13 +21,14 @@ class WeirdGainEnv(gym.Env):
         self.start_space_low = np.array([-10, -10])
         self.start_space_high = np.array([-5, -5])
         self.periodic_dimensions = []
-        self.horizon
+        self.horizon = 10
 
     def reset(self, obs=None):
-        if obs is not None:
+        if obs is None:
             self.x = np.random.uniform(self.start_space_low)
         else:
             self.x = obs
+        return self.x
 
     def get_B(self):
         # just some arbitrary continuous function from state to 2x2 mx
@@ -47,7 +48,7 @@ class WeirdGainEnv(gym.Env):
 
 
 def _weird_gain_rew(x):
-    return np.sum(np.square(x - GOAL))
+    return -np.sum(np.square(x - GOAL), axis=-1)
 
 
 def weird_gain_reward(x, next_obs):

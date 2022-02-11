@@ -1,0 +1,26 @@
+name: "weirdgain-v0"
+normalize_env: True
+teleport: False
+tf_precision: 64
+gp:
+  ls: [[0.148, 0.117, 0.667, 0.569], [0.237, 0.268, 2.29, 2.37]]
+  alpha: [0.593, 0.791]
+  sigma: 0.01
+mpc:
+  nsamps: 50
+  planning_horizon: 10
+  n_elites: 6
+  beta: 3
+  gamma: 1.25
+  xi: 0.3
+  num_iters: 5
+  actions_per_plan: 1
+eigmpc:
+  nsamps: 30
+  planning_horizon: 10
+  n_elites: 6
+  beta: 3
+  gamma: 1.25
+  xi: 0.3
+  num_iters: 5
+  actions_per_plan: 1

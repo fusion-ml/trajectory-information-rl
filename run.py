@@ -131,7 +131,6 @@ def main(config):
     #   Computing groundtruth trajectories
     # ==============================================
     true_path, test_mpc_data = execute_gt_mpc(config, algo_class, algo_params, f, dumper, domain, plot_fn)
-
     # ==============================================
     #   Optionally: fit GP hyperparameters (then exit)
     # ==============================================
@@ -447,10 +446,8 @@ def fit_hypers(config, fit_data, plot_fn, domain, expdir):
 
     # Plot hyper fitting data
     ax_obs_hyper_fit, fig_obs_hyper_fit = plot_fn(path=None, domain=domain)
-    x_obs = [xi[0] for xi in fit_data.x]
-    y_obs = [xi[1] for xi in fit_data.x]
     if ax_obs_hyper_fit:
-        plot(ax_obs_hyper_fit, x_obs, y_obs, 'o', color='k', ms=1)
+        plot(ax_obs_hyper_fit, fit_data.x, 'o', color='k', ms=1)
         neatplot.save_figure(str(expdir / 'mpc_obs_hyper_fit'), 'png', fig=fig_obs_hyper_fit)
 
     # Perform hyper fitting

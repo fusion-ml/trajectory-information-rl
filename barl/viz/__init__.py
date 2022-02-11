@@ -5,6 +5,7 @@ from barl.viz.plot import (
     plot_acrobot,
     # noop,
     plot_lava_path,
+    plot_weird_gain,
     make_plot_obs,
     plot_generic,
     scatter,
@@ -27,4 +28,5 @@ plotters = {
         'betatracking-fixed-v0': plot_generic,
         'plasmatracking-v0': plot_generic,
         'bachalfcheetah-v0': noop,
+        'weirdgain-v0': plot_weird_gain,
         }

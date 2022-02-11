@@ -1,7 +1,7 @@
 defaults:
   - _self_
   - env: pendulum
-  - alg: bac
+  - alg: barl
 name: "default"
 num_eval_trials: 5
 eval_frequency: 50

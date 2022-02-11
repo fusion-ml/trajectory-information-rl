@@ -49,8 +49,12 @@ class GpflowGp(SimpleGp):
         self.params.fixed_noise = getattr(params, 'fixed_noise', True)
         self.params.sigma = getattr(params, 'sigma', 0.01)
 
-    def set_data(self, data):
-        """Set self.data."""
+    def set_data(self, data, lmat=None, smat=None):
+        """Set self.data.
+
+        we don't use these GPs that often, so I am not gonna implement the lmat and smat thing.
+        They are no-ops for interface compatibility
+        """
         if data is None:
             # Initialize self.data to be empty
             self.data = Namespace()
