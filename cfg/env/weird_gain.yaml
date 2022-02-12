@@ -3,8 +3,8 @@ normalize_env: True
 teleport: False
 tf_precision: 64
 gp:
-  ls: [[0.148, 0.117, 0.667, 0.569], [0.237, 0.268, 2.29, 2.37]]
-  alpha: [0.593, 0.791]
+  ls: [[0.087, 0.435, 0.685, 0.777], [0.135, 0.424, 1.67, 1.42]]
+  alpha: [0.63, 0.29]
   sigma: 0.01
 mpc:
   nsamps: 50
@@ -16,7 +16,7 @@ mpc:
   num_iters: 5
   actions_per_plan: 1
 eigmpc:
-  nsamps: 30
+  nsamps: 50
   planning_horizon: 10
   n_elites: 6
   beta: 3

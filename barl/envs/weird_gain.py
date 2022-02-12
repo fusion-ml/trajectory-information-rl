@@ -32,9 +32,9 @@ class WeirdGainEnv(gym.Env):
 
     def get_B(self):
         # just some arbitrary continuous function from state to 2x2 mx
-        theta = np.linalg.norm(self.x)
+        theta = self.x[0]
         rotation = np.array([[np.cos(theta), -np.sin(theta)], [np.sin(theta), np.cos(theta)]])
-        scaling = np.array([[3 * self.x[1], 0], [0, 0.5 * self.x[0]]])
+        scaling = np.array([[3 * self.x[1], 0], [0, 0.5 * self.x[1]]])
 
         return scaling @ rotation
 
