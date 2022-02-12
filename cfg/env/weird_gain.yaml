@@ -16,7 +16,7 @@ mpc:
   num_iters: 5
   actions_per_plan: 1
 eigmpc:
-  nsamps: 30
+  nsamps: 50
   planning_horizon: 10
   n_elites: 6
   beta: 3
