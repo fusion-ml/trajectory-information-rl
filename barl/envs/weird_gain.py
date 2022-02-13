@@ -32,8 +32,8 @@ class WeirdGainEnv(gym.Env):
 
     def get_B(self):
         # just some arbitrary continuous function from state to 2x2 mx
-        x_gain = np.linalg.sin(self.x[0] * np.pi / 10) * 2
-        y_gain = np.linalg.cos(self.x[1] * np.pi / 10) * 2
+        x_gain = np.sin(self.x[1] * np.pi / 10) * 2
+        y_gain = np.cos(self.x[0] * np.pi / 10) * 2
         scaling = np.array([[x_gain, 0], [0, y_gain]])
 
         return scaling
