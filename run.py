@@ -566,8 +566,10 @@ def get_next_point(
             dumper.add('Posterior Returns', posterior_returns, verbose=(i % config.eval_frequency == 0))
         else:
             x_test = unif_random_sample_domain(domain, n=config.n_rand_acqopt)
-        if config.alg.eig:
+        try:
             exe_path_list = acqfn.exe_path_list
+        except Exception:
+            logging.debug("exe_path_list not found. This is normal for steps where they aren't sampled")
         x_next, acq_val = acqopt.optimize(x_test)
         dumper.add('Acquisition Function Value', acq_val)
         if config.alg.kgrl or config.alg.kg_policy:
