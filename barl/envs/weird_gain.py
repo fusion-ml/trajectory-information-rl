@@ -48,7 +48,7 @@ class WeirdGainEnv(gym.Env):
 
 
 def _weird_gain_rew(x):
-    return -np.sum(np.square(x - GOAL), axis=-1)
+    return -np.sum(np.abs(x - GOAL), axis=-1)
 
 
 def weird_gain_reward(x, next_obs):
