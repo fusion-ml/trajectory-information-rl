@@ -694,6 +694,30 @@ class MultiBaxAcqFunction(AlgoAcqFunction):
         acq_list = self.get_acq_list_batch(x_list)
         return acq_list
 
+class RewardSetAcqFunction(AcqFunction):
+    def set_params(self, params):
+        params = dict_to_namespace(params)
+        self.params.reward_fn = params.reward_fn
+        self.params.obs_dim = params.obs_dim
+        self.params.action_dim = params.action_dim
+
+
+    def __call__(self, x_set_list):
+        """
+        x_set_list should be a triply-nested list,
+        where the first list is a batch, the second list is a trajectory
+        (this function assumes it is sequential for reward computation)
+        and the third list (or numpy array) is the actual query points of
+        dimension obs_dim + action_dim
+        """
+        batch_size = len(x_set_list)
+        x_data = np.array(x_set_list)
+        rew_x = x_data[:, :-1, :].reshape((-1, self.config.obs_dim + self.config.action_dim))
+        next_obs_data[x_data, :, 1:, :self.config.obs_dim].reshape((-1, self.config.obs_dim))
+        rewards = self.params.reward_fn(rew_x, next_obs_data).reshape((batch_size, -1)).sum(axis=1)
+        return rewards
+
+
 
 class MultiSetBaxAcqFunction(AlgoAcqFunction):
     """
@@ -997,6 +1021,7 @@ class UncertaintySamplingAcqFunction(AcqFunction):
         """Class is callable and returns acquisition function on x_list."""
         acq_list = self.get_acq_list_batch(x_list)
         return acq_list
+
 
 class PILCOAcqFunction(AcqFunction):
     """

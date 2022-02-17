@@ -24,7 +24,8 @@ from barl.acq.acquisition import (
         UncertaintySamplingAcqFunction,
         KGRLAcqFunction,
         KGRLPolicyAcqFunction,
-        PILCOAcqFunction
+        PILCOAcqFunction,
+        RewardSetAcqFunction,
         )
 from barl.acq.acqoptimize import AcqOptimizer, KGAcqOptimizer, KGPolicyAcqOptimizer, PolicyAcqOptimizer
 from barl.alg.mpc import MPC
@@ -368,6 +369,13 @@ def get_acq_fn(config, horizon, p0, reward_fn, update_fn, obs_dim, action_dim,
             acqfn_class = KGRLPolicyAcqFunction
         else:
             acqfn_class = PILCOAcqFunction
+    elif config.alg.open_loop_mpc:
+        acqfn_params = {
+                "reward_fn": reward_fn,
+                "obs_dim": obs_dim,
+                "action_dim": action_dim,
+                }
+        acqfn_class = RewardSetAcqFunction
     else:
         acqfn_params = {'n_path': config.n_paths, 'crop': True}
         if not config.alg.rollout_sampling:

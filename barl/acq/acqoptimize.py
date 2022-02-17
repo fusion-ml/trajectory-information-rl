@@ -246,9 +246,9 @@ class PolicyAcqOptimizer(AcqOptimizer):
         x_list = x_list.transpose((2, 1, 0, 3))
         # (num_samples x num_fs) x horizon x (obs_dim + action_dim)
         x_list = x_list.reshape((-1, horizon, self.params.obs_dim + self.params.action_dim))
-        eigs = self.acqfunction(x_list)
-        eigs = np.mean(np.array(eigs).reshape((num_samples, self.params.num_fs)), axis=1)
-        return eigs
+        acqvals = self.acqfunction(x_list)
+        acqvals = np.mean(np.array(acqvals).reshape((num_samples, self.params.num_fs)), axis=1)
+        return acqvals
 
 class KGAcqOptimizer(AcqOptimizer):
     def set_params(self, params):
