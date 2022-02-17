@@ -18,7 +18,7 @@ class WeirdGainEnv(gym.Env):
         self.observation_space = spaces.Box(low=np.array([-10, -10]), high=np.array([10, 10]))
         self.action_space = spaces.Box(low=-np.ones(2), high=np.ones(2))
         self.x = None
-        self.start_space_low = np.array([-10, -10])
+        self.start_space_low = np.array([-10, -6])
         self.start_space_high = np.array([-5, -5])
         self.periodic_dimensions = []
         self.horizon = 10
