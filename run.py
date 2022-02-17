@@ -22,6 +22,7 @@ from barl.acq.acquisition import (
         MultiSetBaxAcqFunction,
         MCAcqFunction,
         UncertaintySamplingAcqFunction,
+        BatchUncertaintySamplingAcqFunction,
         KGRLAcqFunction,
         KGRLPolicyAcqFunction,
         PILCOAcqFunction,
@@ -349,7 +350,11 @@ def get_acq_fn(config, horizon, p0, reward_fn, update_fn, obs_dim, action_dim,
                gp_model_class, gp_model_params):
     if config.alg.uncertainty_sampling:
         acqfn_params = {}
-        acqfn_class = UncertaintySamplingAcqFunction
+        if config.alg.open_loop:
+            acqfn_class = BatchUncertaintySamplingAcqFunction
+            acqfn_params['gp_model_params'] = gp_model_params
+        else:
+            acqfn_class = UncertaintySamplingAcqFunction
     elif config.alg.kgrl or config.alg.pilco or config.alg.kg_policy:
         acqfn_params = {
                 'num_fs': config.alg.num_fs,
