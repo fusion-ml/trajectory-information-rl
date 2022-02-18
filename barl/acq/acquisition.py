@@ -694,6 +694,100 @@ class MultiBaxAcqFunction(AlgoAcqFunction):
         acq_list = self.get_acq_list_batch(x_list)
         return acq_list
 
+class RewardSetAcqFunction(AcqFunction):
+    def set_params(self, params):
+        params = dict_to_namespace(params)
+        self.params.reward_fn = params.reward_fn
+        self.params.obs_dim = params.obs_dim
+        self.params.action_dim = params.action_dim
+
+
+    def __call__(self, x_set_list):
+        """
+        x_set_list should be a triply-nested list,
+        where the first list is a batch, the second list is a trajectory
+        (this function assumes it is sequential for reward computation)
+        and the third list (or numpy array) is the actual query points of
+        dimension obs_dim + action_dim
+        """
+        batch_size = len(x_set_list)
+        x_data = np.array(x_set_list)
+        rew_x = x_data[:, :-1, :].reshape((-1, self.config.obs_dim + self.config.action_dim))
+        next_obs_data[x_data, :, 1:, :self.config.obs_dim].reshape((-1, self.config.obs_dim))
+        rewards = self.params.reward_fn(rew_x, next_obs_data).reshape((batch_size, -1)).sum(axis=1)
+        return rewards
+
+
+class BatchUncertaintySamplingAcqFunction(AcqFunction):
+    """
+    Class for computing BAX acquisition functions.
+    """
+
+    def set_params(self, params):
+        """Set self.params, the parameters for the AcqFunction."""
+        super().set_params(params)
+
+        params = dict_to_namespace(params)
+        self.params.name = getattr(params, 'name', 'BatchUncertaintySamplingAcqFunction')
+        self.base_smat = None
+        self.base_lmat = None
+        self.smats = defaultdict(lambda: None)
+        self.lmats = defaultdict(lambda: None)
+        self.kernels = construct_jax_kernels(params.gp_model_params)
+        sigma = params.gp_model_params['gp_params']['sigma']
+        self.get_lmats_smats = partial(get_lmats_smats, kernels=self.kernels, sigma=sigma)
+        self.jit_fast_acq = getattr(params, 'jit_fast_acq', None)
+
+    def set_model(self, model):
+        """Set self.model, the model underlying the acquisition function."""
+        if not model:
+            raise ValueError("The model input parameter cannot be None.")
+        else:
+            self.model = copy.deepcopy(model)
+
+    @staticmethod
+    def fast_acq_exe_normal(post_covs):
+        signs, dets = jnp.linalg.slogdet(post_covs)
+        h_post = jnp.sum(dets, axis=-1)
+        return h_post
+
+    @staticmethod
+    def fast_get_acq_list_batch(x_set, x_data, y_data, base_lmats, base_smats, kernels):
+        """Return acquisition function for a batch of inputs x_set_list, but do it fast."""
+
+        # Compute posterior, and post given each execution path sample, for x_list
+        x = x_data
+        y = y_data
+        pred_cov = get_pred_covs(x, y, x_set, base_lmats, base_smats, kernels)
+        # regularization, maybe
+        reg = jnp.eye(samp_cov_list.shape[-1])[None, None, ...] * 1e-5
+        reg_pred_cov = pred_cov + reg
+        acq = BatchUncertaintySamplingAcqFunction.fast_acq_exe_normal(reg_pred_cov)
+        return acq
+
+    def __call__(self, x_set_list):
+        """Class is callable and returns acquisition function on x_set_list."""
+        x_set_list = jnp.array(x_set_list)
+        if self.jit_fast_acq is None:
+            x_data = jnp.array(self.model.data.x)
+            y_data = jnp.array(self.model.data.y)
+            base_lmat, base_smat = self.get_lmats_smats(x_data, y_data)
+            self.jit_fast_acq = jax.vmap(jax.jit(partial(self.fast_get_acq_list_batch,
+                                                x_data=x_data,
+                                                y_data=y_data,
+                                                base_lmats=base_lmat,
+                                                base_smats=base_smat,
+                                                kernels=self.kernels)
+        with Timer(f"Compute acquisition function for a batch of {x_set_list.shape[0]} points", level=logging.DEBUG):
+            fast_acq_list = self.jit_fast_acq(x_set_list)
+        not_finites = ~jnp.isfinite(fast_acq_list)
+        num_not_finite = jnp.sum(not_finites)
+        if num_not_finite > 0:
+            logging.warning(f"{num_not_finite} acq function results were not finite.")
+            fast_acq_list = fast_acq_list.at[not_finites].set(-np.inf)
+        return list(fast_acq_list)
+
+
 
 class MultiSetBaxAcqFunction(AlgoAcqFunction):
     """
@@ -942,6 +1036,7 @@ class UncertaintySamplingAcqFunction(AcqFunction):
 
         params = dict_to_namespace(params)
         self.params.name = getattr(params, 'name', 'UncertaintySamplingAcqFunction')
+        self.params.batch = params.batch
 
     def entropy_given_normal_std(self, std_arr):
         """Return entropy given an array of 1D normal standard deviations."""
@@ -997,6 +1092,7 @@ class UncertaintySamplingAcqFunction(AcqFunction):
         """Class is callable and returns acquisition function on x_list."""
         acq_list = self.get_acq_list_batch(x_list)
         return acq_list
+
 
 class PILCOAcqFunction(AcqFunction):
     """
