@@ -24,6 +24,7 @@ alg:
     choose_start_state: False
     num_samples_mc: 1
     num_s0_samps: 1
+    sample_all_states: False
 mpc:
   nsamps: ${env.mpc.nsamps}
   planning_horizon: ${env.mpc.planning_horizon}

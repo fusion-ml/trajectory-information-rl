@@ -127,7 +127,9 @@ def main(config):
     # Set acqfunction
     acqfn_class, acqfn_params = get_acq_fn(config, env.horizon, p0, reward_function, update_fn,
                                            obs_dim, action_dim, gp_model_class, gp_model_params)
-    acqopt_class, acqopt_params = get_acq_opt(config, obs_dim, action_dim, env, start_obs, update_fn, p0)
+    # pick a sampler for start states
+    s0_sampler = env.observation_space.sample if cfg.alg.sample_all_states else p0
+    acqopt_class, acqopt_params = get_acq_opt(config, obs_dim, action_dim, env, start_obs, update_fn, s0_sampler)
 
     # ==============================================
     #   Computing groundtruth trajectories
@@ -148,7 +150,6 @@ def main(config):
     # ==============================================
 
     # Set current_obs as fixed start_obs or reset env
-    # TODO: rearrange this to not choose a state if we get a choice of start state for explroation
     current_obs = get_start_obs(config, start_obs, env)
     current_t = 0
     current_rewards = []
