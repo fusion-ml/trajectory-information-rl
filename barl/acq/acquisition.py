@@ -777,7 +777,7 @@ class BatchUncertaintySamplingAcqFunction(AcqFunction):
                                                 y_data=y_data,
                                                 base_lmats=base_lmat,
                                                 base_smats=base_smat,
-                                                kernels=self.kernels)
+                                                kernels=self.kernels)))
         with Timer(f"Compute acquisition function for a batch of {x_set_list.shape[0]} points", level=logging.DEBUG):
             fast_acq_list = self.jit_fast_acq(x_set_list)
         not_finites = ~jnp.isfinite(fast_acq_list)

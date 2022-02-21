@@ -11,4 +11,4 @@ kgrl: False
 kg_policy: False
 gd_opt: False
 num_s0_samps: 10
-sample_all_state: False
+sample_all_states: False

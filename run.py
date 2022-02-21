@@ -128,7 +128,7 @@ def main(config):
     acqfn_class, acqfn_params = get_acq_fn(config, env.horizon, p0, reward_function, update_fn,
                                            obs_dim, action_dim, gp_model_class, gp_model_params)
     # pick a sampler for start states
-    s0_sampler = env.observation_space.sample if cfg.alg.sample_all_states else p0
+    s0_sampler = env.observation_space.sample if config.alg.sample_all_states else p0
     acqopt_class, acqopt_params = get_acq_opt(config, obs_dim, action_dim, env, start_obs, update_fn, s0_sampler)
 
     # ==============================================
