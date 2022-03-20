@@ -300,7 +300,7 @@ class TrackingGymEnv(gym.Env):
                                                      test_shots=False)
         self._state = None
         self._target = None
-        self.horizon = 30
+        self.horizon = 20
         self.periodic_dimensions = []
 
     def reset(self, obs=None):
@@ -332,9 +332,9 @@ class TrackingGymEnv(gym.Env):
 
 def tracking_rew(x, next_obs):
     idxes = [0, 2]
-    signals = next_obs[:, idxes]
-    targets = [[0.4544037912481128, 0.515012974224002]]
-    return -1 * np.sum(np.abs(signals - targets), axis=1)
+    signals = next_obs[..., idxes]
+    targets = [0.4544037912481128, 0.515012974224002]
+    return -1 * np.sum(np.abs(signals - targets), axis=-1)
 
 
 def get_signal(field):

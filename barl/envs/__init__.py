@@ -121,6 +121,7 @@ except:
 try:
     from barl.envs.beta_tracking_env import BetaTrackingGymEnv, beta_tracking_rew
     from barl.envs.tracking_env import TrackingGymEnv, tracking_rew
+    from barl.envs.betan_env import BetanRotationEnv, betan_rotation_reward
     register(
         id='betatracking-v0',
         entry_point=BetaTrackingGymEnv,
@@ -134,8 +135,14 @@ try:
         id='plasmatracking-v0',
         entry_point=TrackingGymEnv,
         )
+    register(
+        id='betanrotation-v0',
+        entry_point=BetanRotationEnv,
+        )
     reward_functions['plasmatracking-v0'] = tracking_rew
     reward_functions['betatracking-v0'] = beta_tracking_rew
+    reward_functions['betatracking-v0'] = beta_tracking_rew
+    reward_functions['betanrotation-v0'] = betan_rotation_reward
     reward_functions['betatracking-fixed-v0'] = beta_tracking_rew
 except:
     logging.info('fusion dependencies not found, skipping')
