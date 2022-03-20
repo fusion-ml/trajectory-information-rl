@@ -51,10 +51,11 @@ class AcqOptimizer(Base):
         """
         self.params.x_batch = x_batch
 
-        if self.params.opt_str == "batch":
-            acq_opt, acq_val = self.optimize_batch()
+        with Timer("Optimize acquisition function using random shooting", level=logging.INFO):
+            if self.params.opt_str == "batch":
+                acq_opt, acq_val = self.optimize_batch()
 
-        return acq_opt, acq_val
+            return acq_opt, acq_val
 
     def set_acqfunction(self, acqfunction):
         """Set self.acqfunction, the acquisition function."""
@@ -77,7 +78,8 @@ class AcqOptimizer(Base):
         nbatches = ceil(len(x_batch) / self.params.max_batch_size)
         acq_list = []
         for i in range(nbatches):
-            acq_list += self.acqfunction(x_batch[i * self.params.max_batch_size:(i + 1) * self.params.max_batch_size])
+            minibatch = x_batch[(i * self.params.max_batch_size):((i + 1) * self.params.max_batch_size)]
+            acq_list += list(self.acqfunction(minibatch))
         acq_list = self.acqfunction(x_batch)
         acq_idx = np.argmax(acq_list)
         acq_opt = x_batch[acq_idx]

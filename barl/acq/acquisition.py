@@ -451,7 +451,7 @@ class BaxAcqFunction(AlgoAcqFunction):
     def get_acq_list_batch(self, x_list):
         """Return acquisition function for a batch of inputs x_list."""
 
-        with Timer(f"Compute acquisition function for a batch of {len(x_list)} points"):
+        with Timer(f"Compute acquisition function for a batch of {len(x_list)} points", level=logging.DEBUG):
             # Compute posterior, and post given each execution path sample, for x_list
             mu, std = self.model.get_post_mu_cov(x_list, full_cov=False)
 
@@ -512,7 +512,7 @@ class MesAcqFunction(BaxAcqFunction):
     def get_acq_list_batch(self, x_list):
         """Return acquisition function for a batch of inputs x_list."""
 
-        with Timer(f"Compute acquisition function for a batch of {len(x_list)} points"):
+        with Timer(f"Compute acquisition function for a batch of {len(x_list)} points", level=logging.DEBUG):
             # Compute entropies for posterior for x in x_list
             mu, std = self.model.get_post_mu_cov(x_list, full_cov=False)
             h_post = self.entropy_given_normal_std(std)
@@ -651,7 +651,7 @@ class MultiBaxAcqFunction(AlgoAcqFunction):
         """Return acquisition function for a batch of inputs x_list."""
 
         # Compute posterior, and post given each execution path sample, for x_list
-        with Timer(f"Compute acquisition function for a batch of {len(x_list)} points"):
+        with Timer(f"Compute acquisition function for a batch of {len(x_list)} points", level=logging.DEBUG):
             # NOTE: self.model is multimodel so the following returns a list of mus and
             # a list of stds
             mus, stds = self.model.get_post_mu_cov(x_list, full_cov=False)
@@ -1068,7 +1068,7 @@ class UncertaintySamplingAcqFunction(AcqFunction):
         """Return acquisition function for a batch of inputs x_list."""
 
         # Compute posterior, and post given each execution path sample, for x_list
-        with Timer(f"Compute acquisition function for a batch of {len(x_list)} points"):
+        with Timer(f"Compute acquisition function for a batch of {len(x_list)} points", level=logging.DEBUG):
             # NOTE: self.model is multimodel so the following returns a list of mus and
             # a list of stds
             mus, stds = self.model.get_post_mu_cov(x_list, full_cov=False)
