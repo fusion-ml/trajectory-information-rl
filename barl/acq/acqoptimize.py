@@ -6,6 +6,7 @@ import numpy as np
 import tensorflow as tf
 import tensorflow.keras as keras
 import logging
+from math import ceil
 from tqdm import trange
 
 from .acquisition import BaxAcqFunction
@@ -32,6 +33,7 @@ class AcqOptimizer(Base):
         # self.params.x_batch = getattr(params, "x_batch", default_x_batch)
         # self.params.x_batch = params.x_batch
         self.params.remove_x_dups = getattr(params, "remove_x_dups", False)
+        self.params.max_batch_size = getattr(params, "max_batch_size", 200)
 
     def initialize(self, acqfunction):
         # Set self.acqfunction
@@ -72,6 +74,10 @@ class AcqOptimizer(Base):
             x_batch = self.remove_x_dups(x_batch)
 
         # Optimize self.acqfunction over x_batch
+        nbatches = ceil(len(x_batch) / self.params.max_batch_size)
+        acq_list = []
+        for i in range(nbatches):
+            acq_list += self.acqfunction(x_batch[i * self.params.max_batch_size:(i + 1) * self.params.max_batch_size])
         acq_list = self.acqfunction(x_batch)
         acq_idx = np.argmax(acq_list)
         acq_opt = x_batch[acq_idx]
