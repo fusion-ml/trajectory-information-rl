@@ -77,10 +77,9 @@ class AcqOptimizer(Base):
         # Optimize self.acqfunction over x_batch
         nbatches = ceil(len(x_batch) / self.params.max_batch_size)
         acq_list = []
-        for i in range(nbatches):
+        for i in trange(nbatches):
             minibatch = x_batch[(i * self.params.max_batch_size):((i + 1) * self.params.max_batch_size)]
             acq_list += list(self.acqfunction(minibatch))
-        acq_list = self.acqfunction(x_batch)
         acq_idx = np.argmax(acq_list)
         acq_opt = x_batch[acq_idx]
         acq_val = acq_list[acq_idx]
