@@ -72,6 +72,7 @@ n_rand_acqopt: ${alg.n_rand_acqopt}
 crop_to_domain: True
 teleport: ${env.teleport}
 fit_hypers: False
+save_figures: False
 hydra:
   job:
     name: ${name}

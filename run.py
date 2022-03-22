@@ -320,7 +320,7 @@ def get_initial_data(config, env, f, domain, dumper, plot_fn):
 
     # Plot initial data (TODO, refactor plotting)
     ax_obs_init, fig_obs_init = plot_fn(path=None, domain=domain)
-    if ax_obs_init is not None:
+    if ax_obs_init is not None and config.save_figures:
         plot(ax_obs_init, data.x, 'o', color='k', ms=1)
         fig_obs_init.suptitle("Initial Observations")
         neatplot.save_figure(str(dumper.expdir / 'obs_init'), 'png', fig=fig_obs_init)
@@ -460,7 +460,7 @@ def fit_hypers(config, fit_data, plot_fn, domain, expdir):
 
     # Plot hyper fitting data
     ax_obs_hyper_fit, fig_obs_hyper_fit = plot_fn(path=None, domain=domain)
-    if ax_obs_hyper_fit:
+    if ax_obs_hyper_fit and config.save_figures:
         plot(ax_obs_hyper_fit, fit_data.x, 'o', color='k', ms=1)
         neatplot.save_figure(str(expdir / 'mpc_obs_hyper_fit'), 'png', fig=fig_obs_hyper_fit)
 
@@ -520,7 +520,7 @@ def execute_gt_mpc(config, algo_class, algo_params, f, dumper, domain, plot_fn):
     logging.info(f"all_x.mean(axis=0) = {all_x.mean(axis=0)}")
     logging.info(f"all_x.var(axis=0) = {all_x.var(axis=0)}")
     # Save groundtruth paths plot
-    if fig_gt:
+    if fig_gt and config.save_figures:
         fig_gt.suptitle("Ground Truth Eval")
         neatplot.save_figure(str(dumper.expdir / 'gt'), 'png', fig=fig_gt)
 
@@ -762,11 +762,12 @@ def make_plots(
         fig_samp.suptitle(f"Posterior Samples - Iteration {i}")
         fig_obs.suptitle(f"Observations - Iteration {i}")
 
-    # Save figure at end of evaluation
-    neatplot.save_figure(str(dumper.expdir / f'all_{i}'), 'png', fig=fig_all)
-    neatplot.save_figure(str(dumper.expdir / f'postmean_{i}'), 'png', fig=fig_postmean)
-    neatplot.save_figure(str(dumper.expdir / f'samp_{i}'), 'png', fig=fig_samp)
-    neatplot.save_figure(str(dumper.expdir / f'obs_{i}'), 'png', fig=fig_obs)
+    if config.save_figures:
+        # Save figure at end of evaluation
+        neatplot.save_figure(str(dumper.expdir / f'all_{i}'), 'png', fig=fig_all)
+        neatplot.save_figure(str(dumper.expdir / f'postmean_{i}'), 'png', fig=fig_postmean)
+        neatplot.save_figure(str(dumper.expdir / f'samp_{i}'), 'png', fig=fig_samp)
+        neatplot.save_figure(str(dumper.expdir / f'obs_{i}'), 'png', fig=fig_obs)
 
 
 if __name__ == '__main__':
