@@ -135,9 +135,7 @@ class PolicyAcqOptimizer(AcqOptimizer):
         self.params.action_sequence = getattr(params, 'action_sequence', None)
         self.params.action_upper_bound = getattr(params, 'action_upper_bound', 1)
         self.params.action_lower_bound = getattr(params, 'action_lower_bound', -1)
-        # TODO: add this knob
         self.params.num_s0_samps = params.num_s0_samps
-        # TODO: make this sampler
         self.params.s0_sampler = params.s0_sampler
         self.params.update_fn = params.update_fn
 

@@ -38,6 +38,7 @@ from barl.util.control_util import get_f_batch_mpc, get_f_batch_mpc_reward, comp
 from barl.util.domain_util import unif_random_sample_domain
 from barl.util.timing import Timer
 from barl.viz import plotters, make_plot_obs, scatter, plot
+from barl.policies import BayesMPCPolicy
 import neatplot
 
 tf.compat.v1.logging.set_verbosity(tf.compat.v1.logging.ERROR)
@@ -206,6 +207,9 @@ def main(config):
                     data,
                     test_data,
                     test_mpc_data,
+                    domain,
+                    update_fn,
+                    reward_function,
                     )
 
             # ============
@@ -636,6 +640,9 @@ def evaluate_mpc(
         data,
         test_data,
         test_mpc_data,
+        domain,
+        update_fn,
+        reward_fn,
         ):
     with Timer("Evaluate the current MPC policy"):
         # execute the best we can
@@ -643,35 +650,47 @@ def evaluate_mpc(
         algo.initialize()
 
         postmean_fn = make_postmean_fn(model, use_tf=config.alg.gd_opt)
-        policy = partial(algo.execute_mpc, f=postmean_fn, open_loop=config.alg.open_loop)
+        model.initialize_function_sample_list(config.test_mpc.num_fs)
+        if config.eval_bayes_policy:
+            policy_params = dict(
+                obs_dim=env.observation_space.low.size,
+                action_dim=env.action_space.low.size,
+                base_nsamps=config.test_mpc.nsamps,
+                planning_horizon=config.test_mpc.planning_horizon,
+                n_elites=config.test_mpc.n_elites,
+                beta=config.test_mpc.beta,
+                gamma=config.test_mpc.gamma,
+                xi=config.test_mpc.xi,
+                num_fs=config.test_mpc.num_fs,
+                num_iters=config.test_mpc.num_iters,
+                actions_per_plan=config.test_mpc.actions_per_plan,
+                domain=domain,
+                action_lower_bound=env.action_space.low,
+                action_upper_bound=env.action_space.high,
+                crop_to_domain=config.crop_to_domain,
+                update_fn=update_fn,
+                reward_fn=reward_fn,
+                function_sample_list=model.call_function_sample_list,
+            )
+            policy = BayesMPCPolicy(params=policy_params)
+
+        else:
+            policy = partial(algo.execute_mpc, f=postmean_fn, open_loop=config.alg.open_loop)
         real_returns = []
         mses = []
-        all_x_mpc = []
-        all_y_hat_mpc = []
-        all_y_mpc = []
         real_paths_mpc = []
         pbar = trange(config.num_eval_trials)
         for j in pbar:
-            real_obs, real_actions, real_rewards = evaluate_policy(policy, env, start_obs=start_obs, mpc_pass=True)
+            real_obs, real_actions, real_rewards = evaluate_policy(policy, env, start_obs=start_obs,
+                                                                   mpc_pass=not config.eval_bayes_policy)
             real_return = compute_return(real_rewards, 1)
             real_returns.append(real_return)
             real_path_mpc = Namespace()
 
             real_path_mpc.x = [np.concatenate([obs, action]) for obs, action in zip(real_obs, real_actions)]
-            plan_set_size = sum([len(path.x) for path in algo.old_exe_paths])
-            mpc_sample_indices = random.sample(range(plan_set_size), min(plan_set_size, config.test_set_size))
-            x_mpc = []
-            y_hat_mpc = []
-            for path in algo.old_exe_paths:
-                x_mpc.extend(path.x)
-                y_hat_mpc.extend(path.y)
-            x_mpc = [x_mpc[i] for i in mpc_sample_indices]
-            y_hat_mpc = [y_hat_mpc[i] for i in mpc_sample_indices]
-            all_x_mpc.extend(x_mpc)
-            all_y_hat_mpc.extend(y_hat_mpc)
-            y_mpc = f(x_mpc)
-            all_y_mpc.extend(y_mpc)
-            mses.append(mse(y_mpc, y_hat_mpc))
+            real_path_mpc.y = f(real_path_mpc.x)
+            real_path_mpc.y_hat = postmean_fn(real_path_mpc.x)
+            mses.append(mse(real_path_mpc.y, real_path_mpc.y_hat))
             stats = {"Mean Return": np.mean(real_returns), "Std Return:": np.std(real_returns),
                      "Model MSE": np.mean(mses)}
 
@@ -682,17 +701,18 @@ def evaluate_mpc(
         dumper.add('Eval Returns', real_returns, log_mean_std=True)
         dumper.add('Eval ndata', len(data.x))
         current_mpc_mse = np.mean(mses)
-        current_mpc_likelihood = model_likelihood(model, all_x_mpc, all_y_mpc)
+        # this is commented out because I don't feel liek reimplementing it for the Bayes action
+        # current_mpc_likelihood = model_likelihood(model, all_x_mpc, all_y_mpc)
         test_y_hat = postmean_fn(test_data.x)
         random_mse = mse(test_data.y, test_y_hat)
         random_likelihood = model_likelihood(model, test_data.x, test_data.y)
         gt_mpc_y_hat = postmean_fn(test_mpc_data.x)
         gt_mpc_mse = mse(test_mpc_data.y, gt_mpc_y_hat)
         gt_mpc_likelihood = model_likelihood(model, test_mpc_data.x, test_mpc_data.y)
-        dumper.add('Model MSE (current MPC)', current_mpc_mse)
+        dumper.add('Model MSE (current real MPC)', current_mpc_mse)
         dumper.add('Model MSE (random test set)', random_mse)
         dumper.add('Model MSE (GT MPC)', gt_mpc_mse)
-        dumper.add('Model Likelihood (current MPC)', current_mpc_likelihood)
+        # dumper.add('Model Likelihood (current MPC)', current_mpc_likelihood)
         dumper.add('Model Likelihood (random test set)', random_likelihood)
         dumper.add('Model Likelihood (GT MPC)', gt_mpc_likelihood)
         return real_paths_mpc
