@@ -63,7 +63,7 @@ class AcqViz2D(Base):
         Z = f_vec(X, Y)
 
         # For filled contours
-        #cs = self.ax.contourf(X, Y, Z, n_levels, cmap=cm.Greens_r)
+        # cs = self.ax.contourf(X, Y, Z, n_levels, cmap=cm.Greens_r)
 
         # For contour lines
         cs = self.ax.contour(X, Y, Z, n_levels, cmap=cm.Greens_r)
@@ -83,7 +83,7 @@ class AcqViz2D(Base):
                 output[1],
                 "^",
                 color="blue",
-                #color="#1f77b4",
+                # color="#1f77b4",
                 markersize=5,
                 label="$\{ \\tilde{o}_\mathcal{A}^j \} \sim  p(o_\mathcal{A} | \mathcal{D}_t)$",
             )
@@ -94,14 +94,14 @@ class AcqViz2D(Base):
         """Plot data, assumed to have attributes x and y."""
         x_list = [xin[0] for xin in data.x]
         y_list = [xin[1] for xin in data.x]
-        #h = self.ax.plot(
-            #x_list, y_list, "o", color="black", markersize=8
-        #)
+        # h = self.ax.plot(
+        # x_list, y_list, "o", color="black", markersize=8
+        # )
         h = self.ax.plot(
             x_list,
             y_list,
             "o",
-            #color="deeppink",
+            # color="deeppink",
             color="black",
             label="$\mathcal{D}_t = \{x_i, y_i\}_{i=1}^t$",
             markersize=7,
@@ -115,16 +115,16 @@ class AcqViz2D(Base):
             expected_output[0],
             expected_output[1],
             "*",
-            color='black',
+            color="black",
             markersize=36,
         )
         h = self.ax.plot(
             expected_output[0],
             expected_output[1],
             "*",
-            color='deeppink',
+            color="deeppink",
             markersize=33,
-            label="$O_\mathcal{A}(\mathrm{E}[f | \mathcal{D}_t])$"
+            label="$O_\mathcal{A}(\mathrm{E}[f | \mathcal{D}_t])$",
         )
         self.h_list.append(h[0])
         return h
@@ -150,15 +150,15 @@ class AcqViz2D(Base):
 
         # For legend within axes
         bbta = None
-        #loc = 1
+        # loc = 1
         loc = "lower left"
         ncol = 1
 
         # For legend above axes
-        #self.ax.set_position([0.1, 0.1, 0.85, 0.7])
-        #bbta = (0.5, 1.24)
-        #loc = "upper center"
-        #ncol = 3
+        # self.ax.set_position([0.1, 0.1, 0.85, 0.7])
+        # bbta = (0.5, 1.24)
+        # loc = "upper center"
+        # ncol = 3
 
         # Draw legend
         lgd = self.ax.legend(handles=h_list, loc=loc, bbox_to_anchor=bbta, ncol=ncol)
@@ -166,6 +166,6 @@ class AcqViz2D(Base):
     def reduce_samp_list(self, samp_list):
         """Optionally reduce list of samples, based on self.n_path_max."""
         if self.params.n_path_max:
-            samp_list = samp_list[:self.params.n_path_max]
+            samp_list = samp_list[: self.params.n_path_max]
 
         return samp_list

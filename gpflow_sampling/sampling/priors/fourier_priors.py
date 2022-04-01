@@ -7,7 +7,7 @@
 # ---- Imports
 import tensorflow as tf
 
-from typing import Any, List, Callable
+from typing import Any, List, Callable, Union, Optional
 from gpflow.config import default_float
 from gpflow.kernels import Kernel, MultioutputKernel
 from gpflow.utilities import Dispatcher
@@ -31,6 +31,7 @@ def _random_fourier(kernel: Kernel,
                     basis: Callable = None,
                     dtype: Any = None,
                     name: str = None,
+                    weights: Optional[Union[tf.Tensor, tf.Variable]] = None,
                     **kwargs):
 
   if dtype is None:
@@ -39,7 +40,12 @@ def _random_fourier(kernel: Kernel,
   if basis is None:
     basis = fourier_basis(kernel, num_bases=num_bases)
 
-  weights = tf.random.normal(list(sample_shape) + [1, num_bases], dtype=dtype)
+  if weights is not None:
+    required_shape = list(sample_shape) + [1, num_bases]
+    assert list(weights.shape) == required_shape, \
+            f"Weights have shape {weights.shape} while we need shape {required_shape}"
+  else:
+    weights = tf.random.normal(list(sample_shape) + [1, num_bases], dtype=dtype)
   return DenseSampler(weights=weights, basis=basis, name=name, **kwargs)
 
 

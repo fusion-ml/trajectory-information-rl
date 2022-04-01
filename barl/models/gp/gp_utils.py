@@ -3,6 +3,8 @@ Utilities for Gaussian process (GP) inference.
 """
 
 import numpy as np
+import tensorflow as tf
+import tensorflow_probability as tfp
 from scipy.linalg import solve_triangular
 from scipy.spatial.distance import cdist
 import itertools
@@ -17,8 +19,23 @@ def kern_exp_quad_ard(xmat1, xmat2, ls, alpha):
     xmat2 = np.expand_dims(xmat2, axis=0)
     diff = xmat1 - xmat2
     diff /= ls
-    norm = np.sum(diff ** 2, axis=-1) / 2.0
-    kern = alpha ** 2 * np.exp(-norm)
+    norm = np.sum(diff**2, axis=-1) / 2.0
+    kern = alpha**2 * np.exp(-norm)
+    return kern
+
+
+def tf_kern_exp_quad_ard(xmat1, xmat2, ls, alpha):
+    """
+    Exponentiated quadratic kernel function with
+    dimensionwise lengthscales if ls is an ndarray or tensor.
+    assumes xmat1 and xmat2 are Tensors
+    """
+    xmat1 = tf.expand_dims(xmat1, axis=1)
+    xmat2 = tf.expand_dims(xmat2, axis=0)
+    diff = xmat1 - xmat2
+    diff = diff / ls
+    norm = tf.reduce_sum(diff**2, axis=-1) / 2.0
+    kern = alpha**2 * tf.exp(-norm)
     return kern
 
 
@@ -27,9 +44,9 @@ def kern_exp_quad_ard_sklearn(xmat1, xmat2, ls, alpha):
     Exponentiated quadratic kernel function with dimensionwise lengthscales if ls is an
     ndarray, based on scikit-learn implementation.
     """
-    dists = cdist(xmat1 / ls, xmat2 / ls, metric='sqeuclidean')
-    exp_neg_norm = np.exp(-.5 * dists)
-    return alpha ** 2 * exp_neg_norm
+    dists = cdist(xmat1 / ls, xmat2 / ls, metric="sqeuclidean")
+    exp_neg_norm = np.exp(-0.5 * dists)
+    return alpha**2 * exp_neg_norm
 
 
 def kern_exp_quad_ard_per(xmat1, xmat2, ls, alpha, pdims, period=2):
@@ -43,10 +60,10 @@ def kern_exp_quad_ard_per(xmat1, xmat2, ls, alpha, pdims, period=2):
     xmat2 = np.expand_dims(xmat2, axis=0)
     diff = xmat1 - xmat2
     diff[..., pdims] = np.sin((np.pi * diff[..., pdims] / period) % (2 * np.pi))
-    #diff[..., pdims] = np.cos( (np.pi/2) + (np.pi * diff[..., pdims] / period) )
+    # diff[..., pdims] = np.cos( (np.pi/2) + (np.pi * diff[..., pdims] / period) )
     diff /= ls
-    norm = np.sum(diff ** 2, axis=-1) / 2.0
-    kern = alpha ** 2 * np.exp(-norm)
+    norm = np.sum(diff**2, axis=-1) / 2.0
+    kern = alpha**2 * np.exp(-norm)
 
     return kern
 
@@ -56,7 +73,7 @@ def kern_exp_quad_noard(xmat1, xmat2, ls, alpha):
     Exponentiated quadratic kernel function (aka squared exponential kernel aka
     RBF kernel).
     """
-    kern = alpha ** 2 * kern_exp_quad_noard_noscale(xmat1, xmat2, ls)
+    kern = alpha**2 * kern_exp_quad_noard_noscale(xmat1, xmat2, ls)
     return kern
 
 
@@ -66,7 +83,7 @@ def kern_exp_quad_noard_noscale(xmat1, xmat2, ls):
     RBF kernel), without scale parameter.
     """
     distmat = squared_euc_distmat(xmat1, xmat2)
-    norm = distmat / (2 * ls ** 2)
+    norm = distmat / (2 * ls**2)
     exp_neg_norm = np.exp(-norm)
     return exp_neg_norm
 
@@ -76,7 +93,7 @@ def squared_euc_distmat(xmat1, xmat2, coef=1.0):
     Distance matrix of squared euclidean distance (multiplied by coef) between
     points in xmat1 and xmat2.
     """
-    return coef * cdist(xmat1, xmat2, 'sqeuclidean')
+    return coef * cdist(xmat1, xmat2, "sqeuclidean")
 
 
 def kern_distmat(xmat1, xmat2, ls, alpha, distfn):
@@ -85,7 +102,7 @@ def kern_distmat(xmat1, xmat2, ls, alpha, distfn):
     of xmat1 and xmat2 only).
     """
     distmat = distfn(xmat1, xmat2)
-    kernmat = alpha ** 2 * np.exp(-distmat / (2 * ls ** 2))
+    kernmat = alpha**2 * np.exp(-distmat / (2 * ls**2))
     return kernmat
 
 
@@ -96,7 +113,7 @@ def kern_simple_list(xlist1, xlist2, ls, alpha, base_dist=5.0):
     """
     distmat = simple_list_distmat(xlist1, xlist2)
     distmat = distmat + base_dist
-    kernmat = alpha ** 2 * np.exp(-distmat / (2 * ls ** 2))
+    kernmat = alpha**2 * np.exp(-distmat / (2 * ls**2))
     return kernmat
 
 
@@ -134,7 +151,7 @@ def get_product_kernel(kernel_list, additive=False):
                 mat_prod = mat_prod + kernel(x1, x2, ls, 1.0)
             else:
                 mat_prod = mat_prod * kernel(x1, x2, ls, 1.0)
-        mat_prod = alpha ** 2 * mat_prod
+        mat_prod = alpha**2 * mat_prod
         return mat_prod
 
     return product_kernel
@@ -142,18 +159,27 @@ def get_product_kernel(kernel_list, additive=False):
 
 def get_cholesky_decomp(k11_nonoise, sigma, psd_str):
     """Return cholesky decomposition."""
-    if psd_str == 'try_first':
-        k11 = k11_nonoise + sigma ** 2 * np.eye(k11_nonoise.shape[0])
+    if psd_str == "try_first":
+        k11 = k11_nonoise + sigma**2 * np.eye(k11_nonoise.shape[0])
         try:
             return stable_cholesky(k11, False)
         except np.linalg.linalg.LinAlgError:
-            return get_cholesky_decomp(k11_nonoise, sigma, 'project_first')
-    elif psd_str == 'project_first':
+            return get_cholesky_decomp(k11_nonoise, sigma, "project_first")
+    elif psd_str == "project_first":
         k11_nonoise = project_symmetric_to_psd_cone(k11_nonoise)
-        return get_cholesky_decomp(k11_nonoise, sigma, 'is_psd')
-    elif psd_str == 'is_psd':
-        k11 = k11_nonoise + sigma ** 2 * np.eye(k11_nonoise.shape[0])
+        return get_cholesky_decomp(k11_nonoise, sigma, "is_psd")
+    elif psd_str == "is_psd":
+        k11 = k11_nonoise + sigma**2 * np.eye(k11_nonoise.shape[0])
         return stable_cholesky(k11)
+
+
+def tf_get_cholesky_decomp(k11_nonoise, sigma, psd_str):
+    """Return cholesky decomposition. Simplest implementation, can make
+    smarter later."""
+    k11 = k11_nonoise + sigma**2 * tf.eye(
+        k11_nonoise.shape[0], dtype=k11_nonoise.dtype
+    )
+    return tfp.experimental.linalg.simple_robustified_cholesky(k11)
 
 
 def stable_cholesky(mmat, make_psd=True, verbose=False):
@@ -172,19 +198,19 @@ def stable_cholesky(mmat, make_psd=True, verbose=False):
         while not break_loop:
             try:
                 lmat = np.linalg.cholesky(
-                    mmat + ((10 ** diag_noise_power) * max_mmat) * np.eye(mmat.shape[0])
+                    mmat + ((10**diag_noise_power) * max_mmat) * np.eye(mmat.shape[0])
                 )
                 break_loop = True
             except np.linalg.linalg.LinAlgError:
                 if diag_noise_power > -9:
                     if verbose:
                         print(
-                            '\t*stable_cholesky failed with '
-                            'diag_noise_power=%d.' % (diag_noise_power)
+                            "\t*stable_cholesky failed with "
+                            "diag_noise_power=%d." % (diag_noise_power)
                         )
                 diag_noise_power += 1
             if diag_noise_power >= 5:
-                print('\t*stable_cholesky failed: added diag noise = %e' % (diag_noise))
+                print("\t*stable_cholesky failed: added diag noise = %e" % (diag_noise))
     return lmat
 
 
@@ -194,7 +220,7 @@ def project_symmetric_to_psd_cone(mmat, is_symmetric=True, epsilon=0):
         try:
             eigvals, eigvecs = np.linalg.eigh(mmat)
         except np.linalg.LinAlgError:
-            print('\tLinAlgError encountered with np.eigh. Defaulting to eig.')
+            print("\tLinAlgError encountered with np.eigh. Defaulting to eig.")
             eigvals, eigvecs = np.linalg.eig(mmat)
             eigvals = np.real(eigvals)
             eigvecs = np.real(eigvecs)
@@ -222,6 +248,22 @@ def solve_triangular_base(amat, b, lower):
         return solve_triangular(amat, b, lower=lower)
 
 
+def tf_solve_lower_triangular(amat, b):
+    """Solves amat*x=b when amat is lower triangular."""
+    return tf_solve_triangular_base(amat, b, lower=True)
+
+
+def tf_solve_upper_triangular(amat, b):
+    """Solves amat*x=b when amat is upper triangular."""
+    return tf_solve_triangular_base(amat, b, lower=False)
+
+
+def tf_solve_triangular_base(amat, b, lower):
+    """Solves amat*x=b when amat is a triangular matrix."""
+    sol = tf.linalg.triangular_solve(amat, b, lower=lower)
+    return sol
+
+
 def sample_mvn(mu, covmat, nsamp):
     """
     Sample from multivariate normal distribution with mean mu and covariance
@@ -237,7 +279,7 @@ def sample_mvn(mu, covmat, nsamp):
 def gp_post(x_train, y_train, x_pred, ls, alpha, sigma, kernel, full_cov=True):
     """Compute parameters of GP posterior"""
     k11_nonoise = kernel(x_train, x_train, ls, alpha)
-    lmat = get_cholesky_decomp(k11_nonoise, sigma, 'try_first')
+    lmat = get_cholesky_decomp(k11_nonoise, sigma, "try_first")
     smat = solve_upper_triangular(lmat.T, solve_lower_triangular(lmat, y_train))
     k21 = kernel(x_pred, x_train, ls, alpha)
     mu2 = k21.dot(smat)
@@ -256,5 +298,6 @@ def main():
     print(kern_exp_quad_ard_per(xmat1, xmat2, np.array([1.0, 2.0]), 1.0, [1]))
     print(kern_exp_quad_ard(xmat1, xmat2, np.array([1.0, 2.0]), 1.0))
 
-if __name__=='__main__':
+
+if __name__ == "__main__":
     main()

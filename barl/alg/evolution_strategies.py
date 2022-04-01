@@ -23,7 +23,9 @@ class EvolutionStrategies(Algorithm):
         params = dict_to_namespace(params)
 
         self.params.name = getattr(params, "name", "EvolutionStrategies")
-        self.params.init_x = getattr(params, "init_x", [0.0])   # TODO: code currently requires init to 0
+        self.params.init_x = getattr(
+            params, "init_x", [0.0]
+        )  # TODO: code currently requires init to 0
         self.params.n_population = getattr(params, "n_population", 5)
         self.params.n_generation = getattr(params, "n_generation", 3)
         self.params.samp_str = getattr(params, "samp_str", "cma")
@@ -32,7 +34,7 @@ class EvolutionStrategies(Algorithm):
         self.params.keep_frac = getattr(params, "keep_frac", 0.3)
         self.params.domain = getattr(params, "domain", [[0, 10]])
         self.params.n_dim = len(self.params.init_x)
-        self.params.n_dim_es = self.params.n_dim if self.params.n_dim>1 else 2
+        self.params.n_dim_es = self.params.n_dim if self.params.n_dim > 1 else 2
         self.params.crop = getattr(params, "crop", True)
 
     def initialize(self):
@@ -40,14 +42,14 @@ class EvolutionStrategies(Algorithm):
         super().initialize()
 
         # set self.params.sampler and self.params.gen_list
-        if self.params.samp_str == 'cma':
+        if self.params.samp_str == "cma":
             self.params.sampler = CMAES(
                 self.params.n_dim_es,
                 popsize=self.params.n_population,
                 weight_decay=0.0,
-                sigma_init = 0.2,
+                sigma_init=0.2,
             )
-        elif self.params.samp_str == 'mut':
+        elif self.params.samp_str == "mut":
             self.params.sampler = SimpleMutator(
                 n_pop=self.params.n_population,
                 init_list=[self.params.init_x],
@@ -56,8 +58,8 @@ class EvolutionStrategies(Algorithm):
                 keep_frac=self.params.keep_frac,
             )
 
-        #self.params.gen_list = [self.params.init_x]
-        self.params.gen_list = []   # TODO: figure out initialization
+        # self.params.gen_list = [self.params.init_x]
+        self.params.gen_list = []  # TODO: figure out initialization
 
     def get_next_x(self):
         """
@@ -71,7 +73,9 @@ class EvolutionStrategies(Algorithm):
             max_iter = self.params.n_population * self.params.n_generation
             if len(self.exe_path.x) < max_iter:
                 if len(self.exe_path.y):
-                    self.params.sampler.tell(self.exe_path.y[-self.params.n_population:])
+                    self.params.sampler.tell(
+                        self.exe_path.y[-self.params.n_population :]
+                    )
 
                 next_gen_list = self.params.sampler.ask()
                 next_gen_list = self.convert_next_gen_list(next_gen_list)
@@ -177,7 +181,7 @@ class SimpleMutator:
         if self.opt_mode == "min":
             val_list = -1 * np.array(val_list)
 
-        keep_idx = np.argsort(val_list)[int((1 - self.keep_frac) * len(val_list)):]
+        keep_idx = np.argsort(val_list)[int((1 - self.keep_frac) * len(val_list)) :]
         new_gen_list = [self.mut_list[i] for i in keep_idx[::-1]]
         self.gen_list = new_gen_list
 

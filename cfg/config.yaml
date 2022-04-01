@@ -1,7 +1,7 @@
 defaults:
   - _self_
   - env: pendulum
-  - alg: bac
+  - alg: barl
 name: "default"
 num_eval_trials: 5
 eval_frequency: 50
@@ -12,16 +12,58 @@ env:
     gp:
       periodic: False
       opt_max_iter: 1000
+    tf_precision: 64
 alg:
     uncertainty_sampling: False
+    kgrl: False
+    kg_policy: False
+    pilco: False
+    gd_opt: False
+    eig: False
+    open_loop: False
+    choose_start_state: False
+    num_samples_mc: 1
+    num_s0_samps: 1
+    open_loop_mpc: False
+    sample_all_states: False
+mpc:
+  nsamps: ${env.mpc.nsamps}
+  planning_horizon: ${env.mpc.planning_horizon}
+  n_elites: ${env.mpc.n_elites}
+  beta: ${env.mpc.n_elites}
+  gamma: ${env.mpc.gamma}
+  xi: ${env.mpc.xi}
+  num_iters: ${env.mpc.num_iters}
+  actions_per_plan: ${env.mpc.actions_per_plan}
+eigmpc:
+  nsamps: ${env.eigmpc.nsamps}
+  planning_horizon: ${env.eigmpc.planning_horizon}
+  n_elites: ${env.eigmpc.n_elites}
+  beta: ${env.eigmpc.n_elites}
+  gamma: ${env.eigmpc.gamma}
+  xi: ${env.eigmpc.xi}
+  num_iters: ${env.eigmpc.num_iters}
+  actions_per_plan: ${env.eigmpc.actions_per_plan}
+test_mpc:
+  nsamps: ${env.mpc.nsamps}
+  planning_horizon: ${env.mpc.planning_horizon}
+  n_elites: ${env.mpc.n_elites}
+  beta: ${env.mpc.n_elites}
+  gamma: ${env.mpc.gamma}
+  xi: ${env.mpc.xi}
+  num_iters: ${env.mpc.num_iters}
+  actions_per_plan: ${env.mpc.actions_per_plan}
+  num_fs: 15
 
 num_iters: ${alg.num_iters}
+eval_bayes_policy: False
 seed: 13
-mpc: ${env.mpc}
 fixed_start_obs: False
-num_samples_mc: 1
+num_samples_mc: ${alg.num_samples_mc}
 num_init_data: 1
 test_set_size: 1000
+tf_eager: False
+tf_precision: ${env.tf_precision}
 n_paths: 15
 sample_exe: ${env.sample_exe}
 path_sampling_fraction: 0.8
@@ -32,6 +74,7 @@ n_rand_acqopt: ${alg.n_rand_acqopt}
 crop_to_domain: True
 teleport: ${env.teleport}
 fit_hypers: False
+save_figures: False
 hydra:
   job:
     name: ${name}

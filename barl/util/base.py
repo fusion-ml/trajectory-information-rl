@@ -23,7 +23,7 @@ class Base:
         """
         self.verbose_init_arg = verbose
         self.set_params(params)
-        self.print_pre = '     * '
+        self.print_pre = "     * "
         if self.params.verbose:
             self.print_init()
 
@@ -33,18 +33,18 @@ class Base:
 
         # Set self.params
         self.params = Namespace()
-        self.params.name = getattr(params, 'name', 'Base')
-        self.params.verbose = getattr(params, 'verbose', self.verbose_init_arg)
+        self.params.name = getattr(params, "name", "Base")
+        self.params.verbose = getattr(params, "verbose", self.verbose_init_arg)
 
     def print_init(self):
         """Print a description string when object created."""
-        logging.debug('* Initialized ' + str(self))
+        logging.debug("* Initialized " + str(self))
 
     def set_print_params(self):
         """Set self.print_params."""
-        if not hasattr(self, 'print_params'):
-            self.print_params = copy.deepcopy(self.params)
+        if not hasattr(self, "print_params"):
+            self.print_params = self.params
 
     def __str__(self):
         self.set_print_params()
-        return f'{self.params.name} with params={self.print_params}'
+        return f"{self.params.name} with params={self.print_params}"

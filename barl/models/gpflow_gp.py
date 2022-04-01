@@ -38,19 +38,23 @@ class GpflowGp(SimpleGp):
         params = dict_to_namespace(params)
 
         # Set self.params
-        self.params.name = getattr(params, 'name', 'GpflowGp')
-        self.params.opt_max_iter = getattr(params, 'opt_max_iter', 1000)
-        self.params.print_fit_hypers = getattr(params, 'print_fit_hypers', False)
-        self.params.fixed_mean_func = getattr(params, 'fixed_mean_func', True)
-        self.params.mean_func_c = getattr(params, 'mean_func_c', 0.0)
-        self.params.ls = getattr(params, 'ls', 1.0)
-        self.params.use_ard = getattr(params, 'use_ard', True)
-        self.params.alpha = getattr(params, 'alpha', 1.0)
-        self.params.fixed_noise = getattr(params, 'fixed_noise', True)
-        self.params.sigma = getattr(params, 'sigma', 0.01)
+        self.params.name = getattr(params, "name", "GpflowGp")
+        self.params.opt_max_iter = getattr(params, "opt_max_iter", 1000)
+        self.params.print_fit_hypers = getattr(params, "print_fit_hypers", False)
+        self.params.fixed_mean_func = getattr(params, "fixed_mean_func", True)
+        self.params.mean_func_c = getattr(params, "mean_func_c", 0.0)
+        self.params.ls = getattr(params, "ls", 1.0)
+        self.params.use_ard = getattr(params, "use_ard", True)
+        self.params.alpha = getattr(params, "alpha", 1.0)
+        self.params.fixed_noise = getattr(params, "fixed_noise", True)
+        self.params.sigma = getattr(params, "sigma", 0.01)
 
-    def set_data(self, data):
-        """Set self.data."""
+    def set_data(self, data, lmat=None, smat=None):
+        """Set self.data.
+
+        we don't use these GPs that often, so I am not gonna implement the lmat and smat thing.
+        They are no-ops for interface compatibility
+        """
         if data is None:
             # Initialize self.data to be empty
             self.data = Namespace()
@@ -65,7 +69,7 @@ class GpflowGp(SimpleGp):
 
     def set_gpflow_data(self):
         """Set self.gpflow_data."""
-        n_dimx = len(self.data.x[0]) #### NOTE: data.x must not be empty
+        n_dimx = len(self.data.x[0])  #### NOTE: data.x must not be empty
         self.gpflow_data = (
             np.array(self.data.x).reshape(-1, n_dimx),
             np.array(self.data.y).reshape(-1, 1),
@@ -81,11 +85,12 @@ class GpflowGp(SimpleGp):
 
     def build_new_gpflow_model_on_data(self, data):
         """Instantiate and return GPflow model on given data."""
-        n_dimx = len(data.x[0]) #### NOTE: data.x must not be empty
+        n_dimx = len(data.x[0])  #### NOTE: data.x must not be empty
 
         # Convert data to gpflow format
         gpflow_data = (
-            np.array(data.x).reshape(-1, n_dimx), np.array(data.y).reshape(-1, 1)
+            np.array(data.x).reshape(-1, n_dimx),
+            np.array(data.y).reshape(-1, 1),
         )
 
         # Set mean function
@@ -108,7 +113,9 @@ class GpflowGp(SimpleGp):
         )
 
         # Set GPR model
-        model = gpflow.models.GPR(data=gpflow_data, kernel=kernel, mean_function=mean_func)
+        model = gpflow.models.GPR(
+            data=gpflow_data, kernel=kernel, mean_function=mean_func
+        )
         model.likelihood.variance.assign(self.params.sigma**2)
         if self.params.fixed_noise:
             gpflow.utilities.set_trainable(model.likelihood.variance, False)
@@ -126,12 +133,12 @@ class GpflowGp(SimpleGp):
 
         # Fit hyperparameters
         if self.params.print_fit_hypers:
-            print('GPflow: start hyperparameter fitting.')
+            print("GPflow: start hyperparameter fitting.")
         opt_log = opt.minimize(
             self.model.training_loss, self.model.trainable_variables, options=opt_config
         )
         if self.params.print_fit_hypers:
-            print('GPflow: end hyperparameter fitting.')
+            print("GPflow: end hyperparameter fitting.")
             gpflow.utilities.print_summary(self.model)
 
     def get_post_mu_cov(self, x_list, full_cov=True):
@@ -204,10 +211,10 @@ def get_gpflow_hypers_from_data(data, print_fit_hypers=False, opt_max_iter=1000)
     model = GpflowGp(params=model_params, data=data)
     model.fit_hypers()
     gp_hypers = {
-        'ls': model.model.kernel.lengthscales.numpy().tolist(),
-        'alpha': np.sqrt(float(model.model.kernel.variance.numpy())),
-        'sigma': np.sqrt(float(model.model.likelihood.variance.numpy())),
-        'n_dimx': len(data.x[0]),
+        "ls": model.model.kernel.lengthscales.numpy().tolist(),
+        "alpha": np.sqrt(float(model.model.kernel.variance.numpy())),
+        "sigma": np.sqrt(float(model.model.likelihood.variance.numpy())),
+        "n_dimx": len(data.x[0]),
     }
 
     return gp_hypers

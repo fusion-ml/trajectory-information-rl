@@ -1,0 +1,18 @@
+learn_reward: False
+num_iters: 4000
+use_acquisition: True
+rollout_sampling: True
+sample_exe: False
+n_rand_acqopt: 1
+use_mpc: False
+kgrl: False
+kg_policy: True
+gd_opt: True
+num_fs: 30
+num_s0: 10
+num_sprime_samps: 3
+learning_rate: 0.001
+num_steps: 2000
+hidden_layer_sizes: [128, 128]
+policy_test_period: 200
+policy_lifetime: 20

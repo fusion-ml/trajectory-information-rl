@@ -1,11 +1,21 @@
 name: "pilcocartpole-v0"
 normalize_env: True
 teleport: True
+tf_precision: 64
 gp:
   ls: [[80430.37, 4.40, 116218.45, 108521.27, 103427.47], [290.01, 318.22, 0.39, 1.57, 33.17], [1063051.24, 1135236.37, 1239430.67, 25.09, 1176016.11], [331.70, 373.98, 0.32, 1.88, 39.83]]
   alpha: [0.26, 2.32, 11.59, 3.01]
   sigma: 0.01
 mpc:
+  nsamps: 30
+  planning_horizon: 15
+  n_elites: 6
+  beta: 3
+  gamma: 1.25
+  xi: 0.3
+  num_iters: 5
+  actions_per_plan: 1
+eigmpc:
   nsamps: 30
   planning_horizon: 15
   n_elites: 6

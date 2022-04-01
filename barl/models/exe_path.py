@@ -18,7 +18,7 @@ class ExePath(Base):
         """Set self.params, the parameters for the execution path."""
         super().set_params(params)
         params = dict_to_namespace(params)
-        self.params.name = getattr(params, 'name', 'ExePath')
+        self.params.name = getattr(params, "name", "ExePath")
 
     def init_path_with_model(self, model):
         """Set self.model, self.exe_path, self.all_obs."""
