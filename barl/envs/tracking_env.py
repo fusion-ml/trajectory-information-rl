@@ -16,56 +16,60 @@ from rlkit.data_management.mb_start_selectors import StartSelector
 
 
 BETA_ROTATION_OBS_SPACE = (
-    'betan_EFIT01',
-    'betan_EFIT01_prev_delta',
-    'rotation',
-    'rotation_prev_delta',
-    'pinj',
-    'pinj_prev_delta',
-    'tinj',
-    'tinj_prev_delta',
+    "betan_EFIT01",
+    "betan_EFIT01_prev_delta",
+    "rotation",
+    "rotation_prev_delta",
+    "pinj",
+    "pinj_prev_delta",
+    "tinj",
+    "tinj_prev_delta",
 )
-BETA_ROTATION_ACTION_SPACE = ('pinj_next_delta', 'tinj_next_delta')
-BETA_ROTATION_TARGET_LABELS = ('betan_EFIT01', 'rotation')
+BETA_ROTATION_ACTION_SPACE = ("pinj_next_delta", "tinj_next_delta")
+BETA_ROTATION_TARGET_LABELS = ("betan_EFIT01", "rotation")
 # These default bounds are roughly the 0.05-0.95 interval.
 SCALED_BETA_ROTATION_ACTION_BOUNDS = np.array([[-1, -1.65], [1.582, 1.45]])
 SCALED_BETA_ROTATION_ACTION_DT_BOUNDS = np.array([[-0.48, -0.6], [0.583, 0.628]])
-DEFAULT_MODEL_PATH = '/zfsauton/project/public/ichar/BetaTracking/models/beta_rotation_mlp_limited'
-DEFAULT_MODEL_INFO_PATH = '/zfsauton/project/public/ichar/BetaTracking/data/beta_rotation_data_limited/info.pkl'
-DEFAULT_START_DATA_PATH = '/zfsauton/project/public/ichar/BetaTracking/data/beta_rotation_data_limited/data.hdf5'
+DEFAULT_MODEL_PATH = (
+    "/zfsauton/project/public/ichar/BetaTracking/models/beta_rotation_mlp_limited"
+)
+DEFAULT_MODEL_INFO_PATH = "/zfsauton/project/public/ichar/BetaTracking/data/beta_rotation_data_limited/info.pkl"
+DEFAULT_START_DATA_PATH = "/zfsauton/project/public/ichar/BetaTracking/data/beta_rotation_data_limited/data.hdf5"
+
 
 class TrackingModelEnv(EnvModel):
     """Model environment for beta and rotation tracking."""
 
     def __init__(
-            self,
-            model_path,
-            info_dict_path,
-            target_distribution,
-            should_unnormalize_obs=False,
-            # If none for either bound, it is unbounded.
-            scaled_action_bounds=SCALED_BETA_ROTATION_ACTION_BOUNDS,
-            scaled_action_dt_bounds=SCALED_BETA_ROTATION_ACTION_DT_BOUNDS,
-            action_is_change=True,
-            obs_fields=BETA_ROTATION_OBS_SPACE,
-            action_fiels=BETA_ROTATION_ACTION_SPACE,
-            target_fields=BETA_ROTATION_TARGET_LABELS,
-            gpu_num=None,
-            full_obs=False,
-            **kwargs
+        self,
+        model_path,
+        info_dict_path,
+        target_distribution,
+        should_unnormalize_obs=False,
+        # If none for either bound, it is unbounded.
+        scaled_action_bounds=SCALED_BETA_ROTATION_ACTION_BOUNDS,
+        scaled_action_dt_bounds=SCALED_BETA_ROTATION_ACTION_DT_BOUNDS,
+        action_is_change=True,
+        obs_fields=BETA_ROTATION_OBS_SPACE,
+        action_fiels=BETA_ROTATION_ACTION_SPACE,
+        target_fields=BETA_ROTATION_TARGET_LABELS,
+        gpu_num=None,
+        full_obs=False,
+        **kwargs,
     ):
         self.model = load_model_from_log_dir(model_path)
         if gpu_num is not None:
-            self.model.to(f'cuda:{gpu_num}')
-        with open(info_dict_path, 'rb') as f:
+            self.model.to(f"cuda:{gpu_num}")
+        with open(info_dict_path, "rb") as f:
             self.info = pkl.load(f)
         self.should_unnormalize_obs = should_unnormalize_obs
         self.scaled_action_bounds = scaled_action_bounds
         self.scaled_action_dt_bounds = scaled_action_dt_bounds
         self.action_is_change = action_is_change
         if full_obs:
-            self.obs_fields = [s for s in self.info['x_columns']
-                                if 'next_delta' not in s]
+            self.obs_fields = [
+                s for s in self.info["x_columns"] if "next_delta" not in s
+            ]
         else:
             self.obs_fields = obs_fields
         self.obs_fields = obs_fields
@@ -86,36 +90,50 @@ class TrackingModelEnv(EnvModel):
             dtype=np.float32,
         )
         # Figure out some indices and orderings ahead of time.
-        self._state_fields = [s for s in self.info['x_columns']
-                                if 'next_delta' not in s]
-        self._act_current_idxs = [self._state_fields.index(get_signal(a))
-                                  for a in action_fiels]
-        self._act_prev_idxs = [self._state_fields.index(get_signal(a) + '_prev_delta')
-                               for a in action_fiels]
-        self._state_pred_curr = [self._state_fields.index(get_signal(s))
-                                 for s in self.info['y_columns']]
-        self._state_pred_prev_delta = [self._state_fields.index(get_signal(s) + '_prev_delta')
-                                       for s in self.info['y_columns']]
+        self._state_fields = [
+            s for s in self.info["x_columns"] if "next_delta" not in s
+        ]
+        self._act_current_idxs = [
+            self._state_fields.index(get_signal(a)) for a in action_fiels
+        ]
+        self._act_prev_idxs = [
+            self._state_fields.index(get_signal(a) + "_prev_delta")
+            for a in action_fiels
+        ]
+        self._state_pred_curr = [
+            self._state_fields.index(get_signal(s)) for s in self.info["y_columns"]
+        ]
+        self._state_pred_prev_delta = [
+            self._state_fields.index(get_signal(s) + "_prev_delta")
+            for s in self.info["y_columns"]
+        ]
         self._obs_indices = [self._state_fields.index(s) for s in self.obs_fields]
         state_act_stack = self._state_fields + list(self.action_fiels)
-        self._state_action_hstack_ordering = [state_act_stack.index(xc)
-                                              for xc in self.info['x_columns']]
+        self._state_action_hstack_ordering = [
+            state_act_stack.index(xc) for xc in self.info["x_columns"]
+        ]
         # Figure out the statistics to do normalization ahead of time.
-        self._obs_median = np.array([
-            0 if 'delta' in of
-            else self.info['normalization_dict'][get_signal(of)]['median']
-            for of in self.obs_fields]).reshape(1, -1)
+        self._obs_median = np.array(
+            [
+                0
+                if "delta" in of
+                else self.info["normalization_dict"][get_signal(of)]["median"]
+                for of in self.obs_fields
+            ]
+        ).reshape(1, -1)
         # self._obs_median = np.array([
         #     0 if 'delta' in of
         #     else self.info['normalization_dict'][get_signal(of)]['median']
         #     for of in self.obs_fields + self.target_fields]).reshape(1, -1)
-        self._obs_iqr = np.array([
-            self.info['normalization_dict'][get_signal(of)]['iqr']
-            for of in self.obs_fields]).reshape(1, -1)
+        self._obs_iqr = np.array(
+            [
+                self.info["normalization_dict"][get_signal(of)]["iqr"]
+                for of in self.obs_fields
+            ]
+        ).reshape(1, -1)
         # self._obs_iqr = np.array([
         #     self.info['normalization_dict'][get_signal(of)]['iqr']
         #     for of in self.obs_fields + self.target_fields]).reshape(1, -1)
-
 
     def unroll(self, start_states, policy, horizon, actions=None):
         """Unroll for multiple trajectories at once.
@@ -136,9 +154,7 @@ class TrackingModelEnv(EnvModel):
         """
         should_call_policy = actions is None
         # Init the datastructures.
-        states = np.zeros((horizon + 1,
-                           start_states.shape[0],
-                           start_states.shape[1]))
+        states = np.zeros((horizon + 1, start_states.shape[0], start_states.shape[1]))
         obs = np.zeros((horizon + 1, start_states.shape[0], self.obs_dim))
         targets = self.target_distribution(len(start_states))
         if actions is None:
@@ -161,11 +177,11 @@ class TrackingModelEnv(EnvModel):
                 acts = actions[hidx].flatten()
             # Roll all states forward.
             nxt_info = self.multi_step(states[hidx], acts, targets)
-            states[hidx+1] = nxt_info['state']
-            obs[hidx+1] = nxt_info['obs']
-            rewards[hidx] = self.compute_rew(nxt_info['state'], targets)
-        env_infos = {'targets': targets}
-        agent_infos = {'logpi': logpis}
+            states[hidx + 1] = nxt_info["state"]
+            obs[hidx + 1] = nxt_info["obs"]
+            rewards[hidx] = self.compute_rew(nxt_info["state"], targets)
+        env_infos = {"targets": targets}
+        agent_infos = {"logpi": logpis}
         return obs, actions, rewards, terminals, env_infos, agent_infos
 
     def multi_step(self, states, actions, targets=None):
@@ -185,33 +201,41 @@ class TrackingModelEnv(EnvModel):
             targets = np.zeros((len(states), self.target_dim))
         obs = self.state_to_obs(nxt_states, targets)
         return {
-            'state': nxt_states,
-            'obs': obs,
+            "state": nxt_states,
+            "obs": obs,
         }
-
 
     def action_to_normd_signal(self, states, actions):
         curr_acts = states[:, self._act_current_idxs]
         actions = (actions + 1) / 2
         if self.action_is_change:
-            act_change = (actions
-                * (self.scaled_action_dt_bounds[[1]]
-                    - self.scaled_action_dt_bounds[[0]])
-                + self.scaled_action_dt_bounds[[0]])
+            act_change = (
+                actions
+                * (
+                    self.scaled_action_dt_bounds[[1]]
+                    - self.scaled_action_dt_bounds[[0]]
+                )
+                + self.scaled_action_dt_bounds[[0]]
+            )
             return np.clip(
                 act_change,
-                np.clip(self.scaled_action_bounds[[0]] - curr_acts,
-                        np.ones(curr_acts.shape) * self.scaled_action_dt_bounds[[0]],
-                        np.zeros(curr_acts.shape)),
-                np.clip(self.scaled_action_bounds[[1]] - curr_acts,
-                        np.zeros(curr_acts.shape),
-                        np.ones(curr_acts.shape) * self.scaled_action_dt_bounds[[1]]),
+                np.clip(
+                    self.scaled_action_bounds[[0]] - curr_acts,
+                    np.ones(curr_acts.shape) * self.scaled_action_dt_bounds[[0]],
+                    np.zeros(curr_acts.shape),
+                ),
+                np.clip(
+                    self.scaled_action_bounds[[1]] - curr_acts,
+                    np.zeros(curr_acts.shape),
+                    np.ones(curr_acts.shape) * self.scaled_action_dt_bounds[[1]],
+                ),
             )
         else:
-            act_targets = (actions
-                * (self.scaled_action_bounds[[1]]
-                    - self.scaled_action_bounds[[0]])
-                + self.scaled_action_bounds[[0]])
+            act_targets = (
+                actions
+                * (self.scaled_action_bounds[[1]] - self.scaled_action_bounds[[0]])
+                + self.scaled_action_bounds[[0]]
+            )
             act_change = act_targets - curr_acts
             act_change = np.clip(
                 act_change,
@@ -231,20 +255,22 @@ class TrackingModelEnv(EnvModel):
         return obs * self._obs_iqr + self._obs_median
 
     def compute_rew(self, states, targets):
-        signals = states[:, [self._state_fields.index(t)
-                             for t in self.target_fields]]
+        signals = states[:, [self._state_fields.index(t) for t in self.target_fields]]
         return -1 * np.sum(np.abs(signals - targets), axis=1)
 
     def _wrap_target_dist(self, dist):
-        target_median = np.array([[self.info['normalization_dict'][t]['median']
-                                   for t in self.target_fields]])
-        target_iqr = np.array([[self.info['normalization_dict'][t]['iqr']
-                                   for t in self.target_fields]])
+        target_median = np.array(
+            [[self.info["normalization_dict"][t]["median"] for t in self.target_fields]]
+        )
+        target_iqr = np.array(
+            [[self.info["normalization_dict"][t]["iqr"] for t in self.target_fields]]
+        )
+
         def target_sampler(sh):
             sample = dist(sh)
             return (sample - target_median) / target_iqr
-        return target_sampler
 
+        return target_sampler
 
     @property
     def observation_space(self):
@@ -256,20 +282,20 @@ class TrackingModelEnv(EnvModel):
 
 
 class TrackingStartSelector(StartSelector):
-
     def __init__(self, data_path, info_dict_path, test_shots=False, shuffle=True):
-        with open(info_dict_path, 'rb') as f:
+        with open(info_dict_path, "rb") as f:
             self.info = pkl.load(f)
         data = load_from_hdf5(data_path)
-        prefix = 'te_' if test_shots else 'tr_'
-        curr_shot = data[prefix + 'shotnums'][0]
-        starts = [data[prefix + 'x'][0]]
-        for idx in range(1, len(data[prefix + 'shotnums'])):
-            if data[prefix + 'shotnums'][idx] != curr_shot:
-                curr_shot = data[prefix + 'shotnums'][idx]
-                starts.append(data[prefix + 'x'][idx])
-        state_idxs = [i for i, s in enumerate(self.info['x_columns'])
-                      if 'next_delta' not in s]
+        prefix = "te_" if test_shots else "tr_"
+        curr_shot = data[prefix + "shotnums"][0]
+        starts = [data[prefix + "x"][0]]
+        for idx in range(1, len(data[prefix + "shotnums"])):
+            if data[prefix + "shotnums"][idx] != curr_shot:
+                curr_shot = data[prefix + "shotnums"][idx]
+                starts.append(data[prefix + "x"][idx])
+        state_idxs = [
+            i for i, s in enumerate(self.info["x_columns"]) if "next_delta" not in s
+        ]
         self.starts = np.vstack(starts)[:, state_idxs]
         self.shuffle = shuffle
 
@@ -280,24 +306,25 @@ class TrackingStartSelector(StartSelector):
             return self.starts[indices]
         return self.starts[:num_starts]
 
-class TrackingGymEnv(gym.Env):
 
-    def __init__(self,
-                 model_path=DEFAULT_MODEL_PATH,
-                 model_info_path=DEFAULT_MODEL_INFO_PATH,
-                 start_data_path=DEFAULT_START_DATA_PATH,
-                 ):
+class TrackingGymEnv(gym.Env):
+    def __init__(
+        self,
+        model_path=DEFAULT_MODEL_PATH,
+        model_info_path=DEFAULT_MODEL_INFO_PATH,
+        start_data_path=DEFAULT_START_DATA_PATH,
+    ):
         target_dist = lambda sh: np.tile(np.array([2, 75]), sh).reshape(sh, 2)
-        self._model_env = TrackingModelEnv(model_path,
-                                           model_info_path,
-                                           target_dist,
-                                           action_is_change=True,
-                                           unnormalize_obs=False,
-                                           )
-        self._start_selector = TrackingStartSelector(start_data_path,
-                                                     model_info_path,
-                                                     shuffle=True,
-                                                     test_shots=False)
+        self._model_env = TrackingModelEnv(
+            model_path,
+            model_info_path,
+            target_dist,
+            action_is_change=True,
+            unnormalize_obs=False,
+        )
+        self._start_selector = TrackingStartSelector(
+            start_data_path, model_info_path, shuffle=True, test_shots=False
+        )
         self._state = None
         self._target = None
         self.horizon = 20
@@ -317,9 +344,9 @@ class TrackingGymEnv(gym.Env):
         if not isinstance(action, np.ndarray):
             action = np.array([action])
         result = self._model_env.multi_step(self._state, action, targets=self._target)
-        self._state = result['state']
+        self._state = result["state"]
         rew = self._model_env.compute_rew(self._state, targets=self._target)
-        return result['obs'].flatten(), float(rew.flatten()), False, {}
+        return result["obs"].flatten(), float(rew.flatten()), False, {}
 
     @property
     def observation_space(self):
@@ -338,11 +365,12 @@ def tracking_rew(x, next_obs):
 
 
 def get_signal(field):
-    if '_prev_delta' in field:
-        return field[:-len('_prev_delta')]
-    if '_next_delta' in field:
-        return field[:-len('_next_delta')]
+    if "_prev_delta" in field:
+        return field[: -len("_prev_delta")]
+    if "_next_delta" in field:
+        return field[: -len("_next_delta")]
     return field
+
 
 def test_tracking_env():
     num_trials = 50
@@ -372,12 +400,11 @@ def test_tracking_env():
         returns.append(np.sum(rewards))
     print(f"Random actions give {np.mean(returns)} return +- {np.std(returns)}")
 
-
     # test reset to state
     for obs in observations:
         reset_obs = env.reset(obs)
         assert np.allclose(reset_obs, obs)
 
 
-if __name__ == '__main__':
+if __name__ == "__main__":
     test_tracking_env()

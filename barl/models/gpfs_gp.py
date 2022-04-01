@@ -29,27 +29,27 @@ class GpfsGp(SimpleGp):
         params = dict_to_namespace(params)
 
         # Set self.params
-        self.params.name = getattr(params, 'name', 'GpfsGp')
-        self.params.n_bases = getattr(params, 'n_bases', 1000)
-        self.params.n_dimx = getattr(params, 'n_dimx', 1)
+        self.params.name = getattr(params, "name", "GpfsGp")
+        self.params.n_bases = getattr(params, "n_bases", 1000)
+        self.params.n_dimx = getattr(params, "n_dimx", 1)
         self.set_kernel(params)
 
     def set_kernel(self, params):
         """Set GPflow kernel."""
         super().set_kernel(params)
 
-        if self.params.kernel_str == 'rbf':
+        if self.params.kernel_str == "rbf":
             gpf_kernel = kernels.SquaredExponential(
                 variance=self.params.alpha**2, lengthscales=self.params.ls
             )
 
-        elif self.params.kernel_str == 'rbf_periodic':
+        elif self.params.kernel_str == "rbf_periodic":
             period = params.period
 
             per_dims = params.periodic_dims
-            per_dims_ls_idx = per_dims[0] if len(per_dims)==1 else list(per_dims)
+            per_dims_ls_idx = per_dims[0] if len(per_dims) == 1 else list(per_dims)
             rbf_dims = [i for i in range(self.params.n_dimx) if i not in per_dims]
-            rbf_dims_ls_idx = rbf_dims[0] if len(rbf_dims)==1 else list(rbf_dims)
+            rbf_dims_ls_idx = rbf_dims[0] if len(rbf_dims) == 1 else list(rbf_dims)
 
             gpf_kernel_1 = kernels.SquaredExponential(
                 variance=self.params.alpha**2,
@@ -72,9 +72,7 @@ class GpfsGp(SimpleGp):
             super().set_data(data, lmat=lmat, smat=smat)
         self.tf_data = Namespace()
         self.tf_data.x = tf.convert_to_tensor(np.array(self.data.x))
-        self.tf_data.y = tf.convert_to_tensor(
-            np.array(self.data.y).reshape(-1, 1)
-        )
+        self.tf_data.y = tf.convert_to_tensor(np.array(self.data.y).reshape(-1, 1))
         self.set_model()
 
     def set_model(self):
@@ -94,7 +92,7 @@ class GpfsGp(SimpleGp):
         Xinit = tf.random.uniform(
             [n_fsamp, self.params.n_dimx], minval=0.0, maxval=0.1, dtype=floatx()
         )
-        self.fsl_xvars = Xinit.numpy() #### TODO initialize directly with numpy
+        self.fsl_xvars = Xinit.numpy()  #### TODO initialize directly with numpy
         self.n_fsamp = n_fsamp
 
     @tf.function
@@ -159,9 +157,9 @@ class TFGpfsGp(TFSimpleGp):
         params = dict_to_namespace(params)
 
         # Set self.params
-        self.params.name = getattr(params, 'name', 'TFGpfsGp')
-        self.params.n_bases = getattr(params, 'n_bases', 1000)
-        self.params.n_dimx = getattr(params, 'n_dimx', 1)
+        self.params.name = getattr(params, "name", "TFGpfsGp")
+        self.params.n_bases = getattr(params, "n_bases", 1000)
+        self.params.n_dimx = getattr(params, "n_dimx", 1)
         self.params.model = None
         self.set_kernel(params)
 
@@ -169,18 +167,18 @@ class TFGpfsGp(TFSimpleGp):
         """Set GPflow kernel."""
         super().set_kernel(params)
 
-        if self.params.kernel_str == 'rbf':
+        if self.params.kernel_str == "rbf":
             gpf_kernel = kernels.SquaredExponential(
                 variance=self.params.alpha**2, lengthscales=self.params.ls
             )
 
-        elif self.params.kernel_str == 'rbf_periodic':
+        elif self.params.kernel_str == "rbf_periodic":
             period = params.period
 
             per_dims = params.periodic_dims
-            per_dims_ls_idx = per_dims[0] if len(per_dims)==1 else list(per_dims)
+            per_dims_ls_idx = per_dims[0] if len(per_dims) == 1 else list(per_dims)
             rbf_dims = [i for i in range(self.params.n_dimx) if i not in per_dims]
-            rbf_dims_ls_idx = rbf_dims[0] if len(rbf_dims)==1 else list(rbf_dims)
+            rbf_dims_ls_idx = rbf_dims[0] if len(rbf_dims) == 1 else list(rbf_dims)
 
             gpf_kernel_1 = kernels.SquaredExponential(
                 variance=self.params.alpha**2,
@@ -229,7 +227,9 @@ class TFGpfsGp(TFSimpleGp):
                 assertion if shape is wrong.
         """
         n_bases = self.params.n_bases
-        paths = self.params.model.generate_paths(num_samples=n_fsamp, num_bases=n_bases, weights=None)
+        paths = self.params.model.generate_paths(
+            num_samples=n_fsamp, num_bases=n_bases, weights=None
+        )
         _ = self.params.model.set_paths(paths)
 
         self.n_fsamp = n_fsamp
@@ -280,9 +280,9 @@ class MultiGpfsGp(Base):
         super().set_params(params)
         params = dict_to_namespace(params)
 
-        self.params.name = getattr(params, 'name', 'MultiGpfsGp')
-        self.params.n_dimy = getattr(params, 'n_dimy', 1)
-        self.params.gp_params = getattr(params, 'gp_params', {})
+        self.params.name = getattr(params, "name", "MultiGpfsGp")
+        self.params.n_dimy = getattr(params, "n_dimy", 1)
+        self.params.gp_params = getattr(params, "gp_params", {})
 
     def set_data(self, data, fs_only=False, smats=None, lmats=None):
         """Set self.data."""
@@ -398,7 +398,7 @@ class MultiGpfsGp(Base):
             copy.deepcopy(self.params.gp_params) for _ in range(self.params.n_dimy)
         ]
 
-        hyps = ['ls', 'alpha', 'sigma']
+        hyps = ["ls", "alpha", "sigma"]
         for hyp in hyps:
             if not isinstance(self.params.gp_params.get(hyp, 1), (float, int)):
                 # If hyp exists in dict, and is not (float, int), assume is list of hyp
@@ -415,6 +415,7 @@ class TFMultiGpfsGp(MultiGpfsGp):
     each duplication).
     This one is implemented in tensorflow
     """
+
     def set_params(self, params):
         """Set self.params, the parameters for this model."""
         super().set_params(params)
@@ -451,7 +452,6 @@ class TFMultiGpfsGp(MultiGpfsGp):
         data_list = self.get_data_list(self.data)
         for gp, dat, lmat, smat in zip(self.gpfsgp_list, data_list, lmats, smats):
             gp.set_data(dat, fs_only, lmat=lmat, smat=smat)
-
 
     def initialize_function_sample_list(self, n_samp=1, weights=None):
         """
@@ -491,7 +491,9 @@ class TFMultiGpfsGp(MultiGpfsGp):
 
     def get_post_mu_cov(self, x_list, full_cov=False):
         """Returns a list of mu, and a list of cov/std."""
-        assert not self.params.fs_only, "Can't get posterior values if fs_only initialization"
+        assert (
+            not self.params.fs_only
+        ), "Can't get posterior values if fs_only initialization"
         x_list = tf.cast(x_list, self.params.tf_dtype)
         mu_list, cov_list = [], []
         for gp in self.gpfsgp_list:
@@ -505,13 +507,15 @@ class TFMultiGpfsGp(MultiGpfsGp):
         return mu_out, cov_out
 
     def sample_post_list(self, x_list, n_samp, lambdas=None, full_cov=False):
-        '''
+        """
         This is going to return a triply-nested list of shape
         len(x_list) x n_samp x len(self.gpfsgs_list)
 
         Lambdas are sampled r.vs for the reparameterization trick
-        '''
-        assert not self.params.fs_only, "Can't get posterior values if fs_only initialization"
+        """
+        assert (
+            not self.params.fs_only
+        ), "Can't get posterior values if fs_only initialization"
         assert len(self.data.x) > 0
         mu_list, cov_list = self.get_post_mu_cov(x_list, full_cov)
         if lambdas is None:
@@ -520,7 +524,6 @@ class TFMultiGpfsGp(MultiGpfsGp):
         mu = mu_list[:, None, :]
         samples = lambdas * std + mu
         return samples
-
 
     @staticmethod
     def get_normal_samples(mu, cov, n_samp, full_cov):
@@ -542,7 +545,7 @@ class TFMultiGpfsGp(MultiGpfsGp):
         """
         data_list = []
         for j in range(self.params.n_dimy):
-            data_list.append(Namespace(x=data.x, y=data.y[..., j:j+1]))
+            data_list.append(Namespace(x=data.x, y=data.y[..., j : j + 1]))
 
         return data_list
 
@@ -555,7 +558,7 @@ class TFMultiGpfsGp(MultiGpfsGp):
             copy.deepcopy(self.params.gp_params) for _ in range(self.params.n_dimy)
         ]
 
-        hyps = ['ls', 'alpha', 'sigma']
+        hyps = ["ls", "alpha", "sigma"]
         for hyp in hyps:
             if not isinstance(self.params.gp_params.get(hyp, 1), (float, int)):
                 # If hyp exists in dict, and is not (float, int), assume is list of hyp
@@ -576,7 +579,7 @@ class BatchGpfsGp(GpfsGp):
         params = dict_to_namespace(params)
 
         # Set self.params
-        self.params.name = getattr(params, 'name', 'BatchGpfsGp')
+        self.params.name = getattr(params, "name", "BatchGpfsGp")
 
     def initialize_function_sample_list(self, n_fsamp=1):
         """Initialize a list of n_fsamp function samples."""
@@ -591,7 +594,7 @@ class BatchGpfsGp(GpfsGp):
         n_batch.
         """
         Xinit = tf.zeros([self.n_fsamp, n_batch, self.params.n_dimx], dtype=floatx())
-        self.fsl_xvars = Xinit.numpy() #### TODO initialize directly with numpy
+        self.fsl_xvars = Xinit.numpy()  #### TODO initialize directly with numpy
 
     def call_function_sample_list(self, x_batch_list):
         """
@@ -628,7 +631,7 @@ class BatchGpfsGp(GpfsGp):
         if type(x_batch_list) is list:
             y_batch_list = []
             for yarr, x_batch in zip(y_tf.numpy(), x_batch_list):
-                y_batch = list(yarr.reshape(-1))[:len(x_batch)]
+                y_batch = list(yarr.reshape(-1))[: len(x_batch)]
                 y_batch_list.append(y_batch)
         else:
             y_batch_list = y_tf.numpy()
@@ -663,7 +666,7 @@ class BatchMultiGpfsGp(MultiGpfsGp):
         super().set_params(params)
         params = dict_to_namespace(params)
 
-        self.params.name = getattr(params, 'name', 'MultiBatchGpfsGp')
+        self.params.name = getattr(params, "name", "MultiBatchGpfsGp")
 
     def set_gpfsgp_list(self):
         """Set self.gpfsgp_list by instantiating a list of GpfsGp objects."""
@@ -684,21 +687,25 @@ class BatchMultiGpfsGp(MultiGpfsGp):
         x_batch_list is a nested list or ndarray of shape num_fs x batch_size (can be ragged list) x x_dim
         """
         y_batch_list_list = [
-            gpfsgp.call_function_sample_list(x_batch_list) for gpfsgp in self.gpfsgp_list
+            gpfsgp.call_function_sample_list(x_batch_list)
+            for gpfsgp in self.gpfsgp_list
         ]
 
         if x_batch_list is list:
             # We define y_batch_multi_list to be a list, where each element is: a list of
             # multi-output-y (one per n_batch)
-            y_batch_multi_list = [list(zip(*ybl)) for ybl in zip(*y_batch_list_list)] # ugly
+            y_batch_multi_list = [
+                list(zip(*ybl)) for ybl in zip(*y_batch_list_list)
+            ]  # ugly
 
             # Convert from list of lists of tuples to all lists
-            y_batch_multi_list = [[list(tup) for tup in li] for li in y_batch_multi_list]
+            y_batch_multi_list = [
+                [list(tup) for tup in li] for li in y_batch_multi_list
+            ]
             return y_batch_multi_list
         else:
             y_batch = np.concatenate(y_batch_list_list, axis=-1)
             return y_batch
-
 
     def call_function_sample_list_mean(self, x):
         """
@@ -710,10 +717,10 @@ class BatchMultiGpfsGp(MultiGpfsGp):
         pass
 
     def sample_post_list(self, x_list, n_samp, full_cov=False):
-        '''
+        """
         This is going to return a triply-nested list of shape
         len(x_list) x n_samp x len(self.gpfsgs_list)
-        '''
+        """
         assert len(self.data.x) > 0
         mu_list, cov_list = self.get_post_mu_cov(x_list, full_cov)
         return self.get_normal_samples(mu_list, cov_list, n_samp, full_cov)

@@ -6,19 +6,27 @@ import tensorflow as tf
 
 class NormalizedEnv(Env):
     def __init__(self, wrapped_env):
-        '''
+        """
         Normalizes obs to be between -1 and 1
         doesn't touch actions
-        '''
+        """
         self._wrapped_env = wrapped_env
         self.unnorm_action_space = self._wrapped_env.action_space
         self.unnorm_observation_space = self._wrapped_env.observation_space
-        self.unnorm_obs_space_size = self.unnorm_observation_space.high - self.unnorm_observation_space.low
-        self.unnorm_action_space_size = self.unnorm_action_space.high - self.unnorm_action_space.low
-        self.action_space = spaces.Box(low=-np.ones_like(self.unnorm_action_space.low),
-                                       high=np.ones_like(self.unnorm_action_space.high))
-        self.observation_space = spaces.Box(low=-np.ones_like(self.unnorm_observation_space.low),
-                                            high=np.ones_like(self.unnorm_observation_space.high))
+        self.unnorm_obs_space_size = (
+            self.unnorm_observation_space.high - self.unnorm_observation_space.low
+        )
+        self.unnorm_action_space_size = (
+            self.unnorm_action_space.high - self.unnorm_action_space.low
+        )
+        self.action_space = spaces.Box(
+            low=-np.ones_like(self.unnorm_action_space.low),
+            high=np.ones_like(self.unnorm_action_space.high),
+        )
+        self.observation_space = spaces.Box(
+            low=-np.ones_like(self.unnorm_observation_space.low),
+            high=np.ones_like(self.unnorm_observation_space.high),
+        )
 
     @property
     def wrapped_env(self):
@@ -35,10 +43,10 @@ class NormalizedEnv(Env):
     def step(self, action):
         unnorm_action = self.unnormalize_action(action)
         unnorm_obs, rew, done, info = self._wrapped_env.step(unnorm_action)
-        if 'delta_obs' in info:
-            unnorm_delta_obs = info['delta_obs']
+        if "delta_obs" in info:
+            unnorm_delta_obs = info["delta_obs"]
             norm_delta_obs = unnorm_delta_obs / self.unnorm_obs_space_size * 2
-            info['delta_obs'] = norm_delta_obs
+            info["delta_obs"] = norm_delta_obs
         return self.normalize_obs(unnorm_obs), rew, done, info
 
     def render(self, *args, **kwargs):
@@ -57,7 +65,7 @@ class NormalizedEnv(Env):
             self.wrapped_env.terminate()
 
     def __getattr__(self, attr):
-        if attr == '_wrapped_env':
+        if attr == "_wrapped_env":
             raise AttributeError()
         return getattr(self._wrapped_env, attr)
 
@@ -75,10 +83,10 @@ class NormalizedEnv(Env):
         self.__dict__.update(state)
 
     def __str__(self):
-        return '{}({})'.format(type(self).__name__, self.wrapped_env)
+        return "{}({})".format(type(self).__name__, self.wrapped_env)
 
     def normalize_obs(self, obs):
-        if len(obs.shape)== 1:
+        if len(obs.shape) == 1:
             low = self.unnorm_observation_space.low
             size = self.unnorm_obs_space_size
         else:
@@ -114,12 +122,12 @@ class NormalizedEnv(Env):
 
 
 def make_normalized_reward_function(norm_env, reward_function, use_tf=False):
-    '''
+    """
     reward functions always take x, y as args
     x: [obs; action]
     y: [next_obs]
     this assumes obs and next_obs are normalized but the reward function handles them in unnormalized form
-    '''
+    """
     obs_dim = norm_env.observation_space.low.size
 
     def norm_rew_fn(x, y):
@@ -131,6 +139,7 @@ def make_normalized_reward_function(norm_env, reward_function, use_tf=False):
         unnorm_y = norm_env.unnormalize_obs(y)
         rewards = reward_function(unnorm_x, unnorm_y)
         return rewards
+
     if not use_tf:
         return norm_rew_fn
 
@@ -143,16 +152,20 @@ def make_normalized_reward_function(norm_env, reward_function, use_tf=False):
         unnorm_y = norm_env.unnormalize_obs(y)
         rewards = reward_function(unnorm_x, unnorm_y)
         return rewards
-    return tf_norm_rew_fn
 
+    return tf_norm_rew_fn
 
 
 def make_normalized_plot_fn(norm_env, plot_fn):
     obs_dim = norm_env.observation_space.low.size
     wrapped_env = norm_env.wrapped_env
     # Set domain
-    low = np.concatenate([wrapped_env.observation_space.low, wrapped_env.action_space.low])
-    high = np.concatenate([wrapped_env.observation_space.high, wrapped_env.action_space.high])
+    low = np.concatenate(
+        [wrapped_env.observation_space.low, wrapped_env.action_space.low]
+    )
+    high = np.concatenate(
+        [wrapped_env.observation_space.high, wrapped_env.action_space.high]
+    )
     unnorm_domain = [elt for elt in zip(low, high)]
 
     def norm_plot_fn(path, ax=None, fig=None, domain=None, path_str="samp", env=None):
@@ -171,7 +184,10 @@ def make_normalized_plot_fn(norm_env, plot_fn):
                 path.y = list(unnorm_y)
             except AttributeError:
                 pass
-        return plot_fn(path, ax=ax, fig=fig, domain=unnorm_domain, path_str=path_str, env=env)
+        return plot_fn(
+            path, ax=ax, fig=fig, domain=unnorm_domain, path_str=path_str, env=env
+        )
+
     return norm_plot_fn
 
 
@@ -202,6 +218,7 @@ def make_update_obs_fn(env, teleport=False, use_tf=False):
         modded_output = shifted_output
         wrapped_output = modded_output + env.observation_space.low
         return wrapped_output
+
     if not use_tf:
         return update_obs_fn
 
@@ -216,18 +233,23 @@ def make_update_obs_fn(env, teleport=False, use_tf=False):
             mask = np.tile(periodic, (x.shape[0], 1))
         else:
             mask = periodic
-        shifted_output = tf.math.floormod(shifted_output, obs_range) * mask + shifted_output * (1 - mask)
+        shifted_output = tf.math.floormod(
+            shifted_output, obs_range
+        ) * mask + shifted_output * (1 - mask)
         # np.remainder(shifted_output, obs_range, where=mask, out=shifted_output)
         modded_output = shifted_output
         wrapped_output = modded_output + env.observation_space.low
         return wrapped_output
+
     return tf_update_obs_fn
 
 
 def test_obs(wrapped_env, obs):
     unnorm_obs = wrapped_env.unnormalize_obs(obs)
     renorm_obs = wrapped_env.normalize_obs(unnorm_obs)
-    assert np.allclose(obs, renorm_obs), f"Original obs {obs} not close to renormalized obs {renorm_obs}"
+    assert np.allclose(
+        obs, renorm_obs
+    ), f"Original obs {obs} not close to renormalized obs {renorm_obs}"
 
 
 def test_rew_fn(gt_rew, norm_rew_fn, old_obs, action, obs):
@@ -240,14 +262,18 @@ def test_rew_fn(gt_rew, norm_rew_fn, old_obs, action, obs):
 def test_update_function(start_obs, action, delta_obs, next_obs, update_fn):
     x = np.concatenate([start_obs, action], axis=-1)
     updated_next_obs = update_fn(x, delta_obs)
-    assert np.allclose(next_obs, updated_next_obs), f"Next obs: {next_obs} and updated next obs: {updated_next_obs}"
+    assert np.allclose(
+        next_obs, updated_next_obs
+    ), f"Next obs: {next_obs} and updated next obs: {updated_next_obs}"
 
 
 def test():
     import sys
-    sys.path.append('.')
+
+    sys.path.append(".")
     from pendulum import PendulumEnv, pendulum_reward
-    sys.path.append('..')
+
+    sys.path.append("..")
     env = PendulumEnv()
     wrapped_env = NormalizedEnv(env)
     regular_update_fn = make_update_obs_fn(wrapped_env)
@@ -272,11 +298,19 @@ def test():
         next_observations.append(obs)
         total_rew += rew
         standard_delta_obs = obs - old_obs
-        teleport_deltas.append(info['delta_obs'])
-        test_update_function(old_obs, action, standard_delta_obs, obs, regular_update_fn)
-        test_update_function(old_obs, action, info['delta_obs'], obs, teleport_update_fn)
-        test_update_function(old_obs, action, info['delta_obs'], obs, teleport_update_fn)
-        test_update_function(old_obs, action, info['delta_obs'], obs, tf_teleport_update_fn)
+        teleport_deltas.append(info["delta_obs"])
+        test_update_function(
+            old_obs, action, standard_delta_obs, obs, regular_update_fn
+        )
+        test_update_function(
+            old_obs, action, info["delta_obs"], obs, teleport_update_fn
+        )
+        test_update_function(
+            old_obs, action, info["delta_obs"], obs, teleport_update_fn
+        )
+        test_update_function(
+            old_obs, action, info["delta_obs"], obs, tf_teleport_update_fn
+        )
         rewards.append(rew)
         test_obs(wrapped_env, obs)
         test_rew_fn(rew, wrapped_reward, old_obs, action, obs)
@@ -291,7 +325,9 @@ def test():
     teleport_next_obs = teleport_update_fn(x, teleport_deltas)
     assert np.allclose(teleport_next_obs, next_observations)
     test_rewards = wrapped_reward(x, next_observations)
-    assert np.allclose(rewards, test_rewards), f"Rewards: {rewards} not equal to test rewards: {test_rewards}"
+    assert np.allclose(
+        rewards, test_rewards
+    ), f"Rewards: {rewards} not equal to test rewards: {test_rewards}"
     print(f"passed!, rew={total_rew}")
 
 

@@ -19,7 +19,7 @@ class PETSCartpoleEnv(mujoco_env.MujocoEnv, utils.EzPickle):
         self.horizon = 200
         utils.EzPickle.__init__(self)
         dir_path = os.path.dirname(os.path.realpath(__file__))
-        mujoco_env.MujocoEnv.__init__(self, '%s/assets/cartpole.xml' % dir_path, 2)
+        mujoco_env.MujocoEnv.__init__(self, "%s/assets/cartpole.xml" % dir_path, 2)
         low = np.array([-3, -5, -6, -20]).astype(np.float32)
         self.observation_space = spaces.Box(low=low, high=-low)
 
@@ -29,7 +29,13 @@ class PETSCartpoleEnv(mujoco_env.MujocoEnv, utils.EzPickle):
 
         cost_lscale = PETSCartpoleEnv.PENDULUM_LENGTH
         reward = np.exp(
-            -np.sum(np.square(self._get_ee_pos(ob) - np.array([0.0, PETSCartpoleEnv.PENDULUM_LENGTH]))) / (cost_lscale ** 2)
+            -np.sum(
+                np.square(
+                    self._get_ee_pos(ob)
+                    - np.array([0.0, PETSCartpoleEnv.PENDULUM_LENGTH])
+                )
+            )
+            / (cost_lscale**2)
         )
         reward -= 0.01 * np.sum(np.square(a))
 
@@ -49,13 +55,12 @@ class PETSCartpoleEnv(mujoco_env.MujocoEnv, utils.EzPickle):
             return super().reset()
         else:
             out = super().reset()
-            qpos = obs[:len(self.init_qpos)]
-            qvel = obs[len(self.init_qvel):]
+            qpos = obs[: len(self.init_qpos)]
+            qvel = obs[len(self.init_qvel) :]
             self.set_state(qpos, qvel)
             new_obs = self._get_obs()
             assert np.allclose(new_obs, obs)
             return new_obs
-
 
     def _get_obs(self):
         return np.concatenate([self.sim.data.qpos, self.sim.data.qvel]).ravel()
@@ -63,10 +68,12 @@ class PETSCartpoleEnv(mujoco_env.MujocoEnv, utils.EzPickle):
     @staticmethod
     def _get_ee_pos(x):
         x0, theta = x[0], x[1]
-        return np.array([
-            x0 - PETSCartpoleEnv.PENDULUM_LENGTH * np.sin(theta),
-            -PETSCartpoleEnv.PENDULUM_LENGTH * np.cos(theta)
-        ])
+        return np.array(
+            [
+                x0 - PETSCartpoleEnv.PENDULUM_LENGTH * np.sin(theta),
+                -PETSCartpoleEnv.PENDULUM_LENGTH * np.cos(theta),
+            ]
+        )
 
     def viewer_setup(self):
         v = self.viewer
@@ -75,16 +82,22 @@ class PETSCartpoleEnv(mujoco_env.MujocoEnv, utils.EzPickle):
 
 
 def cartpole_reward(x, y):
-    '''
+    """
     x is state, action concatentated
     y is next_state - state, (TODO: confirm)
-    '''
+    """
     obs_dim = PETSCartpoleEnv.OBSERVATION_DIM
     next_obs = y
     action = x[obs_dim:]
     cost_lscale = PETSCartpoleEnv.PENDULUM_LENGTH
     reward = np.exp(
-        -np.sum(np.square(PETSCartpoleEnv._get_ee_pos(next_obs) - np.array([0.0, PETSCartpoleEnv.PENDULUM_LENGTH]))) / (cost_lscale ** 2)
+        -np.sum(
+            np.square(
+                PETSCartpoleEnv._get_ee_pos(next_obs)
+                - np.array([0.0, PETSCartpoleEnv.PENDULUM_LENGTH])
+            )
+        )
+        / (cost_lscale**2)
     )
     reward -= 0.01 * np.sum(np.square(action))
     return reward
@@ -110,5 +123,5 @@ def test_cartpole():
     print("passed")
 
 
-if __name__ == '__main__':
+if __name__ == "__main__":
     test_cartpole()

@@ -49,11 +49,11 @@ class SimpleGp(Base):
         super().set_params(params)
         params = dict_to_namespace(params)
 
-        self.params.name = getattr(params, 'name', 'SimpleGp')
-        self.params.n_dimx = getattr(params, 'n_dimx', 2)
-        self.params.ls = getattr(params, 'ls', 3.7)
-        self.params.alpha = getattr(params, 'alpha', 1.85)
-        self.params.sigma = getattr(params, 'sigma', 1e-2)
+        self.params.name = getattr(params, "name", "SimpleGp")
+        self.params.n_dimx = getattr(params, "n_dimx", 2)
+        self.params.ls = getattr(params, "ls", 3.7)
+        self.params.alpha = getattr(params, "alpha", 1.85)
+        self.params.sigma = getattr(params, "sigma", 1e-2)
 
         # Format lengthscale
         if not isinstance(self.params.ls, collections.abc.Sequence):
@@ -65,18 +65,20 @@ class SimpleGp(Base):
 
     def set_kernel(self, params):
         """Set self.params.kernel."""
-        self.params.kernel_str = getattr(params, 'kernel_str', 'rbf')
+        self.params.kernel_str = getattr(params, "kernel_str", "rbf")
 
-        if self.params.kernel_str == 'rbf':
+        if self.params.kernel_str == "rbf":
             self.params.kernel = kern_exp_quad_ard
 
-        elif self.params.kernel_str == 'rbf_periodic':
+        elif self.params.kernel_str == "rbf_periodic":
             pdims = params.periodic_dims
             period = params.period
 
             def kern(xmat1, xmat2, ls, alpha):
                 """Periodic rbf ard kernel with standardized format."""
-                return kern_exp_quad_ard_per(xmat1, xmat2, ls, alpha, pdims=pdims, period=period)
+                return kern_exp_quad_ard_per(
+                    xmat1, xmat2, ls, alpha, pdims=pdims, period=period
+                )
 
             self.params.kernel = kern
 
@@ -104,8 +106,10 @@ class SimpleGp(Base):
                 self.smat = smat
             else:
                 k11_nonoise = kernel(x_train, x_train, ls, alpha)
-                self.lmat = get_cholesky_decomp(k11_nonoise, sigma, 'try_first')
-                self.smat = solve_upper_triangular(self.lmat.T, solve_lower_triangular(self.lmat, y_train))
+                self.lmat = get_cholesky_decomp(k11_nonoise, sigma, "try_first")
+                self.smat = solve_upper_triangular(
+                    self.lmat.T, solve_lower_triangular(self.lmat, y_train)
+                )
 
     def get_prior_mu_cov(self, x_list, full_cov=True):
         """
@@ -241,7 +245,13 @@ class SimpleGp(Base):
         else:
             sample_list = list(
                 np.random.normal(
-                    mu.reshape(-1,), cov.reshape(-1,), size=(n_samp, len(mu))
+                    mu.reshape(
+                        -1,
+                    ),
+                    cov.reshape(
+                        -1,
+                    ),
+                    size=(n_samp, len(mu)),
                 )
             )
         x_list_sample_list = list(np.stack(sample_list).T)
@@ -283,7 +293,7 @@ class SimpleGp(Base):
 
 
 class TFSimpleGp(SimpleGp):
-    '''
+    """
     A version of SimpleGp that replaces all the fundamental operations
     with native TensorFlow operations so as to promote differentiability
     both through function calls to the arguments and through function calls
@@ -292,24 +302,25 @@ class TFSimpleGp(SimpleGp):
     We also hope to modify this class to be able to be used in tf.Function
     code (not sure what all that entails yet, besides all data being passed
     around as TF tensors.
-    '''
+    """
+
     def set_kernel(self, params):
         """Set self.params.kernel. Uses the TF versions"""
-        self.params.kernel_str = getattr(params, 'kernel_str', 'rbf')
+        self.params.kernel_str = getattr(params, "kernel_str", "rbf")
 
-        if self.params.kernel_str == 'rbf':
+        if self.params.kernel_str == "rbf":
             self.params.kernel = tf_kern_exp_quad_ard
 
-        elif self.params.kernel_str == 'rbf_periodic':
+        elif self.params.kernel_str == "rbf_periodic":
             # will implement this in tf when needed
             raise NotImplementedError()
 
     def set_data(self, data, lmat=None, smat=None):
-        '''
+        """
         Data should be given as a dict or Namespace where
         data.x is an n x d_x tf tensor and
         data.y is an n x 1 tf tensor
-        '''
+        """
         assert data is not None
         data = dict_to_namespace(data)
         # hopefully a noop if it is already tf
@@ -329,8 +340,10 @@ class TFSimpleGp(SimpleGp):
             self.smat = smat
         else:
             k11_nonoise = kernel(x_train, x_train, ls, alpha)
-            self.lmat = tf_get_cholesky_decomp(k11_nonoise, sigma, 'try_first')
-            self.smat = tf_solve_upper_triangular(tf.transpose(self.lmat), tf_solve_lower_triangular(self.lmat, y_train))
+            self.lmat = tf_get_cholesky_decomp(k11_nonoise, sigma, "try_first")
+            self.smat = tf_solve_upper_triangular(
+                tf.transpose(self.lmat), tf_solve_lower_triangular(self.lmat, y_train)
+            )
         # if self.smat.ndim == 1:
         #     self.smat = self.smat[None, :]
 
@@ -373,7 +386,6 @@ class TFSimpleGp(SimpleGp):
         # Return mean and cov matrix (or std-dev array if full_cov=False)
         mu = tf.squeeze(mu2)
         return mu, k2
-
 
     def gp_post_wrapper(self, x_list, data, full_cov=True):
         raise NotImplementedError()

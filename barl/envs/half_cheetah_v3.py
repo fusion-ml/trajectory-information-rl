@@ -30,7 +30,9 @@ class HalfCheetahEnv(mujoco_env.MujocoEnv, utils.EzPickle):
             exclude_current_positions_from_observation
         )
 
-        xml_file = f"{os.path.dirname(os.path.realpath(__file__))}/assets/half_cheetah.xml"
+        xml_file = (
+            f"{os.path.dirname(os.path.realpath(__file__))}/assets/half_cheetah.xml"
+        )
 
         mujoco_env.MujocoEnv.__init__(self, xml_file, 5)
         self.horizon = 200
@@ -82,8 +84,8 @@ class HalfCheetahEnv(mujoco_env.MujocoEnv, utils.EzPickle):
         old_obs = super().reset()
         if obs is None:
             return old_obs
-        qpos = obs[:len(self.init_qpos)]
-        qvel = obs[len(self.init_qpos):]
+        qpos = obs[: len(self.init_qpos)]
+        qvel = obs[len(self.init_qpos) :]
         self.set_state(qpos, qvel)
         check_obs = self._get_obs()
         assert np.allclose(check_obs, obs), f"{check_obs=}, {obs=}"

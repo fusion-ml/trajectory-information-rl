@@ -51,7 +51,9 @@ class AcqOptimizer(Base):
         """
         self.params.x_batch = x_batch
 
-        with Timer("Optimize acquisition function using random shooting", level=logging.INFO):
+        with Timer(
+            "Optimize acquisition function using random shooting", level=logging.INFO
+        ):
             if self.params.opt_str == "batch":
                 acq_opt, acq_val = self.optimize_batch()
 
@@ -78,7 +80,11 @@ class AcqOptimizer(Base):
         nbatches = ceil(len(x_batch) / self.params.max_batch_size)
         acq_list = []
         for i in trange(nbatches):
-            minibatch = x_batch[(i * self.params.max_batch_size):((i + 1) * self.params.max_batch_size)]
+            minibatch = x_batch[
+                (i * self.params.max_batch_size) : (
+                    (i + 1) * self.params.max_batch_size
+                )
+            ]
             acq_list += list(self.acqfunction(minibatch))
         acq_idx = np.argmax(acq_list)
         acq_opt = x_batch[acq_idx]
@@ -111,18 +117,23 @@ class AcqOptimizer(Base):
 
 
 class PolicyAcqOptimizer(AcqOptimizer):
-    '''
+    """
     An optimizer that finds an action sequence that optimizes the MultiSetBaxAcqFunction
     uses posterior function samples in order to figure out what samples will come from future actions.
-    '''
+    """
+
     def set_params(self, params):
         super().set_params(params)
         params = dict_to_namespace(params)
         self.params.obs_dim = params.obs_dim
         self.params.action_dim = params.action_dim
-        self.params.initial_variance_divisor = getattr(params, "initial_variance_divisor", 4)
+        self.params.initial_variance_divisor = getattr(
+            params, "initial_variance_divisor", 4
+        )
         self.params.base_nsamps = params.base_nsamps
-        self.params.planning_horizon = max(min(params.planning_horizon, params.time_left), 2)
+        self.params.planning_horizon = max(
+            min(params.planning_horizon, params.time_left), 2
+        )
         self.params.n_elites = params.n_elites
         self.params.beta = params.beta
         self.params.gamma = params.gamma
@@ -132,9 +143,9 @@ class PolicyAcqOptimizer(AcqOptimizer):
         self.params.verbose = getattr(params, "verbose", False)
         self.params.actions_per_plan = getattr(params, "actions_per_plan", 1)
         self.params.actions_until_plan = getattr(params, "actions_until_plan", 0)
-        self.params.action_sequence = getattr(params, 'action_sequence', None)
-        self.params.action_upper_bound = getattr(params, 'action_upper_bound', 1)
-        self.params.action_lower_bound = getattr(params, 'action_lower_bound', -1)
+        self.params.action_sequence = getattr(params, "action_sequence", None)
+        self.params.action_upper_bound = getattr(params, "action_upper_bound", 1)
+        self.params.action_lower_bound = getattr(params, "action_lower_bound", -1)
         self.params.num_s0_samps = params.num_s0_samps
         self.params.s0_sampler = params.s0_sampler
         self.params.update_fn = params.update_fn
@@ -150,13 +161,16 @@ class PolicyAcqOptimizer(AcqOptimizer):
         if action_sequence is None:
             return np.zeros((self.params.planning_horizon, self.params.action_dim))
         else:
-            new_action_sequence = np.concatenate([action_sequence[1:, :], np.zeros((1, self.params.action_dim))],
-                axis=0)
-            return new_action_sequence[:self.params.planning_horizon, ...]
+            new_action_sequence = np.concatenate(
+                [action_sequence[1:, :], np.zeros((1, self.params.action_dim))], axis=0
+            )
+            return new_action_sequence[: self.params.planning_horizon, ...]
 
     def optimize(self, x_batch=None):
         # wrapper so we can add timing info
-        with Timer("Optimize acquisition function using cross-entropy", level=logging.INFO):
+        with Timer(
+            "Optimize acquisition function using cross-entropy", level=logging.INFO
+        ):
             if x_batch is not None:
                 return self._optimize(x_batch)
             best_query, best_action_sequence, best_return = None, None, -np.inf
@@ -170,10 +184,9 @@ class PolicyAcqOptimizer(AcqOptimizer):
             self.params.action_sequence = best_action_sequence
             return best_query, best_return
 
-
     def _optimize(self, x_batch):
         # assume x_batch is 1x(obs_dim + action_dim)
-        current_obs = x_batch[0][:self.params.obs_dim]
+        current_obs = x_batch[0][: self.params.obs_dim]
         horizon = self.params.planning_horizon
         beta = self.params.beta
         mean = self.get_initial_mean(self.params.action_sequence)
@@ -181,18 +194,30 @@ class PolicyAcqOptimizer(AcqOptimizer):
             self.params.action_sequence = mean
             query = np.concatenate([current_obs, mean[0, :]])
             self.params.actions_until_plan -= 1
-            return query, 0.
+            return query, 0.0
 
         initial_variance_divisor = 4
         action_upper_bound = self.params.action_upper_bound
         action_lower_bound = self.params.action_lower_bound
-        var = np.ones_like(mean) * ((action_upper_bound - action_lower_bound) / initial_variance_divisor) ** 2
+        var = (
+            np.ones_like(mean)
+            * ((action_upper_bound - action_lower_bound) / initial_variance_divisor)
+            ** 2
+        )
 
         elites, elite_returns = None, None
         best_sample, best_return = None, -np.inf
         for i in trange(self.params.num_iters, disable=not self.params.verbose):
             # these are num_samples x horizon x action_dim
-            samples = iCEM_generate_samples(self.params.base_nsamps, horizon, beta, mean, var, action_lower_bound, action_upper_bound)
+            samples = iCEM_generate_samples(
+                self.params.base_nsamps,
+                horizon,
+                beta,
+                mean,
+                var,
+                action_lower_bound,
+                action_upper_bound,
+            )
             if i == 0:
                 pass
                 # do we need to do something specific here?
@@ -201,13 +226,16 @@ class PolicyAcqOptimizer(AcqOptimizer):
                 samples = samples[1:, ...]
             returns = self.evaluate_samples(current_obs, samples)
             if i > 0:
-                elite_subset_idx = np.random.choice(self.params.n_elites, int(self.params.n_elites * self.params.xi),
-                                                    replace=False)
+                elite_subset_idx = np.random.choice(
+                    self.params.n_elites,
+                    int(self.params.n_elites * self.params.xi),
+                    replace=False,
+                )
                 elite_subset = elites[elite_subset_idx, ...]
                 elite_return_subset = elite_returns[elite_subset_idx]
                 samples = np.concatenate([samples, elite_subset], axis=0)
                 returns = np.concatenate([returns, elite_return_subset])
-            elite_idx = np.argsort(returns)[-self.params.n_elites:]
+            elite_idx = np.argsort(returns)[-self.params.n_elites :]
             elites = samples[elite_idx, ...]
             elite_returns = returns[elite_idx]
             mean = np.mean(elites, axis=0)
@@ -250,20 +278,27 @@ class PolicyAcqOptimizer(AcqOptimizer):
         # num_samples x num_fs x horizon x (obs_dim + action_dim)
         x_list = x_list.transpose((2, 1, 0, 3))
         # (num_samples x num_fs) x horizon x (obs_dim + action_dim)
-        x_list = x_list.reshape((-1, horizon, self.params.obs_dim + self.params.action_dim))
+        x_list = x_list.reshape(
+            (-1, horizon, self.params.obs_dim + self.params.action_dim)
+        )
         acqvals = self.acqfunction(x_list)
-        acqvals = np.mean(np.array(acqvals).reshape((num_samples, self.params.num_fs)), axis=1)
+        acqvals = np.mean(
+            np.array(acqvals).reshape((num_samples, self.params.num_fs)), axis=1
+        )
         return acqvals
+
 
 class KGAcqOptimizer(AcqOptimizer):
     def set_params(self, params):
         super().set_params(params)
         params = dict_to_namespace(params)
-        self.params.learning_rate = getattr(params, 'learning_rate', 3e-4)
-        self.params.num_steps = getattr(params, 'num_steps', 10000)
+        self.params.learning_rate = getattr(params, "learning_rate", 3e-4)
+        self.params.num_steps = getattr(params, "num_steps", 10000)
         self.params.obs_dim = params.obs_dim
         self.params.action_dim = params.action_dim
-        self.params.hidden_layer_sizes = getattr(params, 'hidden_layer_sizes', [128, 128])
+        self.params.hidden_layer_sizes = getattr(
+            params, "hidden_layer_sizes", [128, 128]
+        )
         self.params.num_sprime_samps = params.num_sprime_samps
         self.params.policy_test_period = params.policy_test_period
         self.params.num_eval_trials = params.num_eval_trials
@@ -283,7 +318,9 @@ class KGAcqOptimizer(AcqOptimizer):
         for _ in range(num_x):
             xval_policies = []
             for __ in range(num_sprime_samps):
-                xval_policies.append(TanhMlpPolicy(obs_dim, action_dim, hidden_layer_sizes))
+                xval_policies.append(
+                    TanhMlpPolicy(obs_dim, action_dim, hidden_layer_sizes)
+                )
             policies.append(xval_policies)
         return policies
 
@@ -303,7 +340,10 @@ class KGAcqOptimizer(AcqOptimizer):
 
     def optimize(self, x_batch):
         x_batch = tf.Variable(x_batch, dtype=self.params.tf_dtype)
-        lambdas = tf.random.normal((x_batch.shape[0], self.params.num_sprime_samps, self.params.obs_dim), dtype=self.params.tf_dtype)
+        lambdas = tf.random.normal(
+            (x_batch.shape[0], self.params.num_sprime_samps, self.params.obs_dim),
+            dtype=self.params.tf_dtype,
+        )
         # policies = [[TanhMlpPolicy(self.params.obs_dim, self.params.action_dim, self.params.hidden_layer_sizes) for _ in range(x_batch.shape[0])]
         opt = keras.optimizers.Adam(learning_rate=self.params.learning_rate)
         self.risk_vals = []
@@ -314,10 +354,17 @@ class KGAcqOptimizer(AcqOptimizer):
         avg_return = None
         optima = None
         for i in pbar:
-            if self.params.policy_test_period != 0 and i % self.params.policy_test_period == 0:
+            if (
+                self.params.policy_test_period != 0
+                and i % self.params.policy_test_period == 0
+            ):
                 self.eval_steps.append(i)
                 avg_return = self.evaluate(self.params.policies)
-            bayes_risk = float(self.tf_train_step(self.acqfunction, opt, self.params.policies, x_batch, lambdas))
+            bayes_risk = float(
+                self.tf_train_step(
+                    self.acqfunction, opt, self.params.policies, x_batch, lambdas
+                )
+            )
             if bayes_risk < best_risk:
                 best_risk = bayes_risk
                 optima = np.squeeze(x_batch.numpy())
@@ -329,10 +376,10 @@ class KGAcqOptimizer(AcqOptimizer):
         return optima, best_risk
 
     def evaluate(self, policies):
-        '''
+        """
         Evaluate the policy here on the real environment. This information should not
         be used by the optimizer, it is strictly for diagnostic purposes.
-        '''
+        """
         all_returns = []
         policies = flatten(policies)
         for policy in policies:
@@ -350,13 +397,15 @@ class KGPolicyAcqOptimizer(KGAcqOptimizer):
     def set_params(self, params):
         super().set_params(params)
         params = dict_to_namespace(params)
-        self.params.num_bases = getattr(params, 'num_bases', 1000)
-        self.params.planning_horizon = getattr(params, 'planning_horizon', 5)
-        self.params.action_sequence = getattr(params, 'action_sequence', None)
+        self.params.num_bases = getattr(params, "num_bases", 1000)
+        self.params.planning_horizon = getattr(params, "planning_horizon", 5)
+        self.params.action_sequence = getattr(params, "action_sequence", None)
         self.tf_train_step = tf.function(self.train_step)
 
     @staticmethod
-    def get_policies(num_sprime_samps, obs_dim, action_dim, hidden_layer_sizes, **kwargs):
+    def get_policies(
+        num_sprime_samps, obs_dim, action_dim, hidden_layer_sizes, **kwargs
+    ):
         policies = []
         for _ in range(num_sprime_samps):
             policies.append(TanhMlpPolicy(obs_dim, action_dim, hidden_layer_sizes))
@@ -364,8 +413,13 @@ class KGPolicyAcqOptimizer(KGAcqOptimizer):
 
     def sample_action_sequence(self, horizon):
         # assumes action_sequence is in [-1, 1]^{planning_horizon x action_dim}
-        action_sequence = tf.Variable(tf.random.uniform([horizon, self.params.action_dim],
-                                             dtype=self.params.tf_dtype) * 2 - 1)
+        action_sequence = tf.Variable(
+            tf.random.uniform(
+                [horizon, self.params.action_dim], dtype=self.params.tf_dtype
+            )
+            * 2
+            - 1
+        )
         return action_sequence
 
     def advance_action_sequence(self, action_sequence, current_obs):
@@ -374,7 +428,6 @@ class KGPolicyAcqOptimizer(KGAcqOptimizer):
         new_action = self.sample_action_sequence(1)
         # this might crash idk
         return x, tf.Variable(tf.concat([action_sequence[1:, :], new_action], axis=0))
-
 
     @staticmethod
     def train_step(acqfn, opt, current_obs, action_sequence, policies, lambdas):
@@ -391,15 +444,30 @@ class KGPolicyAcqOptimizer(KGAcqOptimizer):
 
     def optimize(self, x_batch):
         # assume x_batch is 1x(obs_dim + action_dim)
-        current_obs = tf.convert_to_tensor(x_batch[0][:self.params.obs_dim], dtype=self.params.tf_dtype)
-        lambdas = tf.random.normal((self.params.obs_dim, self.params.num_sprime_samps, 1, self.params.num_bases),
-                                   dtype=self.params.tf_dtype)
+        current_obs = tf.convert_to_tensor(
+            x_batch[0][: self.params.obs_dim], dtype=self.params.tf_dtype
+        )
+        lambdas = tf.random.normal(
+            (
+                self.params.obs_dim,
+                self.params.num_sprime_samps,
+                1,
+                self.params.num_bases,
+            ),
+            dtype=self.params.tf_dtype,
+        )
         opt = keras.optimizers.Adam(learning_rate=self.params.learning_rate)
         if self.params.policies is None:
-            self.params.policies = self.get_policies(self.params.num_sprime_samps, self.params.obs_dim,
-                                                     self.params.action_dim, self.params.hidden_layer_sizes)
+            self.params.policies = self.get_policies(
+                self.params.num_sprime_samps,
+                self.params.obs_dim,
+                self.params.action_dim,
+                self.params.hidden_layer_sizes,
+            )
         if self.params.action_sequence is None:
-            self.params.action_sequence = self.sample_action_sequence(self.params.planning_horizon)
+            self.params.action_sequence = self.sample_action_sequence(
+                self.params.planning_horizon
+            )
         self.risk_vals = []
         self.eval_vals = []
         self.eval_steps = []
@@ -407,15 +475,22 @@ class KGPolicyAcqOptimizer(KGAcqOptimizer):
         best_risk = np.inf
         avg_return = None
         for i in pbar:
-            if self.params.policy_test_period != 0 and i % self.params.policy_test_period == 0:
+            if (
+                self.params.policy_test_period != 0
+                and i % self.params.policy_test_period == 0
+            ):
                 self.eval_steps.append(i)
                 avg_return = self.evaluate(self.params.policies)
-            bayes_risk = float(self.tf_train_step(self.acqfunction,
-                                                  opt,
-                                                  current_obs,
-                                                  self.params.action_sequence,
-                                                  self.params.policies,
-                                                  lambdas))
+            bayes_risk = float(
+                self.tf_train_step(
+                    self.acqfunction,
+                    opt,
+                    current_obs,
+                    self.params.action_sequence,
+                    self.params.policies,
+                    lambdas,
+                )
+            )
             if bayes_risk < best_risk:
                 best_risk = bayes_risk
                 optimum = self.params.action_sequence.numpy()
@@ -424,5 +499,7 @@ class KGPolicyAcqOptimizer(KGAcqOptimizer):
             if avg_return is not None:
                 postfix["Avg Return"] = avg_return
             pbar.set_postfix(postfix)
-        optimum, self.params.action_sequence = self.advance_action_sequence(optimum, current_obs)
+        optimum, self.params.action_sequence = self.advance_action_sequence(
+            optimum, current_obs
+        )
         return optimum, best_risk

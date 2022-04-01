@@ -29,17 +29,21 @@ class MPC(BatchAlgorithm):
         self.params.name = getattr(params, "name", "MPC")
         self.params.start_obs = params.start_obs
         self.params.env = params.env
-        self.params.discount_factor = getattr(params, 'discount_factor', 1.)
+        self.params.discount_factor = getattr(params, "discount_factor", 1.0)
         # reward function is currently required, needs to take (state x action) x next_obs -> R
-        self.params.reward_function = getattr(params, 'reward_function', None)
-        self.terminal_function = self.params.terminal_function = getattr(params, "terminal_function", None)
+        self.params.reward_function = getattr(params, "reward_function", None)
+        self.terminal_function = self.params.terminal_function = getattr(
+            params, "terminal_function", None
+        )
         self.params.env_horizon = params.env.horizon
         self.params.action_dim = params.env.action_space.low.size
         self.params.obs_dim = params.env.observation_space.low.size
         self.params.crop_to_domain = params.crop_to_domain
         self.params.action_lower_bound = getattr(params, "action_lower_bound", -1)
         self.params.action_upper_bound = getattr(params, "action_upper_bound", 1)
-        self.params.initial_variance_divisor = getattr(params, "initial_variance_divisor", 4)
+        self.params.initial_variance_divisor = getattr(
+            params, "initial_variance_divisor", 4
+        )
         self.params.base_nsamps = getattr(params, "base_nsamps", 8)
         self.params.planning_horizon = getattr(params, "planning_horizon", 10)
         self.params.n_elites = getattr(params, "n_elites", 4)
@@ -48,7 +52,7 @@ class MPC(BatchAlgorithm):
         self.params.xi = getattr(params, "xi", 0.3)
         self.params.num_iters = getattr(params, "num_iters", 3)
         self.params.actions_per_plan = getattr(params, "actions_per_plan", 4)
-        self.params.project_to_domain = getattr(params, 'project_to_domain', False)
+        self.params.project_to_domain = getattr(params, "project_to_domain", False)
         self.params.domain = params.domain
         self.update_fn = params.update_fn
         self.traj_samples = None
@@ -80,16 +84,29 @@ class MPC(BatchAlgorithm):
 
         # set up initial CEM distribution
         self.mean = np.zeros((self.params.planning_horizon, self.params.action_dim))
-        self.var = np.ones_like(self.mean) * ((self.params.action_upper_bound - self.params.action_lower_bound) /
-                                              self.params.initial_variance_divisor) ** 2
-        initial_nsamps = int(max(self.params.base_nsamps * (self.params.gamma ** -1), 2 * self.params.n_elites))
-        self.traj_samples = iCEM_generate_samples(initial_nsamps,
-                                                  self.params.planning_horizon,
-                                                  self.params.beta,
-                                                  self.mean,
-                                                  self.var,
-                                                  self.params.action_lower_bound,
-                                                  self.params.action_upper_bound)
+        self.var = (
+            np.ones_like(self.mean)
+            * (
+                (self.params.action_upper_bound - self.params.action_lower_bound)
+                / self.params.initial_variance_divisor
+            )
+            ** 2
+        )
+        initial_nsamps = int(
+            max(
+                self.params.base_nsamps * (self.params.gamma**-1),
+                2 * self.params.n_elites,
+            )
+        )
+        self.traj_samples = iCEM_generate_samples(
+            initial_nsamps,
+            self.params.planning_horizon,
+            self.params.beta,
+            self.mean,
+            self.var,
+            self.params.action_lower_bound,
+            self.params.action_upper_bound,
+        )
         # self.traj_samples = list(self.traj_samples)
         # self.traj_samples += samples_to_pass
         # this one is for CEM
@@ -97,10 +114,10 @@ class MPC(BatchAlgorithm):
         # this one is for the actual agent
         self.current_t = 0
         if self.params.start_obs is not None:
-            logging.debug('Copying given start obs')
+            logging.debug("Copying given start obs")
             self.current_obs = self.params.start_obs
         else:
-            logging.debug('Sampling start obs from env')
+            logging.debug("Sampling start obs from env")
             self.current_obs = self.params.env.reset()
         self.iter_num = 0
         self.samples_done = False
@@ -150,11 +167,26 @@ class MPC(BatchAlgorithm):
 
     def resample_iCEM(self):
         self.iter_num += 1
-        nsamps = int(max(self.params.base_nsamps * (self.params.gamma ** -self.iter_num), 2 * self.params.n_elites))
+        nsamps = int(
+            max(
+                self.params.base_nsamps * (self.params.gamma**-self.iter_num),
+                2 * self.params.n_elites,
+            )
+        )
         if len(self.saved_rewards) > 0:
-            all_rewards = np.concatenate([np.array(self.traj_rewards).T, np.array(self.saved_rewards)], axis=0)
-            all_states = np.concatenate([np.array(self.traj_states).transpose((1, 0, 2)),  np.array(self.saved_states)], axis=0)
-            all_actions = np.concatenate([self.traj_samples, self.saved_actions], axis=0)
+            all_rewards = np.concatenate(
+                [np.array(self.traj_rewards).T, np.array(self.saved_rewards)], axis=0
+            )
+            all_states = np.concatenate(
+                [
+                    np.array(self.traj_states).transpose((1, 0, 2)),
+                    np.array(self.saved_states),
+                ],
+                axis=0,
+            )
+            all_actions = np.concatenate(
+                [self.traj_samples, self.saved_actions], axis=0
+            )
         else:
             all_rewards = np.array(self.traj_rewards).T
             all_states = np.array(self.traj_states).transpose((1, 0, 2))
@@ -168,12 +200,19 @@ class MPC(BatchAlgorithm):
             self.best_actions = all_actions[best_idx, ...]
             self.best_obs = all_states[best_idx, ...]
             self.best_rewards = all_rewards[best_idx, ...]
-        elite_idx = np.argsort(all_returns)[-self.params.n_elites:]
+        elite_idx = np.argsort(all_returns)[-self.params.n_elites :]
         elites = all_actions[elite_idx, ...]
         mean = np.mean(elites, axis=0)
         var = np.var(elites, axis=0)
-        samples = iCEM_generate_samples(nsamps, self.params.planning_horizon, self.params.beta, mean, var,
-                                        self.params.action_lower_bound, self.params.action_upper_bound)
+        samples = iCEM_generate_samples(
+            nsamps,
+            self.params.planning_horizon,
+            self.params.beta,
+            mean,
+            var,
+            self.params.action_lower_bound,
+            self.params.action_upper_bound,
+        )
         n_save_elites = ceil(self.params.n_elites * self.params.xi)
         save_idx = elite_idx[-n_save_elites:]
         self.saved_actions = all_actions[save_idx, ...]
@@ -213,9 +252,26 @@ class MPC(BatchAlgorithm):
         # after CEM is complete for the current timestep, "execute" the best actions
         # and adjust the time and current state accordingly
         if self.best_rewards is not None:
-            all_rewards = np.concatenate([np.array(self.traj_rewards).T, np.array(self.saved_rewards), self.best_rewards[None, ...]], axis=0)
-            all_states = np.concatenate([np.array(self.traj_states).transpose((1, 0, 2)),  np.array(self.saved_states), self.best_obs[None, ...]], axis=0)
-            all_actions = np.concatenate([self.traj_samples, self.saved_actions, self.best_actions[None, ...]], axis=0)
+            all_rewards = np.concatenate(
+                [
+                    np.array(self.traj_rewards).T,
+                    np.array(self.saved_rewards),
+                    self.best_rewards[None, ...],
+                ],
+                axis=0,
+            )
+            all_states = np.concatenate(
+                [
+                    np.array(self.traj_states).transpose((1, 0, 2)),
+                    np.array(self.saved_states),
+                    self.best_obs[None, ...],
+                ],
+                axis=0,
+            )
+            all_actions = np.concatenate(
+                [self.traj_samples, self.saved_actions, self.best_actions[None, ...]],
+                axis=0,
+            )
         else:
             all_rewards = np.array(self.traj_rewards).T
             all_states = np.array(self.traj_states).transpose((1, 0, 2))
@@ -236,19 +292,36 @@ class MPC(BatchAlgorithm):
         return self.shift_samples(all_returns, all_states, all_actions, all_rewards)
 
     def reset_CEM(self, shift_actions=[]):
-        self.mean = np.concatenate([self.mean[self.params.actions_per_plan:],
-                                    np.zeros((self.params.actions_per_plan, self.params.action_dim))])
-        self.var = np.ones_like(self.mean) * ((self.params.action_upper_bound - self.params.action_lower_bound) /
-                                              self.params.initial_variance_divisor) ** 2
+        self.mean = np.concatenate(
+            [
+                self.mean[self.params.actions_per_plan :],
+                np.zeros((self.params.actions_per_plan, self.params.action_dim)),
+            ]
+        )
+        self.var = (
+            np.ones_like(self.mean)
+            * (
+                (self.params.action_upper_bound - self.params.action_lower_bound)
+                / self.params.initial_variance_divisor
+            )
+            ** 2
+        )
         self.iter_num = 0
-        initial_nsamps = int(max(self.params.base_nsamps * (self.params.gamma ** -1), 2 * self.params.n_elites))
-        self.traj_samples = iCEM_generate_samples(initial_nsamps,
-                                                  self.params.planning_horizon,
-                                                  self.params.beta,
-                                                  self.mean,
-                                                  self.var,
-                                                  self.params.action_lower_bound,
-                                                  self.params.action_upper_bound)
+        initial_nsamps = int(
+            max(
+                self.params.base_nsamps * (self.params.gamma**-1),
+                2 * self.params.n_elites,
+            )
+        )
+        self.traj_samples = iCEM_generate_samples(
+            initial_nsamps,
+            self.params.planning_horizon,
+            self.params.beta,
+            self.mean,
+            self.var,
+            self.params.action_lower_bound,
+            self.params.action_upper_bound,
+        )
         self.traj_samples = np.concatenate([self.traj_samples, shift_actions], axis=0)
         self.traj_states = []
         self.traj_rewards = []
@@ -264,9 +337,21 @@ class MPC(BatchAlgorithm):
     def shift_samples(self, all_returns, all_states, all_actions, all_rewards):
         n_keep = ceil(self.params.xi * self.params.n_elites)
         keep_indices = np.argsort(all_returns)[-n_keep:]
-        short_shifted_actions = all_actions[keep_indices, self.params.actions_per_plan:, :]
-        new_actions = np.array([[self.params.env.action_space.sample() for _ in range(self.params.actions_per_plan)] for i in range(n_keep)])
-        self.shifted_actions = np.concatenate([short_shifted_actions, new_actions], axis=1)
+        short_shifted_actions = all_actions[
+            keep_indices, self.params.actions_per_plan :, :
+        ]
+        new_actions = np.array(
+            [
+                [
+                    self.params.env.action_space.sample()
+                    for _ in range(self.params.actions_per_plan)
+                ]
+                for i in range(n_keep)
+            ]
+        )
+        self.shifted_actions = np.concatenate(
+            [short_shifted_actions, new_actions], axis=1
+        )
         self.current_t_plan = 0
         return self.shifted_actions
 
@@ -280,7 +365,9 @@ class MPC(BatchAlgorithm):
         specific to this algorithm.
         """
         exe_path_crop = Namespace(x=[], y=[])
-        for i, (obs, action) in enumerate(zip(self.planned_states, self.planned_actions)):
+        for i, (obs, action) in enumerate(
+            zip(self.planned_states, self.planned_actions)
+        ):
             next_obs = self.planned_states[i + 1]
             x = np.concatenate([obs, action])
 
@@ -298,11 +385,15 @@ class MPC(BatchAlgorithm):
             y = next_obs - obs
             exe_path_crop.x.append(x)
             exe_path_crop.y.append(y)
-            if self.terminal_function is not None and self.terminal_function(x, next_obs):
+            if self.terminal_function is not None and self.terminal_function(
+                x, next_obs
+            ):
                 break
         return exe_path_crop
 
-    def execute_mpc(self, obs, f, samples_to_pass=[], return_samps=False, open_loop=False):
+    def execute_mpc(
+        self, obs, f, samples_to_pass=[], return_samps=False, open_loop=False
+    ):
         """Run MPC on a state, returns the optimal action."""
         if open_loop:
             # check if samples_to_pass is not empty, if it is then just return the first elt
@@ -310,7 +401,9 @@ class MPC(BatchAlgorithm):
                 action = samples_to_pass.pop(0)
                 return action, samples_to_pass
             else:
-                assert self.params.env_horizon == self.params.planning_horizon, "required for open loop evaluation"
+                assert (
+                    self.params.env_horizon == self.params.planning_horizon
+                ), "required for open loop evaluation"
                 logging.info("Conducting open-loop planning at evaluation")
                 horizon = self.params.env_horizon
                 # samples_to_pass has to be empty, so we don't have to pass it
@@ -352,16 +445,19 @@ class MPC(BatchAlgorithm):
 
 
 def test_MPC_algorithm():
-    from util.envs.continuous_cartpole import ContinuousCartPoleEnv, continuous_cartpole_reward
+    from util.envs.continuous_cartpole import (
+        ContinuousCartPoleEnv,
+        continuous_cartpole_reward,
+    )
     from util.control_util import ResettableEnv, get_f_mpc
+
     env = ContinuousCartPoleEnv()
     plan_env = ResettableEnv(ContinuousCartPoleEnv())
     f = get_f_mpc(plan_env)
     start_obs = env.reset()
     params = dict(
-            start_obs=start_obs,
-            env=plan_env,
-            reward_function=continuous_cartpole_reward)
+        start_obs=start_obs, env=plan_env, reward_function=continuous_cartpole_reward
+    )
     mpc = MPC(params)
     mpc.initialize()
     path, output = mpc.run_algorithm_on_f(f)
@@ -378,9 +474,9 @@ def test_MPC_algorithm():
         rewards.append(rew)
         if done:
             break
-    real_return = compute_return(rewards, 1.)
+    real_return = compute_return(rewards, 1.0)
     print(f"based on the env it gets {real_return} return")
 
 
-if __name__ == '__main__':
+if __name__ == "__main__":
     test_MPC_algorithm()

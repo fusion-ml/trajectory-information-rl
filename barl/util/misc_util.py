@@ -69,9 +69,9 @@ class Dumper:
         cwd = Path.cwd()
         # this should be the root of the repo
         self.expdir = cwd
-        logging.info(f'Dumper dumping to {cwd}')
+        logging.info(f"Dumper dumping to {cwd}")
         self.info = defaultdict(list)
-        self.info_path = self.expdir / 'info.pkl'
+        self.info_path = self.expdir / "info.pkl"
 
     def add(self, name, val, verbose=True, log_mean_std=False):
         if verbose:
@@ -82,7 +82,9 @@ class Dumper:
                 logging.info(f"{name}: {val}")
             if log_mean_std:
                 valarray = np.array(val)
-                logging.info(f"{name}: mean={valarray.mean():.3f} std={valarray.std():.3f}")
+                logging.info(
+                    f"{name}: mean={valarray.mean():.3f} std={valarray.std():.3f}"
+                )
         self.info[name].append(val)
 
     def extend(self, name, vals, verbose=False):
@@ -92,7 +94,7 @@ class Dumper:
         self.info[name].extend(vals)
 
     def save(self):
-        with self.info_path.open('wb') as f:
+        with self.info_path.open("wb") as f:
             pickle.dump(self.info, f)
 
 
@@ -103,6 +105,7 @@ def batch_function(f):
         for x in x_list:
             y_list.append(f(x))
         return y_list
+
     return batched_f
 
 
@@ -112,6 +115,7 @@ def make_postmean_fn(model, use_tf=False):
         mu_list = np.array(mu_list)
         mu_tup_for_x = list(zip(*mu_list))
         return mu_tup_for_x
+
     if not use_tf:
         return postmean_fn
 
@@ -120,6 +124,7 @@ def make_postmean_fn(model, use_tf=False):
         mu_list, std_list = model.get_post_mu_cov(x, full_cov=False)
         mu_tup_for_x = list(mu_list.numpy())
         return mu_tup_for_x
+
     return tf_postmean_fn
 
 
@@ -130,10 +135,10 @@ def mse(y, y_hat):
 
 
 def model_likelihood(model, x, y):
-    '''
+    """
     assume x is list of n d_x-dim ndarrays
     and y is list of n d_y-dim ndarrays
-    '''
+    """
     # mu should be list of d_y n-dim ndarrays
     # cov should be list of d_y n-dim ndarrays
     n = len(x)

@@ -28,15 +28,20 @@ class BACReacherEnv(mujoco_env.MujocoEnv, utils.EzPickle):
         ob, unnorm_obs = self._get_obs(return_unnorm_obs=True)
         delta_obs = unnorm_obs - old_obs
         done = False
-        return ob, reward, done, dict(reward_dist=reward_dist, reward_ctrl=reward_ctrl, delta_obs=delta_obs)
+        return (
+            ob,
+            reward,
+            done,
+            dict(reward_dist=reward_dist, reward_ctrl=reward_ctrl, delta_obs=delta_obs),
+        )
 
     def reset(self, obs=None):
         old_obs = super().reset()
         if obs is None:
             return old_obs
         full_obs = np.concatenate([obs[:-2], np.zeros(2)])
-        qpos = full_obs[:len(self.init_qpos)]
-        qvel = full_obs[len(self.init_qpos):]
+        qpos = full_obs[: len(self.init_qpos)]
+        qvel = full_obs[len(self.init_qpos) :]
         self.set_state(qpos, qvel)
         check_obs = self._get_obs()
         # assert np.allclose(check_obs, obs, atol=1e-3), f"Obs: {obs} not equal to check_obs {check_obs}"
@@ -111,6 +116,7 @@ def reacher_reward(x, next_obs):
     reward = reward_dist + reward_ctrl
     return reward
 
+
 def tf_reacher_reward(x, next_obs):
     action_dim = 2
     start_obs = x[..., :-action_dim]
@@ -121,8 +127,9 @@ def tf_reacher_reward(x, next_obs):
     reward = reward_dist + reward_ctrl
     return reward
 
+
 def angle_normalize(x):
-    return (((x+np.pi) % (2*np.pi)) - np.pi)
+    return ((x + np.pi) % (2 * np.pi)) - np.pi
 
 
 if __name__ == "__main__":

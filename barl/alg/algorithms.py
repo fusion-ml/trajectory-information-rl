@@ -327,7 +327,7 @@ class GlobalOptValGrid(FixedPathAlgorithm):
         exe_path_crop.y.append(self.exe_path.y[opt_idx])
 
         return exe_path_crop
-        #return self.exe_path
+        # return self.exe_path
 
     def get_output(self):
         """Return output based on self.exe_path."""
@@ -447,10 +447,10 @@ class TopK(FixedPathAlgorithm):
     def get_exe_path_topk_idx(self):
         """Return the index of the optimal point in execution path."""
         if self.params.opt_mode == "min":
-            topk_idx = np.argsort(self.exe_path.y)[:self.params.k]
+            topk_idx = np.argsort(self.exe_path.y)[: self.params.k]
         elif self.params.opt_mode == "max":
             rev_exe_path_y = -np.array(self.exe_path.y)
-            topk_idx = np.argsort(rev_exe_path_y)[:self.params.k]
+            topk_idx = np.argsort(rev_exe_path_y)[: self.params.k]
 
         return topk_idx
 
@@ -510,7 +510,7 @@ class TopK(FixedPathAlgorithm):
 
 
 class Noop(Algorithm):
-    """"Dummy noop algorithm for debugging parallel code."""
+    """ "Dummy noop algorithm for debugging parallel code."""
 
     def set_params(self, params):
         """Set self.params, the parameters for the algorithm."""
@@ -579,13 +579,13 @@ class AlgorithmSet:
         self.algo.initialize()
         self.algo_list = [self.algo.get_copy() for _ in range(n_f)]
 
-        '''
+        """
         note: we want to initialize before copying so they have the same state at start time
                     this is useful for selecting a random start state and having it be the same across many parallel execution paths
         # Initialize each algo in list
         for algo in algo_list:
             algo.initialize()
-        '''
+        """
 
     def get_exe_path_and_output_lists(self):
         """

@@ -1,9 +1,9 @@
-'''
+"""
 Weird gain env: an environment that allows for open- and closed-loop controllers
 to be tested in an environment that is easy to plot and understand.
 
 Viraj Mehta, 2022
-'''
+"""
 
 import gym
 from gym import spaces
@@ -13,9 +13,10 @@ GOAL = np.array([6, 9])
 
 
 class WeirdGainEnv(gym.Env):
-
     def __init__(self):
-        self.observation_space = spaces.Box(low=np.array([-10, -10]), high=np.array([10, 10]))
+        self.observation_space = spaces.Box(
+            low=np.array([-10, -10]), high=np.array([10, 10])
+        )
         self.action_space = spaces.Box(low=-np.ones(2), high=np.ones(2))
         self.x = None
         self.start_space_low = np.array([-10, -6])
@@ -42,7 +43,9 @@ class WeirdGainEnv(gym.Env):
         B = self.get_B()
         delta_x = B @ action
         self.x += delta_x
-        self.x = np.clip(self.x, self.observation_space.low, self.observation_space.high)
+        self.x = np.clip(
+            self.x, self.observation_space.low, self.observation_space.high
+        )
         rew = _weird_gain_rew(self.x)
         return self.x, rew, False, {}
 

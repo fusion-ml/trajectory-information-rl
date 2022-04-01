@@ -31,7 +31,7 @@ class BACSwimmerEnv(mujoco_env.MujocoEnv, utils.EzPickle):
         self.concat_reward = concat_reward
         self.horizon = 200
         self.periodic_dimensions = []
-        mujoco_env.MujocoEnv.__init__(self, '%s/assets/swimmer.xml' % dir_path, 4)
+        mujoco_env.MujocoEnv.__init__(self, "%s/assets/swimmer.xml" % dir_path, 4)
         low = np.array([-0.5, -3, -2, -2, -5, -4, -4, -9, -9])
         high = np.array([2, 3, 2, 2, 4, 4, 4, 8, 8])
         if self.concat_reward:
@@ -96,12 +96,16 @@ class BACSwimmerEnv(mujoco_env.MujocoEnv, utils.EzPickle):
             full_obs = np.concatenate([position, obs])
         else:
             full_obs = np.insert(obs, 1, 0)
-        qpos = full_obs[:len(self.init_qpos)]
-        qvel = full_obs[len(self.init_qpos):]
+        qpos = full_obs[: len(self.init_qpos)]
+        qvel = full_obs[len(self.init_qpos) :]
         self.set_state(qpos, qvel)
         check_obs = self._get_obs()
-        assert np.allclose(check_obs, obs), f"Obs: {obs} not equal to check_obs {check_obs}"
-        assert not self.concat_reward, f"Didn't implement the concat_reward functionality for resets"
+        assert np.allclose(
+            check_obs, obs
+        ), f"Obs: {obs} not equal to check_obs {check_obs}"
+        assert (
+            not self.concat_reward
+        ), f"Didn't implement the concat_reward functionality for resets"
         return check_obs
 
     def reset_model(self):

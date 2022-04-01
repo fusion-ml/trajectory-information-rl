@@ -161,7 +161,6 @@ class LunarLander(gym.Env, EzPickle):
         self.game_over = False
         self.prev_shaping = None
 
-
         self.moon = self.world.CreateStaticBody(
             shapes=edgeShape(vertices=[(0, 0), (self.W, 0)])
         )

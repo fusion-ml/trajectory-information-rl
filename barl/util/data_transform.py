@@ -31,7 +31,7 @@ class DataTransformer:
 
         if len(data.y.shape) > 1:
             if not (data.y.shape[0] == 1 or data.y.shape[1] == 1):
-                raise ValueError('data.y has incorrect shape.')
+                raise ValueError("data.y has incorrect shape.")
         self.y_data_orig_shape = data.y.shape
         self.y_data = data.y.reshape(-1, 1)
 
@@ -78,4 +78,4 @@ class DataTransformer:
 
     def _print_str(self):
         """Print a description string."""
-        print('*DataTransformer')
+        print("*DataTransformer")

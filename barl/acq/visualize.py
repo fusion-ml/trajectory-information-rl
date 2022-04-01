@@ -33,7 +33,7 @@ class AcqViz1D(Base):
         self.fig = fig
         self.ax = ax
         self.h_list = []
-        self.clist = rcParams['axes.prop_cycle']
+        self.clist = rcParams["axes.prop_cycle"]
 
     def set_params(self, params):
         """Set self.params, the parameters for the AcqOptimizer."""
@@ -92,8 +92,8 @@ class AcqViz1D(Base):
             lcb,
             ucb,
             color=(1.0, 0.9255, 0.7961, 1.0),
-            #color="orange",
-            #alpha=0.18,
+            # color="orange",
+            # alpha=0.18,
             label="$p(y|\mathcal{D}_t, x)$",
         )
         self.h_list.append(h)
@@ -113,9 +113,9 @@ class AcqViz1D(Base):
                 exe_path.x,
                 exe_path.y,
                 "x",
-                #color=next(cgen)['color'],
-                #color="#d62728",
-                #color="deeppink",
+                # color=next(cgen)['color'],
+                # color="#d62728",
+                # color="deeppink",
                 color="magenta",
                 markersize=10,
                 linewidth=0.1,
@@ -138,7 +138,7 @@ class AcqViz1D(Base):
                 exe_path.x,
                 exe_path.y,
                 ".",
-                #color=next(cgen)['color'],
+                # color=next(cgen)['color'],
                 color="#d62728",
                 markersize=3,
                 linewidth=0.5,
@@ -150,8 +150,8 @@ class AcqViz1D(Base):
     def plot_model_data(self, data):
         """Plot data, assumed to have attributes x and y."""
         label = "$\mathcal{D}_t = \{(x_i, y_i)\}_{i=1}^t$"
-        #label = "Observations"
-        #h = self.ax.plot(data.x, data.y, "o", color="deeppink", label=label)
+        # label = "Observations"
+        # h = self.ax.plot(data.x, data.y, "o", color="deeppink", label=label)
         h = self.ax.plot(data.x, data.y, "o", color="black", label=label)
         self.h_list.append(h[0])
         return h
@@ -168,10 +168,10 @@ class AcqViz1D(Base):
         # Shift current axes up, re-adjust height
         l, b, w, h = self.ax.get_position().bounds
         # -----
-        #print('ax current bounds:')
-        #print([l, b, w, h])
+        # print('ax current bounds:')
+        # print([l, b, w, h])
         # -----
-        h_ratio = fig_height / (fig_height + add_height) 
+        h_ratio = fig_height / (fig_height + add_height)
         new_h = h * h_ratio
         new_b = b + h - new_h
         self.ax.set_position([l, new_b, w, new_h])
@@ -182,10 +182,10 @@ class AcqViz1D(Base):
         # Adjust self.ax_acq
         l, b, w, h = self.ax_acq.get_position().bounds
         # -----
-        #print('ax_acq current bounds:')
-        #print([l, b, w, h])
+        # print('ax_acq current bounds:')
+        # print([l, b, w, h])
         # -----
-        gap_in = 0.15 # for 0.15 inch gap
+        gap_in = 0.15  # for 0.15 inch gap
         gap = h * gap_in / (fig_height + add_height)
 
         new_h_no_gap = h * add_height / (fig_height + add_height)
@@ -199,7 +199,7 @@ class AcqViz1D(Base):
             acq_arr,
             "--",
             color="#ff7f0e",
-            #color="red",
+            # color="red",
             linewidth=1,
             label="$\\alpha_t(x)$",
         )
@@ -221,11 +221,11 @@ class AcqViz1D(Base):
         h = self.ax.plot(
             [acq_opt, acq_opt],
             ylim_ax,
-            '--',
+            "--",
             color="black",
             label="$x_t = $ argmax$_{x \in \mathcal{X}}$ $\\alpha_t(x)$",
         )
-        self.ax_acq.plot([acq_opt, acq_opt], ylim_ax_acq, '--', color="black")
+        self.ax_acq.plot([acq_opt, acq_opt], ylim_ax_acq, "--", color="black")
 
         self.h_list.append(h[0])
         return h
@@ -272,14 +272,14 @@ class AcqViz1D(Base):
                 np.array(x_test).reshape(-1),
                 f_sample,
                 "-",
-                #color=next(cgen)['color'],
+                # color=next(cgen)['color'],
                 color="#d62728",
                 alpha=0.5,
                 linewidth=0.5,
                 label="$\{\\tilde{f}\} \sim p(f | \mathcal{D}_t)$",
             )
 
-        #self.h_list.append(h[0])
+        # self.h_list.append(h[0])
         return h
 
     def plot_post_f_samples_exe_path_postpred_means(self, x_test, mu_list):
@@ -301,7 +301,7 @@ class AcqViz1D(Base):
                 linewidth=0.5,
                 label="$\{\\tilde{f}\} \sim p(f | \mathcal{D}_t)$",
             )
-        #self.h_list.append(h[0])
+        # self.h_list.append(h[0])
         return h
 
     def plot_acq_out_cluster(
@@ -358,7 +358,7 @@ class AcqViz1D(Base):
         # Loop through clusters
         mean_std_idx_list = zip(mean_cluster_list, std_cluster_list, cluster_idx_list)
         for mean_cluster, std_cluster, cluster_idx in mean_std_idx_list:
-            nextcolor = next(cgen)['color']
+            nextcolor = next(cgen)["color"]
 
             # Plot execution paths in each cluster
             self.plot_cluster_exe_paths(cluster_idx, exe_path_list, nextcolor)
@@ -367,7 +367,7 @@ class AcqViz1D(Base):
             h = self.plot_cluster_means(x_test, mean_cluster, cluster_idx, nextcolor)
 
             # Plot stds of each cluster
-            #self.plot_cluster_stds(x_test, mean_cluster, std_cluster, nextcolor)
+            # self.plot_cluster_stds(x_test, mean_cluster, std_cluster, nextcolor)
 
             # Plot cluster properties
             self.plot_cluster_property(cluster_idx, output_list, nextcolor)
@@ -394,8 +394,8 @@ class AcqViz1D(Base):
         h = plt.plot(
             np.array(x_test).reshape(-1),
             mean_cluster,
-            '--',
-            #linewidth=0.05 * len(cluster_idx),
+            "--",
+            # linewidth=0.05 * len(cluster_idx),
             linewidth=np.log(len(cluster_idx)) + 0.5,
             color=color,
             label="Cluster posterior predictive",
@@ -422,11 +422,7 @@ class AcqViz1D(Base):
         for output in output_subset:
             y_offset = np.random.uniform(-0.2, 0.2)
             h = plt.plot(
-                output,
-                5.0 + y_offset,
-                'o',
-                color=color,
-                label="argmax output"
+                output, 5.0 + y_offset, "o", color=color, label="argmax output"
             )
         return h
 
@@ -435,30 +431,30 @@ class AcqViz1D(Base):
 
         fig_height = self.fig.get_figheight()
         l, b, w, h = self.ax.get_position().bounds
-        #print('legend: ax current bounds:')
-        #print([l, b, w, h])
+        # print('legend: ax current bounds:')
+        # print([l, b, w, h])
 
-        #gap_in = 1.0
-        #gap = h  * gap_in / fig_height
-        #gap = gap_in * fig_height
-        #gap = gap_in * h / fig_height
-        #gap = 0.125 + b - 0.27
-        #print(f'GAP IS: {gap}')
+        # gap_in = 1.0
+        # gap = h  * gap_in / fig_height
+        # gap = gap_in * fig_height
+        # gap = gap_in * h / fig_height
+        # gap = 0.125 + b - 0.27
+        # print(f'GAP IS: {gap}')
 
         n_leg = len(self.h_list)
         n_col = 3
         n_row = 1 if n_leg <= n_col else 2
-        #bot = 0.15 if n_row == 1 else 0.21
-        #bot = gap if n_row == 1 else gap
+        # bot = 0.15 if n_row == 1 else 0.21
+        # bot = gap if n_row == 1 else gap
 
         # For legend above axes
-        #bot = 0.0
-        #bot = 0.1 * h
-        #bot = 0.1 / (h - b)
-        #bbta = (0, bot, 1, 1)
+        # bot = 0.0
+        # bot = 0.1 * h
+        # bot = 0.1 / (h - b)
+        # bbta = (0, bot, 1, 1)
         bbta = (0, 0.25, 1, 1)
-        #h_new = 0.1 * h + 0.05
-        #bbta = (0, 1.0, 1, h_new)
+        # h_new = 0.1 * h + 0.05
+        # bbta = (0, 1.0, 1, h_new)
 
         loc = "upper center"
 
@@ -477,14 +473,14 @@ class AcqViz1D(Base):
         # x axis
         if getattr(self, "acqfunction_shown", False):
             self.ax_acq.set_xlabel(self.params.xlabel)
-            #self.ax.get_xaxis().set_ticklabels([])
+            # self.ax.get_xaxis().set_ticklabels([])
             self.ax.get_xaxis().set_visible(False)
         else:
             self.ax.set_xlabel(self.params.xlabel)
 
         # y axis
         if getattr(self, "acqfunction_shown", False):
-            #self.ax_acq.get_yaxis().set_ticklabels([])
+            # self.ax_acq.get_yaxis().set_ticklabels([])
             self.ax_acq.get_yaxis().set_visible(False)
         self.ax.set_ylabel(self.params.ylabel)
 
@@ -497,6 +493,6 @@ class AcqViz1D(Base):
     def reduce_samp_list(self, samp_list):
         """Optionally reduce list of samples, based on self.n_path_max."""
         if self.params.n_path_max:
-            samp_list = samp_list[:self.params.n_path_max]
+            samp_list = samp_list[: self.params.n_path_max]
 
         return samp_list

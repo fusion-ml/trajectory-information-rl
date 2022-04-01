@@ -18,7 +18,11 @@ from ..util.base import Base
 from ..util.misc_util import dict_to_namespace, flatten
 from ..util.timing import Timer
 from ..models.function import FunctionSample
-from ..models.gp.jax_gp_utils import get_lmats_smats, get_pred_covs, construct_jax_kernels
+from ..models.gp.jax_gp_utils import (
+    get_lmats_smats,
+    get_pred_covs,
+    construct_jax_kernels,
+)
 from ..alg.algorithms import AlgorithmSet, BatchAlgorithmSet
 
 
@@ -45,7 +49,7 @@ class AcqFunction(Base):
         """Set self.params, the parameters for the AcqFunction."""
         super().set_params(params)
         params = dict_to_namespace(params)
-        self.params.name = getattr(params, 'name', 'AcqFunction')
+        self.params.name = getattr(params, "name", "AcqFunction")
 
     def set_model(self, model):
         """Set self.model, the model underlying the acquisition function."""
@@ -77,7 +81,7 @@ class RandAcqFunction(AcqFunction):
         super().set_params(params)
 
         params = dict_to_namespace(params)
-        self.params.name = getattr(params, 'name', 'RandAcqFunction')
+        self.params.name = getattr(params, "name", "RandAcqFunction")
 
     def __call__(self, x_list):
         """Class is callable and returns acquisition function on x_list."""
@@ -116,7 +120,7 @@ class AlgoAcqFunction(AcqFunction):
         super().set_params(params)
 
         params = dict_to_namespace(params)
-        self.params.name = getattr(params, 'name', 'AlgoAcqFunction')
+        self.params.name = getattr(params, "name", "AlgoAcqFunction")
         self.params.n_path = getattr(params, "n_path", 100)
         self.params.crop = getattr(params, "crop", True)
 
@@ -200,7 +204,7 @@ class BaxAcqFunction(AlgoAcqFunction):
         super().set_params(params)
 
         params = dict_to_namespace(params)
-        self.params.name = getattr(params, 'name', 'BaxAcqFunction')
+        self.params.name = getattr(params, "name", "BaxAcqFunction")
         self.params.acq_str = getattr(params, "acq_str", "exe")
         self.params.min_neighbors = getattr(params, "min_neighbors", 10)
         self.params.max_neighbors = getattr(params, "max_neighbors", 30)
@@ -246,9 +250,11 @@ class BaxAcqFunction(AlgoAcqFunction):
         cluster_idx_list = self.get_cluster_idx_list(output_list, dist_thresh)
 
         # -----
-        print('\t- clust_idx_list initial details:')
+        print("\t- clust_idx_list initial details:")
         len_list = [len(clust) for clust in cluster_idx_list]
-        print(f'\t\t- min len_list: {np.min(len_list)},  max len_list: {np.max(len_list)},  len(len_list): {len(len_list)}')  # NOQA
+        print(
+            f"\t\t- min len_list: {np.min(len_list)},  max len_list: {np.max(len_list)},  len(len_list): {len(len_list)}"
+        )  # NOQA
         # -----
 
         # Filter clusters that are too small (looping to find optimal dist_thresh)
@@ -256,36 +262,46 @@ class BaxAcqFunction(AlgoAcqFunction):
         min_n_clust = self.params.min_n_clust
         min_dist_thresh = self.params.dist_thresh
 
-        cluster_idx_list_new = [clust for clust in cluster_idx_list if len(clust) > min_nn]
+        cluster_idx_list_new = [
+            clust for clust in cluster_idx_list if len(clust) > min_nn
+        ]
         # -----
-        print('\t- clust_idx_list_NEW details:')
+        print("\t- clust_idx_list_NEW details:")
         len_list = [len(clust) for clust in cluster_idx_list_new]
-        print(f'\t\t- min len_list: {np.min(len_list)},  max len_list: {np.max(len_list)},  len(len_list): {len(len_list)}')
+        print(
+            f"\t\t- min len_list: {np.min(len_list)},  max len_list: {np.max(len_list)},  len(len_list): {len(len_list)}"
+        )
         # -----
-        while len(cluster_idx_list_new) > min_n_clust and dist_thresh >= min_dist_thresh:
+        while (
+            len(cluster_idx_list_new) > min_n_clust and dist_thresh >= min_dist_thresh
+        ):
             cluster_idx_list_keep = cluster_idx_list_new
             dist_thresh -= self.params.dist_thresh_inc
-            print(f'NOTE: dist_thresh = {dist_thresh}')
+            print(f"NOTE: dist_thresh = {dist_thresh}")
             cluster_idx_tmp = self.get_cluster_idx_list(output_list, dist_thresh)
-            cluster_idx_list_new = [clust for clust in cluster_idx_tmp if len(clust) > min_nn]
+            cluster_idx_list_new = [
+                clust for clust in cluster_idx_tmp if len(clust) > min_nn
+            ]
 
         try:
             cluster_idx_list = cluster_idx_list_keep
         except UnboundLocalError:
             print(
-                'WARNING: cluster_idx_list_keep not assigned, using cluster_idx_list.'
+                "WARNING: cluster_idx_list_keep not assigned, using cluster_idx_list."
             )
             pass
 
         ## Only remove small clusters if there are enough big clusters
-        #if len(cluster_idx_list_new) > self.params.min_n_clust:
-            #cluster_idx_list = cluster_idx_list_new
+        # if len(cluster_idx_list_new) > self.params.min_n_clust:
+        # cluster_idx_list = cluster_idx_list_new
 
         # -----
         len_list = [len(clust) for clust in cluster_idx_list]
-        print('\t- clust_idx_list final details:')
-        print(f'\t\t- min len_list: {np.min(len_list)},  max len_list: {np.max(len_list)},  len(len_list): {len(len_list)}')
-        print(f'\t\tFound dist_thresh: {dist_thresh}')
+        print("\t- clust_idx_list final details:")
+        print(
+            f"\t\t- min len_list: {np.min(len_list)},  max len_list: {np.max(len_list)},  len(len_list): {len(len_list)}"
+        )
+        print(f"\t\tFound dist_thresh: {dist_thresh}")
         # -----
 
         # Compute entropies for posterior predictive given execution path samples
@@ -340,7 +356,7 @@ class BaxAcqFunction(AlgoAcqFunction):
             dist_sort = np.array([row[i] for i in idx_sort])
 
             # Keep at most max_neighbors, as long as they are within dist_thresh
-            dist_sort = dist_sort[:self.params.max_neighbors]
+            dist_sort = dist_sort[: self.params.max_neighbors]
             row_idx_keep = np.where(dist_sort < dist_thresh)[0]
 
             idx_arr = idx_sort[row_idx_keep]
@@ -380,23 +396,27 @@ class BaxAcqFunction(AlgoAcqFunction):
         )
 
         # -----
-        print('\t- clust_idx_list details:')
+        print("\t- clust_idx_list details:")
         len_list = [len(clust) for clust in cluster_idx_list]
-        print(f'\t- min len_list: {np.min(len_list)},  max len_list: {np.max(len_list)},  len(len_list): {len(len_list)}')
+        print(
+            f"\t- min len_list: {np.min(len_list)},  max len_list: {np.max(len_list)},  len(len_list): {len(len_list)}"
+        )
         # -----
 
         ## Remove clusters that are too small
-        #min_nn = self.params.min_neighbors
-        #cluster_idx_list = [clust for clust in cluster_idx_list if len(clust) > min_nn]
+        # min_nn = self.params.min_neighbors
+        # cluster_idx_list = [clust for clust in cluster_idx_list if len(clust) > min_nn]
 
         # -----
         len_list = [len(clust) for clust in cluster_idx_list]
-        print(f'\t- min len_list: {np.min(len_list)},  max len_list: {np.max(len_list)},  len(len_list): {len(len_list)}')
+        print(
+            f"\t- min len_list: {np.min(len_list)},  max len_list: {np.max(len_list)},  len(len_list): {len(len_list)}"
+        )
         # -----
 
         # Compute entropies for posterior predictive given execution path samples
         h_samp_list = []
-        #for samp_mean, samp_std in zip(samp_mean_list, samp_std_list):
+        # for samp_mean, samp_std in zip(samp_mean_list, samp_std_list):
         for exe_idx in range(len(samp_mean_list)):
             # Unpack
             samp_mean = samp_mean_list[exe_idx]
@@ -414,7 +434,7 @@ class BaxAcqFunction(AlgoAcqFunction):
             mean_mat = np.vstack([samp_mean for _ in range(n_samp)])
             std_mat = np.vstack([samp_std for _ in range(n_samp)])
             pdf_mat = sps_norm.pdf(samp_mat, mean_mat, std_mat)
-            #weight_mat_den = np.ones(pdf_mat.shape)
+            # weight_mat_den = np.ones(pdf_mat.shape)
             weight_mat_den = pdf_mat
 
             # Compute importance weights numerators
@@ -428,7 +448,7 @@ class BaxAcqFunction(AlgoAcqFunction):
                 pdf_mat = sps_norm.pdf(samp_mat, mean_mat, std_mat)
                 pdf_mat_sum = pdf_mat_sum + pdf_mat
 
-            #weight_mat_num = np.ones(pdf_mat_sum.shape)
+            # weight_mat_num = np.ones(pdf_mat_sum.shape)
             weight_mat_num = pdf_mat_sum / len(clust_idx)
             weight_mat_num = weight_mat_num
 
@@ -451,7 +471,10 @@ class BaxAcqFunction(AlgoAcqFunction):
     def get_acq_list_batch(self, x_list):
         """Return acquisition function for a batch of inputs x_list."""
 
-        with Timer(f"Compute acquisition function for a batch of {len(x_list)} points", level=logging.DEBUG):
+        with Timer(
+            f"Compute acquisition function for a batch of {len(x_list)} points",
+            level=logging.DEBUG,
+        ):
             # Compute posterior, and post given each execution path sample, for x_list
             mu, std = self.model.get_post_mu_cov(x_list, full_cov=False)
 
@@ -471,9 +494,9 @@ class BaxAcqFunction(AlgoAcqFunction):
             # Compute acq_list, the acqfunction value for each x in x_list
             if self.params.acq_str == "exe":
                 acq_list = self.acq_exe_normal(std, std_list)
-            elif self.params.acq_str == 'out':
+            elif self.params.acq_str == "out":
                 acq_list = self.acq_out_normal(std, mu_list, std_list, self.output_list)
-            elif self.params.acq_str == 'is':
+            elif self.params.acq_str == "is":
                 acq_list = self.acq_is_normal(
                     std, mu_list, std_list, self.output_list, x_list
                 )
@@ -506,13 +529,16 @@ class MesAcqFunction(BaxAcqFunction):
         super().set_params(params)
 
         params = dict_to_namespace(params)
-        self.params.name = getattr(params, 'name', 'MesAcqFunction')
+        self.params.name = getattr(params, "name", "MesAcqFunction")
         self.params.opt_mode = getattr(params, "opt_mode", "max")
 
     def get_acq_list_batch(self, x_list):
         """Return acquisition function for a batch of inputs x_list."""
 
-        with Timer(f"Compute acquisition function for a batch of {len(x_list)} points", level=logging.DEBUG):
+        with Timer(
+            f"Compute acquisition function for a batch of {len(x_list)} points",
+            level=logging.DEBUG,
+        ):
             # Compute entropies for posterior for x in x_list
             mu, std = self.model.get_post_mu_cov(x_list, full_cov=False)
             h_post = self.entropy_given_normal_std(std)
@@ -550,11 +576,11 @@ class RandBaxAcqFunction(BaxAcqFunction):
         super().set_params(params)
 
         params = dict_to_namespace(params)
-        self.params.name = getattr(params, 'name', 'RandBaxAcqFunction')
+        self.params.name = getattr(params, "name", "RandBaxAcqFunction")
 
     def __call__(self, x_list):
         """Class is callable and returns acquisition function on x_list."""
-        acq_list = super().__call__(x_list) # NOTE: would super()(x_list) work?
+        acq_list = super().__call__(x_list)  # NOTE: would super()(x_list) work?
         acq_list = [np.random.uniform() for _ in acq_list]
         return acq_list
 
@@ -570,11 +596,11 @@ class UsBaxAcqFunction(BaxAcqFunction):
         super().set_params(params)
 
         params = dict_to_namespace(params)
-        self.params.name = getattr(params, 'name', 'UsBaxAcqFunction')
+        self.params.name = getattr(params, "name", "UsBaxAcqFunction")
 
     def __call__(self, x_list):
         """Class is callable and returns acquisition function on x_list."""
-        super().__call__(x_list) # NOTE: would super()(x_list) work?
+        super().__call__(x_list)  # NOTE: would super()(x_list) work?
         acq_list = self.acq_vars["std"]
         return acq_list
 
@@ -590,11 +616,11 @@ class EigfBaxAcqFunction(BaxAcqFunction):
         super().set_params(params)
 
         params = dict_to_namespace(params)
-        self.params.name = getattr(params, 'name', 'EigfBaxAcqFunction')
+        self.params.name = getattr(params, "name", "EigfBaxAcqFunction")
 
     def __call__(self, x_list):
         """Class is callable and returns acquisition function on x_list."""
-        super().__call__(x_list) # NOTE: would super()(x_list) work?
+        super().__call__(x_list)  # NOTE: would super()(x_list) work?
         std_list = self.acq_vars["std"]
         acq_list = self.entropy_given_normal_std(std_list)
         return acq_list
@@ -610,7 +636,7 @@ class MultiBaxAcqFunction(AlgoAcqFunction):
         super().set_params(params)
 
         params = dict_to_namespace(params)
-        self.params.name = getattr(params, 'name', 'MultiBaxAcqFunction')
+        self.params.name = getattr(params, "name", "MultiBaxAcqFunction")
 
     def entropy_given_normal_std(self, std_arr):
         """Return entropy given an array of 1D normal standard deviations."""
@@ -651,7 +677,10 @@ class MultiBaxAcqFunction(AlgoAcqFunction):
         """Return acquisition function for a batch of inputs x_list."""
 
         # Compute posterior, and post given each execution path sample, for x_list
-        with Timer(f"Compute acquisition function for a batch of {len(x_list)} points", level=logging.DEBUG):
+        with Timer(
+            f"Compute acquisition function for a batch of {len(x_list)} points",
+            level=logging.DEBUG,
+        ):
             # NOTE: self.model is multimodel so the following returns a list of mus and
             # a list of stds
             mus, stds = self.model.get_post_mu_cov(x_list, full_cov=False)
@@ -694,13 +723,13 @@ class MultiBaxAcqFunction(AlgoAcqFunction):
         acq_list = self.get_acq_list_batch(x_list)
         return acq_list
 
+
 class RewardSetAcqFunction(AcqFunction):
     def set_params(self, params):
         params = dict_to_namespace(params)
         self.params.reward_fn = params.reward_fn
         self.params.obs_dim = params.obs_dim
         self.params.action_dim = params.action_dim
-
 
     def __call__(self, x_set_list):
         """
@@ -712,9 +741,17 @@ class RewardSetAcqFunction(AcqFunction):
         """
         batch_size = len(x_set_list)
         x_data = np.array(x_set_list)
-        rew_x = x_data[:, :-1, :].reshape((-1, self.config.obs_dim + self.config.action_dim))
-        next_obs_data[x_data, :, 1:, :self.config.obs_dim].reshape((-1, self.config.obs_dim))
-        rewards = self.params.reward_fn(rew_x, next_obs_data).reshape((batch_size, -1)).sum(axis=1)
+        rew_x = x_data[:, :-1, :].reshape(
+            (-1, self.config.obs_dim + self.config.action_dim)
+        )
+        next_obs_data[x_data, :, 1:, : self.config.obs_dim].reshape(
+            (-1, self.config.obs_dim)
+        )
+        rewards = (
+            self.params.reward_fn(rew_x, next_obs_data)
+            .reshape((batch_size, -1))
+            .sum(axis=1)
+        )
         return rewards
 
 
@@ -728,15 +765,19 @@ class BatchUncertaintySamplingAcqFunction(AcqFunction):
         super().set_params(params)
 
         params = dict_to_namespace(params)
-        self.params.name = getattr(params, 'name', 'BatchUncertaintySamplingAcqFunction')
+        self.params.name = getattr(
+            params, "name", "BatchUncertaintySamplingAcqFunction"
+        )
         self.base_smat = None
         self.base_lmat = None
         self.smats = defaultdict(lambda: None)
         self.lmats = defaultdict(lambda: None)
         self.kernels = construct_jax_kernels(params.gp_model_params)
-        sigma = params.gp_model_params['gp_params']['sigma']
-        self.get_lmats_smats = partial(get_lmats_smats, kernels=self.kernels, sigma=sigma)
-        self.jit_fast_acq = getattr(params, 'jit_fast_acq', None)
+        sigma = params.gp_model_params["gp_params"]["sigma"]
+        self.get_lmats_smats = partial(
+            get_lmats_smats, kernels=self.kernels, sigma=sigma
+        )
+        self.jit_fast_acq = getattr(params, "jit_fast_acq", None)
 
     def set_model(self, model):
         """Set self.model, the model underlying the acquisition function."""
@@ -772,13 +813,22 @@ class BatchUncertaintySamplingAcqFunction(AcqFunction):
             x_data = jnp.array(self.model.data.x)
             y_data = jnp.array(self.model.data.y)
             base_lmat, base_smat = self.get_lmats_smats(x_data, y_data)
-            self.jit_fast_acq = jax.vmap(jax.jit(partial(self.fast_get_acq_list_batch,
-                                                x_data=x_data,
-                                                y_data=y_data,
-                                                base_lmats=base_lmat,
-                                                base_smats=base_smat,
-                                                kernels=self.kernels)))
-        with Timer(f"Compute acquisition function for a batch of {x_set_list.shape[0]} points", level=logging.DEBUG):
+            self.jit_fast_acq = jax.vmap(
+                jax.jit(
+                    partial(
+                        self.fast_get_acq_list_batch,
+                        x_data=x_data,
+                        y_data=y_data,
+                        base_lmats=base_lmat,
+                        base_smats=base_smat,
+                        kernels=self.kernels,
+                    )
+                )
+            )
+        with Timer(
+            f"Compute acquisition function for a batch of {x_set_list.shape[0]} points",
+            level=logging.DEBUG,
+        ):
             fast_acq_list = self.jit_fast_acq(x_set_list)
         not_finites = ~jnp.isfinite(fast_acq_list)
         num_not_finite = jnp.sum(not_finites)
@@ -786,7 +836,6 @@ class BatchUncertaintySamplingAcqFunction(AcqFunction):
             logging.warning(f"{num_not_finite} acq function results were not finite.")
             fast_acq_list = fast_acq_list.at[not_finites].set(-np.inf)
         return list(fast_acq_list)
-
 
 
 class MultiSetBaxAcqFunction(AlgoAcqFunction):
@@ -799,15 +848,17 @@ class MultiSetBaxAcqFunction(AlgoAcqFunction):
         super().set_params(params)
 
         params = dict_to_namespace(params)
-        self.params.name = getattr(params, 'name', 'MultiSetBaxAcqFunction')
+        self.params.name = getattr(params, "name", "MultiSetBaxAcqFunction")
         self.base_smat = None
         self.base_lmat = None
         self.smats = defaultdict(lambda: None)
         self.lmats = defaultdict(lambda: None)
         self.kernels = construct_jax_kernels(params.gp_model_params)
-        sigma = params.gp_model_params['gp_params']['sigma']
-        self.get_lmats_smats = partial(get_lmats_smats, kernels=self.kernels, sigma=sigma)
-        self.jit_fast_acq = getattr(params, 'jit_fast_acq', None)
+        sigma = params.gp_model_params["gp_params"]["sigma"]
+        self.get_lmats_smats = partial(
+            get_lmats_smats, kernels=self.kernels, sigma=sigma
+        )
+        self.jit_fast_acq = getattr(params, "jit_fast_acq", None)
 
     def set_model(self, model):
         """Set self.model, the model underlying the acquisition function."""
@@ -844,7 +895,17 @@ class MultiSetBaxAcqFunction(AlgoAcqFunction):
         return acq_exe
 
     @staticmethod
-    def fast_get_acq_list_batch(x_set, x_data, y_data, base_lmats, base_smats, exe_path_list, kernels, lmats, smats):
+    def fast_get_acq_list_batch(
+        x_set,
+        x_data,
+        y_data,
+        base_lmats,
+        base_smats,
+        exe_path_list,
+        kernels,
+        lmats,
+        smats,
+    ):
         """Return acquisition function for a batch of inputs x_set_list, but do it fast."""
 
         # Compute posterior, and post given each execution path sample, for x_list
@@ -855,30 +916,27 @@ class MultiSetBaxAcqFunction(AlgoAcqFunction):
         for i, exe_path in enumerate(exe_path_list):
             x = jnp.concatenate([x_data, exe_path[0]], axis=0)
             y = jnp.concatenate([y_data, exe_path[1]], axis=0)
-            samp_covs = get_pred_covs(
-                         x,
-                         y,
-                         x_set,
-                         lmats[i],
-                         smats[i],
-                         kernels
-                         )
+            samp_covs = get_pred_covs(x, y, x_set, lmats[i], smats[i], kernels)
             samp_cov_list.append(samp_covs)
-
 
         samp_cov_list = jnp.stack(samp_cov_list)
         # regularization, maybe
         reg = jnp.eye(samp_cov_list.shape[-1])[None, None, ...] * 1e-5
         reg_pred_cov = pred_cov + reg
         reg_samp_cov_list = samp_cov_list + reg
-        acq = MultiSetBaxAcqFunction.fast_acq_exe_normal(reg_pred_cov, reg_samp_cov_list)
+        acq = MultiSetBaxAcqFunction.fast_acq_exe_normal(
+            reg_pred_cov, reg_samp_cov_list
+        )
         return acq
 
     def get_acq_list_batch(self, x_list):
         """Return acquisition function for a batch of inputs x_set_list."""
 
         # Compute posterior, and post given each execution path sample, for x_list
-        with Timer(f"Compute acquisition function for a batch of {len(x_list)} points", level=logging.DEBUG):
+        with Timer(
+            f"Compute acquisition function for a batch of {len(x_list)} points",
+            level=logging.DEBUG,
+        ):
             # NOTE: self.model is multimodel so the following returns a list of mus and
             # a list of stds
             # going to implement this with a loop first, maybe we can make it more efficient later
@@ -895,14 +953,17 @@ class MultiSetBaxAcqFunction(AlgoAcqFunction):
                     comb_data = Namespace()
                     comb_data.x = self.model.data.x + exe_path.x
                     comb_data.y = self.model.data.y + exe_path.y
-                    self.conditioning_model.set_data(comb_data, lmats=self.lmats[i], smats=self.smats[i])
+                    self.conditioning_model.set_data(
+                        comb_data, lmats=self.lmats[i], smats=self.smats[i]
+                    )
                     self.lmats[i] = self.conditioning_model.lmats
                     self.smats[i] = self.conditioning_model.smats
 
                     # NOTE: self.model is multimodel so the following returns a list of mus
                     # and a list of stds
                     samp_mus, samp_stds = self.conditioning_model.get_post_mu_cov(
-                        x_set, full_cov=True,
+                        x_set,
+                        full_cov=True,
                     )
                     mus_list.append(samp_mus)
                     stds_list.append(samp_stds)
@@ -939,16 +1000,22 @@ class MultiSetBaxAcqFunction(AlgoAcqFunction):
                 path_x_data = jnp.concatenate([x_data, exe_path[0]])
                 path_y_data = jnp.concatenate([y_data, exe_path[1]])
                 lmats[i], smats[i] = self.get_lmats_smats(path_x_data, path_y_data)
-            self.jit_fast_acq = jax.vmap(jax.jit(partial(self.fast_get_acq_list_batch,
-                                                x_data=x_data,
-                                                y_data=y_data,
-                                                base_lmats=base_lmat,
-                                                base_smats=base_smat,
-                                                exe_path_list=exe_paths,
-                                                kernels=self.kernels,
-                                                lmats=lmats,
-                                                smats=smats)))
-            '''
+            self.jit_fast_acq = jax.vmap(
+                jax.jit(
+                    partial(
+                        self.fast_get_acq_list_batch,
+                        x_data=x_data,
+                        y_data=y_data,
+                        base_lmats=base_lmat,
+                        base_smats=base_smat,
+                        exe_path_list=exe_paths,
+                        kernels=self.kernels,
+                        lmats=lmats,
+                        smats=smats,
+                    )
+                )
+            )
+            """
             self.jit_fast_acq = jax.vmap(partial(self.fast_get_acq_list_batch,
                                                 x_data=x_data,
                                                 y_data=y_data,
@@ -958,8 +1025,11 @@ class MultiSetBaxAcqFunction(AlgoAcqFunction):
                                                 kernels=self.kernels,
                                                 lmats=lmats,
                                                 smats=smats))
-            '''
-        with Timer(f"Compute acquisition function for a batch of {x_set_list.shape[0]} points", level=logging.DEBUG):
+            """
+        with Timer(
+            f"Compute acquisition function for a batch of {x_set_list.shape[0]} points",
+            level=logging.DEBUG,
+        ):
             fast_acq_list = self.jit_fast_acq(x_set_list)
         not_finites = ~jnp.isfinite(fast_acq_list)
         num_not_finite = jnp.sum(not_finites)
@@ -968,6 +1038,7 @@ class MultiSetBaxAcqFunction(AlgoAcqFunction):
             fast_acq_list = fast_acq_list.at[not_finites].set(-np.inf)
         # slow_acq_list = self.get_acq_list_batch(x_set_list)
         return list(fast_acq_list)
+
 
 class MCAcqFunction(AcqFunction):
     """
@@ -991,7 +1062,7 @@ class MCAcqFunction(AcqFunction):
         super().set_params(params)
         params = dict_to_namespace(params)
 
-        self.params.name = 'MCAcqFunction'
+        self.params.name = "MCAcqFunction"
         self.params.num_samples_mc = params.num_samples_mc
 
     def set_model(self, model):
@@ -1025,6 +1096,7 @@ class UncertaintySamplingAcqFunction(AcqFunction):
     """
     Class for computing BAX acquisition functions.
     """
+
     def initialize(self):
         self.exe_path_list = []
         self.output_list = []
@@ -1035,7 +1107,7 @@ class UncertaintySamplingAcqFunction(AcqFunction):
         super().set_params(params)
 
         params = dict_to_namespace(params)
-        self.params.name = getattr(params, 'name', 'UncertaintySamplingAcqFunction')
+        self.params.name = getattr(params, "name", "UncertaintySamplingAcqFunction")
         self.params.batch = params.batch
 
     def entropy_given_normal_std(self, std_arr):
@@ -1068,7 +1140,10 @@ class UncertaintySamplingAcqFunction(AcqFunction):
         """Return acquisition function for a batch of inputs x_list."""
 
         # Compute posterior, and post given each execution path sample, for x_list
-        with Timer(f"Compute acquisition function for a batch of {len(x_list)} points", level=logging.DEBUG):
+        with Timer(
+            f"Compute acquisition function for a batch of {len(x_list)} points",
+            level=logging.DEBUG,
+        ):
             # NOTE: self.model is multimodel so the following returns a list of mus and
             # a list of stds
             mus, stds = self.model.get_post_mu_cov(x_list, full_cov=False)
@@ -1106,12 +1181,13 @@ class PILCOAcqFunction(AcqFunction):
     This function is intended to be used for gradient-based acquisition and therefore
     doesn't compute the first term of the h-entropy.
     """
+
     def set_params(self, params):
         super().set_params(params)
 
         params = dict_to_namespace(params)
-        self.params.num_fs = getattr(params, 'num_fs', 15)
-        self.params.num_s0 = getattr(params, 'num_s0', 5)
+        self.params.num_fs = getattr(params, "num_fs", 15)
+        self.params.num_s0 = getattr(params, "num_s0", 5)
         self.params.rollout_horizon = params.rollout_horizon
         self.params.p0 = params.p0
         self.params.reward_fn = params.reward_fn
@@ -1123,19 +1199,23 @@ class PILCOAcqFunction(AcqFunction):
 
     def initialize(self):
         self.start_states = [self.params.p0() for _ in range(self.params.num_s0)]
-        self.conditioned_model = self.params.gp_model_class(self.params.gp_model_params, self.model.data)
-        self.rollout = partial(self.execute_policy_on_fs,
+        self.conditioned_model = self.params.gp_model_class(
+            self.params.gp_model_params, self.model.data
+        )
+        self.rollout = partial(
+            self.execute_policy_on_fs,
             model=self.conditioned_model,
             start_states=self.start_states,
             num_fs=self.params.num_fs,
             rollout_horizon=self.params.rollout_horizon,
             update_fn=self.params.update_fn,
-            reward_fn=self.params.reward_fn)
+            reward_fn=self.params.reward_fn,
+        )
 
     def __call__(self, policy_list, *args, **kwargs):
-        '''
+        """
         Ignore the extra args so that we don't have to worry about anything besides the policies
-        '''
+        """
         risks = []
         for policy in flatten(policy_list):
             neg_bayes_risk = self.rollout(policy, self.model.data.x, self.model.data.y)
@@ -1154,16 +1234,16 @@ class PILCOAcqFunction(AcqFunction):
 
     @staticmethod
     def execute_policy_on_fs(
-            policy,
-            x_data,
-            y_data,
-            model,
-            start_states,
-            num_fs,
-            rollout_horizon,
-            update_fn,
-            reward_fn,
-            ):
+        policy,
+        x_data,
+        y_data,
+        model,
+        start_states,
+        num_fs,
+        rollout_horizon,
+        update_fn,
+        reward_fn,
+    ):
         current_states = np.array(start_states)
         obs_dim = current_states.shape[-1]
         num_s0 = current_states.shape[0]
@@ -1191,6 +1271,7 @@ class PILCOAcqFunction(AcqFunction):
 
         return avg_return
 
+
 class KGRLAcqFunction(PILCOAcqFunction):
     """
     Implements the KG for RL idea given in the overleaf.
@@ -1203,36 +1284,43 @@ class KGRLAcqFunction(PILCOAcqFunction):
     This function is intended to be used for gradient-based acquisition and therefore
     doesn't compute the first term of the h-entropy.
     """
+
     def set_params(self, params):
         super().set_params(params)
         params = dict_to_namespace(params)
-        self.params.num_sprime_samps = getattr(params, 'num_sprime_samps', 5)
+        self.params.num_sprime_samps = getattr(params, "num_sprime_samps", 5)
 
     def initialize(self):
         super().initialize()
-        self.tf_acqfn = tf.function(partial(self.kgrl_acq,
-            model=self.conditioned_model,
-            num_sprime_samps=self.params.num_sprime_samps,
-            start_states=self.start_states,
-            num_fs=self.params.num_fs,
-            rollout_horizon=self.params.rollout_horizon,
-            update_fn=self.params.update_fn,
-            reward_fn=self.params.reward_fn))
+        self.tf_acqfn = tf.function(
+            partial(
+                self.kgrl_acq,
+                model=self.conditioned_model,
+                num_sprime_samps=self.params.num_sprime_samps,
+                start_states=self.start_states,
+                num_fs=self.params.num_fs,
+                rollout_horizon=self.params.rollout_horizon,
+                update_fn=self.params.update_fn,
+                reward_fn=self.params.reward_fn,
+            )
+        )
 
     def __call__(self, policy_list, x_list, lambdas):
         return self.tf_acqfn(policy_list, x_list, lambdas)
 
     @staticmethod
-    def kgrl_acq(policy_list,
-                 x_list,
-                 lambdas,
-                 model,
-                 num_sprime_samps,
-                 start_states,
-                 num_fs,
-                 rollout_horizon,
-                 update_fn,
-                 reward_fn):
+    def kgrl_acq(
+        policy_list,
+        x_list,
+        lambdas,
+        model,
+        num_sprime_samps,
+        start_states,
+        num_fs,
+        rollout_horizon,
+        update_fn,
+        reward_fn,
+    ):
         post_samples = model.sample_post_list(x_list, num_sprime_samps, lambdas)
         risks = []
         for i in range(post_samples.shape[0]):
@@ -1245,15 +1333,17 @@ class KGRLAcqFunction(PILCOAcqFunction):
                 policy = point_policies[j]
                 x_data = tf.concat([model.data.x, new_x[None, :]], axis=0)
                 y_data = tf.concat([model.data.y, sprime[None, :]], axis=0)
-                neg_bayes_risk = KGRLAcqFunction.execute_policy_on_fs(policy,
-                                                                      x_data,
-                                                                      y_data,
-                                                                      model,
-                                                                      start_states,
-                                                                      num_fs,
-                                                                      rollout_horizon,
-                                                                      update_fn,
-                                                                      reward_fn)
+                neg_bayes_risk = KGRLAcqFunction.execute_policy_on_fs(
+                    policy,
+                    x_data,
+                    y_data,
+                    model,
+                    start_states,
+                    num_fs,
+                    rollout_horizon,
+                    update_fn,
+                    reward_fn,
+                )
                 risk_samps.append(neg_bayes_risk)
             risks.append(tf.reduce_mean(risk_samps))
 
@@ -1272,22 +1362,27 @@ class KGRLPolicyAcqFunction(PILCOAcqFunction):
     This function is intended to be used for gradient-based acquisition and therefore
     doesn't compute the first term of the h-entropy.
     """
+
     def set_params(self, params):
         super().set_params(params)
         params = dict_to_namespace(params)
-        self.params.num_sprime_samps = getattr(params, 'num_sprime_samps', 5)
-        self.params.planning_horizon = getattr(params, 'planning_horizon', 5)
+        self.params.num_sprime_samps = getattr(params, "num_sprime_samps", 5)
+        self.params.planning_horizon = getattr(params, "planning_horizon", 5)
 
     def initialize(self):
         super().initialize()
-        self.tf_acqfn = tf.function(partial(self.kgrl_policy_acq,
-            model=self.conditioned_model,
-            num_sprime_samps=self.params.num_sprime_samps,
-            start_states=self.start_states,
-            num_fs=self.params.num_fs,
-            rollout_horizon=self.params.rollout_horizon,
-            update_fn=self.params.update_fn,
-            reward_fn=self.params.reward_fn))
+        self.tf_acqfn = tf.function(
+            partial(
+                self.kgrl_policy_acq,
+                model=self.conditioned_model,
+                num_sprime_samps=self.params.num_sprime_samps,
+                start_states=self.start_states,
+                num_fs=self.params.num_fs,
+                rollout_horizon=self.params.rollout_horizon,
+                update_fn=self.params.update_fn,
+                reward_fn=self.params.reward_fn,
+            )
+        )
 
     def __call__(self, current_obs, policy_list, action_sequence, lambdas):
         return self.tf_acqfn(current_obs, policy_list, action_sequence, lambdas)
@@ -1299,7 +1394,7 @@ class KGRLPolicyAcqFunction(PILCOAcqFunction):
         y_list = []
         f_batch_list = model.call_function_sample_list
         for t in range(action_sequence.shape[0]):
-            actions = tf.repeat(action_sequence[t:t+1, :], num_fs, axis=0)
+            actions = tf.repeat(action_sequence[t : t + 1, :], num_fs, axis=0)
             flat_x = tf.concat([current_states, actions], -1)
             deltas = tf.squeeze(f_batch_list(flat_x))
             x_list.append(flat_x)
@@ -1310,25 +1405,28 @@ class KGRLPolicyAcqFunction(PILCOAcqFunction):
         return x_batch, y_batch
 
     @staticmethod
-    def kgrl_policy_acq(current_obs,
-                        policy_list,
-                        action_sequence,
-                        lambdas,
-                        model,
-                        num_sprime_samps,
-                        start_states,
-                        num_fs,
-                        rollout_horizon,
-                        update_fn,
-                        reward_fn):
+    def kgrl_policy_acq(
+        current_obs,
+        policy_list,
+        action_sequence,
+        lambdas,
+        model,
+        num_sprime_samps,
+        start_states,
+        num_fs,
+        rollout_horizon,
+        update_fn,
+        reward_fn,
+    ):
         model.initialize_function_sample_list(num_sprime_samps, weights=lambdas)
         # this needs to return num_sprime_samps x action_sequence.shape[0] x obs_dim tensor of all the xs and ys
         # observed in the execution
-        sampled_new_data_x, sampled_new_data_y = KGRLPolicyAcqFunction.execute_actions_on_fs(action_sequence,
-                                                                                             model,
-                                                                                             current_obs,
-                                                                                             update_fn,
-                                                                                             num_sprime_samps)
+        (
+            sampled_new_data_x,
+            sampled_new_data_y,
+        ) = KGRLPolicyAcqFunction.execute_actions_on_fs(
+            action_sequence, model, current_obs, update_fn, num_sprime_samps
+        )
         risks = []
         for i in range(num_sprime_samps):
             samp_batch_x = sampled_new_data_x[i, ...]
@@ -1336,14 +1434,16 @@ class KGRLPolicyAcqFunction(PILCOAcqFunction):
             policy = policy_list[i]
             x_data = tf.concat([model.data.x, samp_batch_x], axis=0)
             y_data = tf.concat([model.data.y, samp_batch_y], axis=0)
-            neg_bayes_risk = KGRLPolicyAcqFunction.execute_policy_on_fs(policy,
-                                                                  x_data,
-                                                                  y_data,
-                                                                  model,
-                                                                  start_states,
-                                                                  num_fs,
-                                                                  rollout_horizon,
-                                                                  update_fn,
-                                                                  reward_fn)
+            neg_bayes_risk = KGRLPolicyAcqFunction.execute_policy_on_fs(
+                policy,
+                x_data,
+                y_data,
+                model,
+                start_states,
+                num_fs,
+                rollout_horizon,
+                update_fn,
+                reward_fn,
+            )
             risks.append(neg_bayes_risk)
         return tf.reduce_mean(risks)
