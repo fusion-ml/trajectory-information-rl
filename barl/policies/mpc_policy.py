@@ -143,6 +143,7 @@ class BayesMPCPolicy(Base):
         samples = np.tile(samples, (self.params.num_fs, 1, 1, 1))
         f_batch_list = self.function_sample_list
         x_list = []
+        breakpoint()
         sample_returns = np.zeros((num_samples,))
         for t in range(self.params.planning_horizon):
             actions = samples[:, :, t, :]
@@ -155,5 +156,5 @@ class BayesMPCPolicy(Base):
             # rewards is a matrix num_samples x num_fs
             rewards = self.params.reward_fn(x, current_obs)
             # average across function samples and add to sample_rewturns
-            sample_returns += rewards.mean(axis=-1)
+            sample_returns += rewards.mean(axis=0)
         return sample_returns
