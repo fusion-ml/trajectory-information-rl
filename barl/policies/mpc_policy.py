@@ -143,7 +143,6 @@ class BayesMPCPolicy(Base):
         samples = np.tile(samples, (self.params.num_fs, 1, 1, 1))
         f_batch_list = self.function_sample_list
         x_list = []
-        breakpoint()
         sample_returns = np.zeros((num_samples,))
         for t in range(self.params.planning_horizon):
             actions = samples[:, :, t, :]
