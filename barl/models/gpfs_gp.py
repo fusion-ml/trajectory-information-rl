@@ -691,7 +691,7 @@ class BatchMultiGpfsGp(MultiGpfsGp):
             for gpfsgp in self.gpfsgp_list
         ]
 
-        if x_batch_list is list:
+        if type(x_batch_list) is list:
             # We define y_batch_multi_list to be a list, where each element is: a list of
             # multi-output-y (one per n_batch)
             y_batch_multi_list = [
