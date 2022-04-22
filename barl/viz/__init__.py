@@ -1,3 +1,4 @@
+from collections import defaultdict
 from barl.viz.plot import (
     plot_pendulum,
     plot_cartpole,
@@ -13,7 +14,7 @@ from barl.viz.plot import (
     noop,
 )
 
-plotters = {
+_plotters = {
     "bacpendulum-v0": plot_pendulum,
     "bacpendulum-test-v0": plot_pendulum,
     "bacpendulum-tight-v0": plot_pendulum,
@@ -32,3 +33,5 @@ plotters = {
     "bachalfcheetah-v0": noop,
     "weirdgain-v0": plot_weird_gain,
 }
+plotters = defaultdict(lambda: plot_generic)
+plotters.update(_plotters)
