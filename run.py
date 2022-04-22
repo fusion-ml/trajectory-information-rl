@@ -78,6 +78,8 @@ def main(config):
     action_dim = env.action_space.low.size
 
     # Set start obs
+    if config.alg.open_loop:
+        config.fixed_start_obs = True
     start_obs = env.reset() if config.fixed_start_obs else None
     logging.info(f"Start obs: {start_obs}")
 
