@@ -150,7 +150,7 @@ def swimmer_reward(x, next_obs):
 
 if __name__ == "__main__":
     env = BACSwimmerEnv()
-    print(f"{env.dt=}")
+    print(f"{env.dt}")
     og_obs = env.reset()
     obs = og_obs
     done = False

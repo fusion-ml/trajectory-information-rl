@@ -118,8 +118,9 @@ try:
     reward_functions["bacreacher-tight-v0"] = reacher_reward
     tf_reward_functions["bacreacher-v0"] = tf_reacher_reward
     reward_functions["bachalfcheetah-v0"] = half_cheetah_reward
-except:
-    logging.info("mujoco not found, skipping those envs")
+except Exception as e:
+    logging.warning("mujoco not found, skipping those envs")
+    logging.warning(e)
 try:
     from barl.envs.beta_tracking_env import BetaTrackingGymEnv, beta_tracking_rew
     from barl.envs.tracking_env import TrackingGymEnv, tracking_rew

@@ -136,7 +136,7 @@ if __name__ == "__main__":
     # we have an increased ATOL because the COM part of the state is the solution
     # to some kind of FK problem and can have numerical error
     env = BACReacherEnv()
-    print(f"{env.observation_space=}, {env.action_space=}")
+    # print(f"{env.observation_space=}, {env.action_space=}")
     og_obs = env.reset()
     obs = og_obs
     done = False
@@ -145,9 +145,9 @@ if __name__ == "__main__":
         next_obs, rew, done, info = env.step(action)
         x = np.concatenate([obs, action])
         other_rew = reacher_reward(x, next_obs)
-        assert np.allclose(rew, other_rew, atol=1e-2), f"{rew=}, {other_rew=}"
+        assert np.allclose(rew, other_rew, atol=1e-2), f"rew={rew}, other_rew={other_rew}"
         obs = next_obs
         new_obs = env.reset(obs)
-        assert np.allclose(new_obs, obs, atol=1e-2), f"{new_obs=}, {obs=}"
+        assert np.allclose(new_obs, obs, atol=1e-2), f"new_obs={new_obs}, obs={obs}"
     # test reset to point
     env.reset(og_obs)

@@ -88,7 +88,7 @@ class HalfCheetahEnv(mujoco_env.MujocoEnv, utils.EzPickle):
         qvel = obs[len(self.init_qpos) :]
         self.set_state(qpos, qvel)
         check_obs = self._get_obs()
-        assert np.allclose(check_obs, obs), f"{check_obs=}, {obs=}"
+        assert np.allclose(check_obs, obs), f"check_obs={check_obs}, obs={obs}"
         return obs
 
     def reset_model(self):
@@ -131,7 +131,7 @@ def half_cheetah_reward(x, next_obs):
 
 if __name__ == "__main__":
     env = HalfCheetahEnv()
-    print(f"{env.observation_space=}, {env.action_space=}")
+    print(f"env.observation_space={env.observation_space}, env.action_space={env.action_space}")
     og_obs = env.reset()
     obs = og_obs
     done = False
@@ -140,9 +140,9 @@ if __name__ == "__main__":
         next_obs, rew, done, info = env.step(action)
         x = np.concatenate([obs, action])
         other_rew = half_cheetah_reward(x, next_obs)
-        assert np.allclose(rew, other_rew), f"{rew=}, {other_rew=}"
+        assert np.allclose(rew, other_rew), f"rew={rew}, other_rew={other_rew}"
         obs = next_obs
         new_obs = env.reset(obs)
-        assert np.allclose(new_obs, obs), f"{new_obs=}, {obs=}"
+        assert np.allclose(new_obs, obs), f"new_obs={new_obs}, obs={obs}"
     # test reset to point
     env.reset(og_obs)
