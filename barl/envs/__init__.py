@@ -155,3 +155,11 @@ try:
     reward_functions["betatracking-fixed-v0"] = beta_tracking_rew
 except:
     logging.info("fusion dependencies not found, skipping")
+
+try:
+    from gym_anm.envs.anm4_env.anm4_easier import anm4_reward
+    reward_functions["gyn_anm:ANM4Easier-v0"] = anm4_reward
+except:
+    logging.info("anm dependencies not found, skipping")
+
+
