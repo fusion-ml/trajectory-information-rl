@@ -726,6 +726,7 @@ class MultiBaxAcqFunction(AlgoAcqFunction):
 
 class RewardSetAcqFunction(AcqFunction):
     def set_params(self, params):
+        super().set_params(params)
         params = dict_to_namespace(params)
         self.params.reward_fn = params.reward_fn
         self.params.obs_dim = params.obs_dim
@@ -742,10 +743,10 @@ class RewardSetAcqFunction(AcqFunction):
         batch_size = len(x_set_list)
         x_data = np.array(x_set_list)
         rew_x = x_data[:, :-1, :].reshape(
-            (-1, self.config.obs_dim + self.config.action_dim)
+            (-1, self.params.obs_dim + self.params.action_dim)
         )
-        next_obs_data[x_data, :, 1:, : self.config.obs_dim].reshape(
-            (-1, self.config.obs_dim)
+        next_obs_data = x_data[:, 1:, :self.params.obs_dim].reshape(
+            (-1, self.params.obs_dim)
         )
         rewards = (
             self.params.reward_fn(rew_x, next_obs_data)
@@ -801,7 +802,7 @@ class BatchUncertaintySamplingAcqFunction(AcqFunction):
         y = y_data
         pred_cov = get_pred_covs(x, y, x_set, base_lmats, base_smats, kernels)
         # regularization, maybe
-        reg = jnp.eye(samp_cov_list.shape[-1])[None, None, ...] * 1e-5
+        reg = jnp.eye(pred_cov.shape[-1])[None, None, ...] * 1e-5
         reg_pred_cov = pred_cov + reg
         acq = BatchUncertaintySamplingAcqFunction.fast_acq_exe_normal(reg_pred_cov)
         return acq

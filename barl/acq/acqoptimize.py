@@ -49,6 +49,7 @@ class AcqOptimizer(Base):
         acqfunction : AcqFunction
             AcqFunction instance.
         """
+        breakpoint()
         self.params.x_batch = x_batch
 
         with Timer(

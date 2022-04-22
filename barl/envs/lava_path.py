@@ -226,6 +226,7 @@ class ShortLavaPathEnv(LavaPathEnv):
         # of the lava, but we already allowed it a little less)
         o1, r1, d1, i1 = super().step(action)
         o2, r2, d2, i2 = super().step(action)
+        print(f"{r1=}, {r2=}")
         return o2, r2, d2, i2
 
 

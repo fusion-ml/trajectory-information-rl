@@ -490,7 +490,7 @@ def get_acq_opt(config, obs_dim, action_dim, env, start_obs, update_fn, s0_sampl
             acqopt_params["hidden_layer_sizes"] = config.alg.hidden_layer_sizes
         except Exception:
             pass
-    elif config.alg.eig and config.alg.rollout_sampling:
+    elif config.alg.rollout_sampling:
         acqopt_params = {
             "obs_dim": obs_dim,
             "action_dim": action_dim,
@@ -736,8 +736,8 @@ def evaluate_mpc(
         algo.initialize()
 
         postmean_fn = make_postmean_fn(model, use_tf=config.alg.gd_opt)
-        model.initialize_function_sample_list(config.test_mpc.num_fs)
         if config.eval_bayes_policy:
+            model.initialize_function_sample_list(config.test_mpc.num_fs)
             policy_params = dict(
                 obs_dim=env.observation_space.low.size,
                 action_dim=env.action_space.low.size,
