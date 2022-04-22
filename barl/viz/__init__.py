@@ -25,6 +25,7 @@ plotters = {
     "bacreacher-v0": plot_generic,
     "bacreacher-tight-v0": plot_generic,
     "lavapath-v0": plot_lava_path,
+    "shortlavapath-v0": plot_lava_path,
     "betatracking-v0": plot_generic,
     "betatracking-fixed-v0": plot_generic,
     "plasmatracking-v0": plot_generic,

@@ -10,7 +10,7 @@ from barl.envs.goddard import GoddardEnv, goddard_reward
 
 # from barl.util.envs.pets_cartpole import PETSCartpoleEnv, cartpole_reward
 from barl.envs.acrobot import AcrobotEnv, acrobot_reward
-from barl.envs.lava_path import LavaPathEnv, lava_path_reward
+from barl.envs.lava_path import LavaPathEnv, lava_path_reward, ShortLavaPathEnv
 from barl.envs.weird_gain import WeirdGainEnv, weird_gain_reward
 
 # register each environment we wanna use
@@ -63,6 +63,10 @@ register(
     entry_point=LavaPathEnv,
 )
 register(
+    id="shortlavapath-v0",
+    entry_point=ShortLavaPathEnv,
+)
+register(
     id="weirdgain-v0",
     entry_point=WeirdGainEnv,
 )
@@ -77,6 +81,7 @@ reward_functions = {
     "pilcocartpole-trig-v0": pilco_cartpole_reward,
     "bacrobot-v0": acrobot_reward,
     "lavapath-v0": lava_path_reward,
+    "shortlavapath-v0": lava_path_reward,
     "weirdgain-v0": weird_gain_reward,
 }
 tf_reward_functions = {

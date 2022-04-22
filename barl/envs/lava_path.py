@@ -216,6 +216,19 @@ class LavaPathEnv(gym.Env):
         return self.get_matplotlib_image()
 
 
+class ShortLavaPathEnv(LavaPathEnv):
+    def __init__(self):
+        super().__init__()
+        self.horizon = 20
+
+    def step(self, action):
+        # we ignore the info from the first step (this allows for some "clipping"
+        # of the lava, but we already allowed it a little less)
+        o1, r1, d1, i1 = super().step(action)
+        o2, r2, d2, i2 = super().step(action)
+        return o2, r2, d2, i2
+
+
 def lava_path_reward(x, next_obs):
     x_prob = next_obs[..., :2]
     if x.ndim == 1:

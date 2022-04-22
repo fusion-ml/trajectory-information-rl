@@ -1,0 +1,27 @@
+name: 'shortlavapath-v0'
+teleport: False
+gp:
+  ls: [[0.39, 1385, 2.54, 1509, 1242, 1643],
+      [17871, 0.882, 15040, 1.75, 19927, 193],
+       [0.074, 0.718, 0.527, 325269, 13, 11405],
+       [13.1, 0.045, 2.79, 0.67, 2.66, 8.69]]
+  alpha: [0.191, 0.150, 0.199, 0.144]
+  sigma: 0.01
+mpc:
+  nsamps: 25
+  planning_horizon: 20
+  n_elites: 4
+  beta: 3
+  gamma: 1.25
+  xi: 0.3
+  num_iters: 3
+  actions_per_plan: 6
+eigmpc:
+  nsamps: 25
+  planning_horizon: 20
+  n_elites: 4
+  beta: 3
+  gamma: 1.25
+  xi: 0.3
+  num_iters: 3
+  actions_per_plan: 1
