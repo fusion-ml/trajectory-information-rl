@@ -142,7 +142,10 @@ def main(config):
     # Make a test set for model evalution separate from the controller
     test_data = Namespace()
     test_data.x = unif_random_sample_domain(domain, config.test_set_size)
-    test_data.y = f(test_data.x)
+    try:
+        test_data.y = f(test_data.x)
+    except TypeError:
+        test_data = None
 
     # Set model
     gp_model_class, gp_model_params = get_model(config, env, obs_dim, action_dim)
@@ -168,9 +171,13 @@ def main(config):
     # ==============================================
     #   Computing groundtruth trajectories
     # ==============================================
-    true_path, test_mpc_data = execute_gt_mpc(
-        config, algo_class, algo_params, f, dumper, domain, plot_fn
-    )
+    try:
+        true_path, test_mpc_data = execute_gt_mpc(
+            config, algo_class, algo_params, f, dumper, domain, plot_fn
+        )
+    except TypeError:
+        true_path = None
+        test_mpc_data = None
     # ==============================================
     #   Optionally: fit GP hyperparameters (then exit)
     # ==============================================
@@ -226,7 +233,7 @@ def main(config):
         #   Periodically run evaluation and plot
         # ==============================================
         if i % config.eval_frequency == 0 or i + 1 == config.num_iters:
-            if model is None:
+            if model is None and len(data.x) > 0:
                 model = gp_model_class(gp_model_params, data)
             # =======================================================================
             #    Evaluate MPC:
@@ -366,7 +373,13 @@ def get_initial_data(config, env, f, domain, dumper, plot_fn):
         ]
     else:
         data.x = unif_random_sample_domain(domain, config.num_init_data)
-    data.y = f(data.x)
+    try:
+        data.y = f(data.x)
+    except TypeError:
+        logging.warning("Environment doesn't seem to support teleporting")
+        data.x = []
+        data.y = []
+        return data
     dumper.extend("x", data.x)
     dumper.extend("y", data.y)
 
@@ -623,6 +636,8 @@ def get_next_point(
 ):
     exe_path_list = []
     model = None
+    if len(data.x) == 0:
+        return np.concatenate([current_obs, action_space.sample()]), exe_path_list, model, current_obs
     if config.alg.use_acquisition:
         model = gp_model_class(gp_model_params, data)
         # Set and optimize acquisition function
