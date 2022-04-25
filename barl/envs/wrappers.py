@@ -120,6 +120,17 @@ class NormalizedEnv(Env):
         unnorm_act = act_ranged + low
         return unnorm_act
 
+    def normalize_action(self, action):
+        if len(action.shape) == 1:
+            low = self.unnorm_action_space.low
+            size = self.unnorm_action_space_size
+        else:
+            low = self.unnorm_action_space.low[None, :]
+            size = self.unnorm_action_space_size[None, :]
+        pos_action = action - low
+        norm_action = (pos_action / size * 2) - 1
+        return norm_action
+
 
 def make_normalized_reward_function(norm_env, reward_function, use_tf=False):
     """
