@@ -161,6 +161,7 @@ class GpflowGp(SimpleGp):
             if self.params.print_fit_hypers:
                 print("GPflow: end hyperparameter fitting on test likelihood.")
                 gpflow.utilities.print_summary(self.model)
+        return opt_log.fun
 
     def get_post_mu_cov(self, x_list, full_cov=True):
         """
@@ -230,19 +231,24 @@ def get_gpflow_hypers_from_data(data, print_fit_hypers=False, opt_max_iter=1000,
     x_dim = data.x.shape[1]
     # Fit params with GPflow on data
     passed = False
+    best_nll = np.inf
+    best_model = None
     for _ in range(retries):
         try:
             model_params = dict(print_fit_hypers=print_fit_hypers, opt_max_iter=opt_max_iter, sigma=sigma)
             model_params['ls'] = list(np.random.uniform(0., 100, size=(x_dim,)))
             model_params['alpha'] = np.random.uniform(1., 20.)
             model = GpflowGp(params=model_params, data=data)
-            model.fit_hypers(test_data)
+            nll = model.fit_hypers(test_data)
+            if nll < best_nll:
+                best_nll = nll
+                best_model = model
             passed = True
-            break
         except Exception as e:
             pass
     if not passed:
         raise ValueError('gp fitting failed')
+    model = best_model
     gp_hypers = {
         "ls": model.model.kernel.lengthscales.numpy().tolist(),
         "alpha": np.sqrt(float(model.model.kernel.variance.numpy())),
