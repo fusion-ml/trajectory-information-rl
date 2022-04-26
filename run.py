@@ -278,7 +278,16 @@ def main(config):
             )
 
         # Query function, update data
-        y_next = f([x_next])[0]
+        try:
+            y_next = f([x_next])[0]
+        except TypeError:
+            # if the env doesn't support spot queries, simply take the action
+            action = x_next[-action_dim:]
+            next_obs, rew, done, info = env.step(action)
+            y_next = next_obs - current_obs
+        x_next = x_next.astype(np.float64)
+        y_next = y_next.astype(np.float64)
+
         data.x.append(x_next)
         data.y.append(y_next)
         dumper.add("x", x_next)
@@ -747,6 +756,8 @@ def evaluate_mpc(
     update_fn,
     reward_fn,
 ):
+    if model is None:
+        return
     with Timer("Evaluate the current MPC policy"):
         # execute the best we can
         # this is required to delete the current execution path
@@ -797,7 +808,8 @@ def evaluate_mpc(
                 np.concatenate([obs, action])
                 for obs, action in zip(real_obs, real_actions)
             ]
-            real_path_mpc.y = f(real_path_mpc.x)
+            real_obs_np = np.array(real_obs)
+            real_path_mpc.y = list(real_obs_np[1:, ...] - real_obs_np[:-1, ...])
             real_path_mpc.y_hat = postmean_fn(real_path_mpc.x)
             mses.append(mse(real_path_mpc.y, real_path_mpc.y_hat))
             stats = {
@@ -815,18 +827,19 @@ def evaluate_mpc(
         current_mpc_mse = np.mean(mses)
         # this is commented out because I don't feel liek reimplementing it for the Bayes action
         # current_mpc_likelihood = model_likelihood(model, all_x_mpc, all_y_mpc)
-        test_y_hat = postmean_fn(test_data.x)
-        random_mse = mse(test_data.y, test_y_hat)
-        random_likelihood = model_likelihood(model, test_data.x, test_data.y)
-        gt_mpc_y_hat = postmean_fn(test_mpc_data.x)
-        gt_mpc_mse = mse(test_mpc_data.y, gt_mpc_y_hat)
-        gt_mpc_likelihood = model_likelihood(model, test_mpc_data.x, test_mpc_data.y)
         dumper.add("Model MSE (current real MPC)", current_mpc_mse)
-        dumper.add("Model MSE (random test set)", random_mse)
-        dumper.add("Model MSE (GT MPC)", gt_mpc_mse)
+        if test_data is not None:
+            test_y_hat = postmean_fn(test_data.x)
+            random_mse = mse(test_data.y, test_y_hat)
+            random_likelihood = model_likelihood(model, test_data.x, test_data.y)
+            gt_mpc_y_hat = postmean_fn(test_mpc_data.x)
+            gt_mpc_mse = mse(test_mpc_data.y, gt_mpc_y_hat)
+            gt_mpc_likelihood = model_likelihood(model, test_mpc_data.x, test_mpc_data.y)
+            dumper.add("Model MSE (random test set)", random_mse)
+            dumper.add("Model MSE (GT MPC)", gt_mpc_mse)
         # dumper.add('Model Likelihood (current MPC)', current_mpc_likelihood)
-        dumper.add("Model Likelihood (random test set)", random_likelihood)
-        dumper.add("Model Likelihood (GT MPC)", gt_mpc_likelihood)
+            dumper.add("Model Likelihood (random test set)", random_likelihood)
+            dumper.add("Model Likelihood (GT MPC)", gt_mpc_likelihood)
         return real_paths_mpc
 
 
@@ -852,13 +865,16 @@ def make_plots(
     dumper,
     i,
 ):
+    if len(data.x) == 0:
+        return
     # Initialize various axes and figures
     ax_all, fig_all = plot_fn(path=None, domain=domain)
     ax_postmean, fig_postmean = plot_fn(path=None, domain=domain)
     ax_samp, fig_samp = plot_fn(path=None, domain=domain)
     ax_obs, fig_obs = plot_fn(path=None, domain=domain)
     # Plot true path and posterior path samples
-    ax_all, fig_all = plot_fn(true_path, ax_all, fig_all, domain, "true")
+    if true_path is not None:
+        ax_all, fig_all = plot_fn(true_path, ax_all, fig_all, domain, "true")
     if ax_all is None:
         return
     # Plot observations
