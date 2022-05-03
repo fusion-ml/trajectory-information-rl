@@ -23,8 +23,8 @@ import neatplot
 
 # Set plot settings
 neatplot.set_style()
-neatplot.update_rc('figure.dpi', 120)
-neatplot.update_rc('text.usetex', False)
+neatplot.update_rc("figure.dpi", 120)
+neatplot.update_rc("text.usetex", False)
 
 
 # Set random seed
@@ -44,14 +44,14 @@ def plot_path_2d(path, ax=None, path_str="samp"):
     y_plot = [xi[1] for xi in path.x]
 
     if path_str == "true":
-        ax.plot(x_plot, y_plot, 'k--', linewidth=3)
-        ax.plot(x_plot, y_plot, '*', color='k', markersize=5)
+        ax.plot(x_plot, y_plot, "k--", linewidth=3)
+        ax.plot(x_plot, y_plot, "*", color="k", markersize=5)
     elif path_str == "postmean":
-        ax.plot(x_plot, y_plot, 'r--', linewidth=3)
-        ax.plot(x_plot, y_plot, '*', color='r', markersize=5)
+        ax.plot(x_plot, y_plot, "r--", linewidth=3)
+        ax.plot(x_plot, y_plot, "*", color="r", markersize=5)
     elif path_str == "samp":
-        ax.plot(x_plot, y_plot, 'k--', linewidth=1, alpha=0.3)
-        ax.plot(x_plot, y_plot, 'o', alpha=0.3)
+        ax.plot(x_plot, y_plot, "k--", linewidth=1, alpha=0.3)
+        ax.plot(x_plot, y_plot, "o", alpha=0.3)
 
 
 # -------------
@@ -74,19 +74,19 @@ domain = [elt for elt in zip(low, high)]
 # Set algorithm
 algo_class = MPC
 algo_params = dict(
-        start_obs=start_obs,
-        env=plan_env,
-        reward_function=pendulum_reward,
-        project_to_domain=True,
-        base_nsamps=10,
-        planning_horizon=20,
-        n_elites=3,
-        beta=3,
-        gamma=1.25,
-        xi=0.3,
-        num_iters=3,
-        actions_per_plan=6,
-        domain=domain,
+    start_obs=start_obs,
+    env=plan_env,
+    reward_function=pendulum_reward,
+    project_to_domain=True,
+    base_nsamps=10,
+    planning_horizon=20,
+    n_elites=3,
+    beta=3,
+    gamma=1.25,
+    xi=0.3,
+    num_iters=3,
+    actions_per_plan=6,
+    domain=domain,
 )
 algo = algo_class(algo_params)
 
@@ -97,12 +97,12 @@ data.x = unif_random_sample_domain(domain, n_init_data)
 data.y = [f(xi) for xi in data.x]
 
 # Set model
-gp_params = {'ls': 0.85, 'alpha': 1.0, 'sigma': 1e-2, 'n_dimx': obs_dim + action_dim}
-multi_gp_params = {'n_dimy': obs_dim, 'gp_params': gp_params}
+gp_params = {"ls": 0.85, "alpha": 1.0, "sigma": 1e-2, "n_dimx": obs_dim + action_dim}
+multi_gp_params = {"n_dimy": obs_dim, "gp_params": gp_params}
 gp_model_class = MultiGpfsGp
 
 # Set acqfunction
-acqfn_params = {'n_path': 15, 'crop': True}
+acqfn_params = {"n_path": 15, "crop": True}
 acqfn_class = MultiBaxAcqFunction
 n_rand_acqopt = 500
 
@@ -127,24 +127,27 @@ for _ in trange(10):
 returns = np.array(returns)
 path_lengths = np.array(path_lengths)
 print(f"GT Results: returns.mean()={returns.mean()} returns.std()={returns.std()}")
-print(f"GT Execution: path_lengths.mean()={path_lengths.mean()} path_lengths.std()={path_lengths.std()}")
+print(
+    f"GT Execution: path_lengths.mean()={path_lengths.mean()} path_lengths.std()={path_lengths.std()}"
+)
 
 # Plot settings
 ax.set(
     xlim=(domain[0][0], domain[0][1]),
     ylim=(domain[1][0], domain[1][1]),
-    xlabel='$\\cos\\theta$',
-    ylabel='$\\sin\\theta$',
+    xlabel="$\\cos\\theta$",
+    ylabel="$\\sin\\theta$",
 )
 
 save_figure = True
-if save_figure: neatplot.save_figure(f'mpc_gt', 'pdf')
+if save_figure:
+    neatplot.save_figure(f"mpc_gt", "pdf")
 
 # Run BAX loop
 n_iter = 1
 
 for i in range(n_iter):
-    print('---' * 5 + f' Start iteration i={i} ' + '---' * 5)
+    print("---" * 5 + f" Start iteration i={i} " + "---" * 5)
 
     # Set model
     model = gp_model_class(multi_gp_params, data)
@@ -158,23 +161,26 @@ for i in range(n_iter):
     # Compute and plot posterior mean path
     exact_postmean = False
     with Timer("Run algorithm on posterior mean"):
-        print('========\nNOTE: algorithm on posterior mean may take a while\n========')
+        print("========\nNOTE: algorithm on posterior mean may take a while\n========")
         postmean_algo = algo_class(algo_params)
         postmean_model = gp_model_class(multi_gp_params, data)
 
         if exact_postmean:
+
             def postmean_f(x):
                 mu_list, std_list = postmean_model.get_post_mu_cov([x], full_cov=False)
                 mu_tup_for_x = list(zip(*mu_list))[0]
                 return mu_tup_for_x
+
         else:
             n_postmean_f_samp = 100
             postmean_model.initialize_function_sample_list(n_postmean_f_samp)
-            def postmean_f(x): return postmean_model.call_function_sample_list_mean(x)
+
+            def postmean_f(x):
+                return postmean_model.call_function_sample_list_mean(x)
 
         _, _ = postmean_algo.run_algorithm_on_f(postmean_f)
         postmean_path = postmean_algo.get_exe_path_crop()
-
 
     # Plot
     fig, ax = plt.subplots(1, 1, figsize=(5, 5))
@@ -182,8 +188,8 @@ for i in range(n_iter):
     # Plot observations
     x_obs = [xi[0] for xi in data.x]
     y_obs = [xi[1] for xi in data.x]
-    ax.scatter(x_obs, y_obs, color='grey', s=5, alpha=0.1)  # small grey dots
-    #ax.scatter(x_obs, y_obs, color='k', s=120)             # big black dots
+    ax.scatter(x_obs, y_obs, color="grey", s=5, alpha=0.1)  # small grey dots
+    # ax.scatter(x_obs, y_obs, color='k', s=120)             # big black dots
 
     # Plot true path and posterior path samples
     plot_path_2d(true_path, ax, path_str="true")
@@ -192,22 +198,23 @@ for i in range(n_iter):
     plot_path_2d(postmean_path, ax, path_str="postmean")
 
     # Plot x_next
-    ax.scatter(x_next[0], x_next[1], color='deeppink', s=120, zorder=100)
+    ax.scatter(x_next[0], x_next[1], color="deeppink", s=120, zorder=100)
 
     # Plot settings
     ax.set(
         xlim=(domain[0][0], domain[0][1]),
         ylim=(domain[1][0], domain[1][1]),
-        xlabel='$x$',
-        ylabel='$\\theta$',
+        xlabel="$x$",
+        ylabel="$\\theta$",
     )
 
     save_figure = True
-    if save_figure: neatplot.save_figure(f'mpc_{i}', 'pdf')
+    if save_figure:
+        neatplot.save_figure(f"mpc_{i}", "pdf")
 
     # Query function, update data
-    print(f'Length of data.x: {len(data.x)}')
-    print(f'Length of data.y: {len(data.y)}')
+    print(f"Length of data.x: {len(data.x)}")
+    print(f"Length of data.y: {len(data.y)}")
     y_next = f(x_next)
     data.x.append(x_next)
     data.y.append(y_next)

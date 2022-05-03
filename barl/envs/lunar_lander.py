@@ -29,7 +29,7 @@ SCALE = 30.0  # affects how fast-paced the game is, forces should be adjusted as
 MAIN_ENGINE_POWER = 13.0
 SIDE_ENGINE_POWER = 0.6
 
-INITIAL_RANDOM = 200.0 # 1000.0  # Set 1500 to make game harder
+INITIAL_RANDOM = 200.0  # 1000.0  # Set 1500 to make game harder
 
 LANDER_POLY = [(-14, +17), (-17, 0), (-17, -10), (+17, -10), (+17, 0), (+14, +17)]
 LEG_AWAY = 20
@@ -535,7 +535,13 @@ class LunarLander(gym.Env, EzPickle):
         if abs(state[0]) >= 1.0:
             done = False
             reward = -100
-        if state[6] == 1 and state[7] == 1 and np.abs(state[2]) < 0.1 and np.abs(state[3]) < 0.1 and np.abs(state[5]) < 0.1:
+        if (
+            state[6] == 1
+            and state[7] == 1
+            and np.abs(state[2]) < 0.1
+            and np.abs(state[3]) < 0.1
+            and np.abs(state[5]) < 0.1
+        ):
             done = False
             reward = +100
         return np.array(state, dtype=np.float32), reward, done, {}
@@ -734,29 +740,33 @@ def demo_heuristic_lander(env, seed=None, render=False):
 
 def lunar_lander_reward(x, next_obs):
     state = next_obs
-    action = x[..., state.shape[-1]:]
-    reward = -100 * np.sqrt(state[..., 0] * state[..., 0] + state[..., 1] * state[..., 1])
-    reward -= 100 * np.sqrt(state[..., 2] * state[..., 2] + state[..., 3] * state[..., 3])
-    reward -= 100* np.abs(state[..., 4])
+    action = x[..., state.shape[-1] :]
+    reward = -100 * np.sqrt(
+        state[..., 0] * state[..., 0] + state[..., 1] * state[..., 1]
+    )
+    reward -= 100 * np.sqrt(
+        state[..., 2] * state[..., 2] + state[..., 3] * state[..., 3]
+    )
+    reward -= 100 * np.abs(state[..., 4])
     reward += 10 * state[..., 6]
     reward += 10 * state[..., 7]
-    m_power = (np.clip(action[..., 0], 0., 1.) + 1) * 0.5
+    m_power = (np.clip(action[..., 0], 0.0, 1.0) + 1) * 0.5
     if x.ndim == 1 and action[0] <= 0:
         m_power = 0
     elif x.ndim == 2:
-        m_power[action[..., 0] <= 0] = 0.
-    s_power = np.clip(np.abs(action[..., 1]), 0.5, 1.)
+        m_power[action[..., 0] <= 0] = 0.0
+    s_power = np.clip(np.abs(action[..., 1]), 0.5, 1.0)
     if x.ndim == 1 and np.abs(action[1]) <= 0.5:
         s_power = 0
     elif x.ndim == 2:
-        s_power[np.abs(action[..., 1]) <= 0.5] = 0.
+        s_power[np.abs(action[..., 1]) <= 0.5] = 0.0
     reward -= m_power * 0.3
     reward -= s_power * 0.03
     if x.ndim == 1:
-        if state[0] >= 1.:
+        if state[0] >= 1.0:
             reward = -100
     else:
-        reward[state[..., 0] >= 1.] = -100
+        reward[state[..., 0] >= 1.0] = -100
 
     # reward conditions on motion and legs
     ll = state[..., 6] >= 0.9
@@ -774,7 +784,6 @@ def lunar_lander_reward(x, next_obs):
     return reward
 
 
-
 class LunarLanderContinuous:
     def __init__(self):
         raise error.Error(
@@ -783,7 +792,6 @@ class LunarLanderContinuous:
             "To use this environment, instead create it by specifying the continuous keyword in gym.make, i.e.\n"
             'gym.make("LunarLander-v2", continuous=True)'
         )
-
 
 
 def test_reward(use_random=False):
@@ -806,7 +814,9 @@ def test_reward(use_random=False):
         ep_rew.append(rew)
         x = np.concatenate([obs, action])
         rew_hat = lunar_lander_reward(x, no)
-        assert np.allclose(rew_hat, rew, atol=0.01, rtol=0.01), f"rew hat: {rew_hat}, rew: {rew}"
+        assert np.allclose(
+            rew_hat, rew, atol=0.01, rtol=0.01
+        ), f"rew hat: {rew_hat}, rew: {rew}"
         obs = no
         ep_obs.append(no)
     ep_obs = np.array(ep_obs)
@@ -855,8 +865,8 @@ if __name__ == "__main__":
     if FIT_TEST_SET:
         X_y = np.concatenate([X, y], axis=1)
         np.random.shuffle(X_y)
-        X = X_y[:, :X.shape[1]]
-        y = X_y[:, X.shape[1]:]
+        X = X_y[:, : X.shape[1]]
+        y = X_y[:, X.shape[1] :]
         train_set_size = int(X.shape[0] * TRAIN_FRAC)
         X_train = X[:train_set_size, :]
         y_train = y[:train_set_size, :]
@@ -869,8 +879,12 @@ if __name__ == "__main__":
     for i in range(y.shape[1]):
         data = Namespace(x=X_train, y=y_train[:, i])
         test_data = Namespace(x=X_test, y=y_test[:, i]) if FIT_TEST_SET else None
-        gp_params = get_gpflow_hypers_from_data(data, print_fit_hypers=False, opt_max_iter=1000, test_data=test_data, retries=50)
+        gp_params = get_gpflow_hypers_from_data(
+            data,
+            print_fit_hypers=False,
+            opt_max_iter=1000,
+            test_data=test_data,
+            retries=50,
+        )
         print(f"Output dimension {i}:")
         print(gp_params)
-
-

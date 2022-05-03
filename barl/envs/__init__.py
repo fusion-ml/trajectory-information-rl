@@ -44,9 +44,9 @@ register(
 )
 
 register(
-    id='barllunarlander-v0',
+    id="barllunarlander-v0",
     entry_point=LunarLander,
-    )
+)
 # register(
 #     id='petscartpole-v0',
 #     entry_point=PETSCartpoleEnv,
@@ -84,7 +84,7 @@ reward_functions = {
     "goddard-v0": goddard_reward,
     # 'petscartpole-v0': cartpole_reward,
     "pilcocartpole-v0": pilco_cartpole_reward,
-    'barllunarlander-v0': lunar_lander_reward,
+    "barllunarlander-v0": lunar_lander_reward,
     "pilcocartpole-trig-v0": pilco_cartpole_reward,
     "bacrobot-v0": acrobot_reward,
     "lavapath-v0": lava_path_reward,
@@ -165,9 +165,8 @@ except:
 
 try:
     from gym_anm.envs.anm4_env.anm4_easier import anm4_reward, unconstrained_anm4_reward
+
     reward_functions["gym_anm:ANM4Easier-v0"] = anm4_reward
     reward_functions["gym_anm:ANM4Easiest-v0"] = unconstrained_anm4_reward
 except:
     logging.warning("anm dependencies not found, skipping")
-
-

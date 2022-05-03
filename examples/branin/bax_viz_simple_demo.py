@@ -2,7 +2,8 @@ import copy
 from argparse import Namespace
 import numpy as np
 import matplotlib.pyplot as plt
-#plt.ion()
+
+# plt.ion()
 import tensorflow as tf
 
 from bax.alg.evolution_strategies import EvolutionStrategies
@@ -17,8 +18,9 @@ from bax.acq.visualize2d import AcqViz2D
 from branin import branin, branin_xy
 
 import neatplot
-neatplot.set_style('fonts')
-neatplot.update_rc('font.size', 20)
+
+neatplot.set_style("fonts")
+neatplot.update_rc("font.size", 20)
 
 
 seed = 11
@@ -40,20 +42,20 @@ f = branin
 
 # Set algorithm details
 init_x = [4.8, 13.0]
-#init_x = [6.0, 10.0] # Center-right start
+# init_x = [6.0, 10.0] # Center-right start
 
 domain = [[-5, 10], [0, 15]]
 
 algo_params = {
-    'n_generation': 15,
-    'n_population': 8,
-    'samp_str': 'mut',
-    'opt_mode': 'min',
-    'init_x': init_x,
-    'domain': domain,
-    'normal_scale': 0.5,
-    'keep_frac': 0.3,
-    'crop': False,
+    "n_generation": 15,
+    "n_population": 8,
+    "samp_str": "mut",
+    "opt_mode": "min",
+    "init_x": init_x,
+    "domain": domain,
+    "normal_scale": 0.5,
+    "keep_frac": 0.3,
+    "crop": False,
     #'crop': True,
 }
 algo = EvolutionStrategies(algo_params)
@@ -76,7 +78,7 @@ n_rand_acqopt = 350
 n_iter = 25
 
 for i in range(n_iter):
-    print('---' * 5 + f' Start iteration i={i} ' + '---' * 5)
+    print("---" * 5 + f" Start iteration i={i} " + "---" * 5)
 
     # Set model
     model = modelclass(gp_params, data)
@@ -112,7 +114,7 @@ for i in range(n_iter):
     fig, ax = plt.subplots(figsize=(6, 6))
     vizzer = AcqViz2D(fig_ax=(fig, ax))
     vizzer.plot_function_contour(branin_xy, domain)
-    #h1 = vizzer.plot_output_samples(acqfn.output_list)
+    # h1 = vizzer.plot_output_samples(acqfn.output_list)
     h2 = vizzer.plot_model_data(model.data)
     h3 = vizzer.plot_expected_output(output_mf)
     h4 = vizzer.plot_optima([(-3.14, 12.275), (3.14, 2.275), (9.425, 2.475)])
@@ -122,12 +124,12 @@ for i in range(n_iter):
     ax.set_xlim((domain[0][0] - offset, domain[0][1] + offset))
     ax.set_ylim((domain[1][0] - offset, domain[1][1] + offset))
     ax.set_aspect("equal", "box")
-    ax.set_xlabel('x')
-    ax.set_ylabel('y')
+    ax.set_xlabel("x")
+    ax.set_ylabel("y")
     ax.set_title("InfoBAX")
 
     # Save plot
-    #neatplot.save_figure(f"branin_bax_{i}", "pdf")
+    # neatplot.save_figure(f"branin_bax_{i}", "pdf")
 
     # Show, pause, and close plot
     plt.show()

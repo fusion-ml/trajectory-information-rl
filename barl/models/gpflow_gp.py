@@ -137,7 +137,9 @@ class GpflowGp(SimpleGp):
             if self.params.print_fit_hypers:
                 print("GPflow: start hyperparameter fitting on train likelihood.")
             opt_log = opt.minimize(
-                self.model.training_loss, self.model.trainable_variables, options=opt_config
+                self.model.training_loss,
+                self.model.trainable_variables,
+                options=opt_config,
             )
             if self.params.print_fit_hypers:
                 print("GPflow: end hyperparameter fitting on train likelihood.")
@@ -155,8 +157,9 @@ class GpflowGp(SimpleGp):
             def neg_test_likelihood():
                 # breakpoint()
                 return -tf.reduce_sum(self.model.predict_log_density(test_gpflow_data))
+
             opt_log = opt.minimize(
-                    neg_test_likelihood, self.model.trainable_variables, options=opt_config
+                neg_test_likelihood, self.model.trainable_variables, options=opt_config
             )
             if self.params.print_fit_hypers:
                 print("GPflow: end hyperparameter fitting on test likelihood.")
@@ -221,7 +224,14 @@ class GpflowGp(SimpleGp):
         return mu, cov
 
 
-def get_gpflow_hypers_from_data(data, print_fit_hypers=False, opt_max_iter=1000, test_data=None, sigma=0.01, retries=5):
+def get_gpflow_hypers_from_data(
+    data,
+    print_fit_hypers=False,
+    opt_max_iter=1000,
+    test_data=None,
+    sigma=0.01,
+    retries=5,
+):
     """
     Return hypers fit by GPflow, using data Namespace (with fields x and y). Assumes y
     is a list of scalars (i.e. 1 dimensional output).
@@ -235,9 +245,13 @@ def get_gpflow_hypers_from_data(data, print_fit_hypers=False, opt_max_iter=1000,
     best_model = None
     for _ in range(retries):
         try:
-            model_params = dict(print_fit_hypers=print_fit_hypers, opt_max_iter=opt_max_iter, sigma=sigma)
-            model_params['ls'] = list(np.random.uniform(0., 100, size=(x_dim,)))
-            model_params['alpha'] = np.random.uniform(1., 20.)
+            model_params = dict(
+                print_fit_hypers=print_fit_hypers,
+                opt_max_iter=opt_max_iter,
+                sigma=sigma,
+            )
+            model_params["ls"] = list(np.random.uniform(0.0, 100, size=(x_dim,)))
+            model_params["alpha"] = np.random.uniform(1.0, 20.0)
             model = GpflowGp(params=model_params, data=data)
             nll = model.fit_hypers(test_data)
             if nll < best_nll:
@@ -247,7 +261,7 @@ def get_gpflow_hypers_from_data(data, print_fit_hypers=False, opt_max_iter=1000,
         except Exception as e:
             pass
     if not passed:
-        raise ValueError('gp fitting failed')
+        raise ValueError("gp fitting failed")
     model = best_model
     gp_hypers = {
         "ls": model.model.kernel.lengthscales.numpy().tolist(),

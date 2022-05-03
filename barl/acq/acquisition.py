@@ -745,7 +745,7 @@ class RewardSetAcqFunction(AcqFunction):
         rew_x = x_data[:, :-1, :].reshape(
             (-1, self.params.obs_dim + self.params.action_dim)
         )
-        next_obs_data = x_data[:, 1:, :self.params.obs_dim].reshape(
+        next_obs_data = x_data[:, 1:, : self.params.obs_dim].reshape(
             (-1, self.params.obs_dim)
         )
         rewards = (

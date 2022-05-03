@@ -562,7 +562,9 @@ def fit_hypers(config, fit_data, plot_fn, domain, expdir):
     for idx in range(len(fit_data.y[0])):
         data_fit = Namespace(x=fit_data.x, y=[yi[idx] for yi in fit_data.y])
         gp_params = get_gpflow_hypers_from_data(
-            data_fit, print_fit_hypers=True, opt_max_iter=config.env.gp.opt_max_iter,
+            data_fit,
+            print_fit_hypers=True,
+            opt_max_iter=config.env.gp.opt_max_iter,
             retries=config.gp_fit_retries,
         )
         logging.info(f"gp_params for output {idx} = {gp_params}")
@@ -647,7 +649,12 @@ def get_next_point(
     exe_path_list = []
     model = None
     if len(data.x) == 0:
-        return np.concatenate([current_obs, action_space.sample()]), exe_path_list, model, current_obs
+        return (
+            np.concatenate([current_obs, action_space.sample()]),
+            exe_path_list,
+            model,
+            current_obs,
+        )
     if config.alg.use_acquisition:
         model = gp_model_class(gp_model_params, data)
         # Set and optimize acquisition function
@@ -835,10 +842,12 @@ def evaluate_mpc(
             random_likelihood = model_likelihood(model, test_data.x, test_data.y)
             gt_mpc_y_hat = postmean_fn(test_mpc_data.x)
             gt_mpc_mse = mse(test_mpc_data.y, gt_mpc_y_hat)
-            gt_mpc_likelihood = model_likelihood(model, test_mpc_data.x, test_mpc_data.y)
+            gt_mpc_likelihood = model_likelihood(
+                model, test_mpc_data.x, test_mpc_data.y
+            )
             dumper.add("Model MSE (random test set)", random_mse)
             dumper.add("Model MSE (GT MPC)", gt_mpc_mse)
-        # dumper.add('Model Likelihood (current MPC)', current_mpc_likelihood)
+            # dumper.add('Model Likelihood (current MPC)', current_mpc_likelihood)
             dumper.add("Model Likelihood (random test set)", random_likelihood)
             dumper.add("Model Likelihood (GT MPC)", gt_mpc_likelihood)
         return real_paths_mpc

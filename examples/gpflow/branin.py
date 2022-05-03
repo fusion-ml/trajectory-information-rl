@@ -41,8 +41,8 @@ def branin(x):
     else:
         raise ValueError(
             (
-                'Input to branin function must be a float, or a '
-                + '1D or 2D np array, instead of a {}'
+                "Input to branin function must be a float, or a "
+                + "1D or 2D np array, instead of a {}"
             ).format(type(x))
         )
 
@@ -102,13 +102,13 @@ def branin_single(x):
     float
         The function value f(x), a float.
     """
-    b = 5.1 / (4.0 * np.pi ** 2)
+    b = 5.1 / (4.0 * np.pi**2)
     c = 5.0 / np.pi
     t = 1.0 / (8.0 * np.pi)
     x0 = x[0]
     x1 = x[1]
     return (
-        1.0 * (x1 - b * x0 ** 2 + c * x0 - 6.0) ** 2
+        1.0 * (x1 - b * x0**2 + c * x0 - 6.0) ** 2
         + 10.0 * (1 - t) * np.cos(x0)
         + 10.0
     )
