@@ -73,6 +73,7 @@ normalize_env: ${env.normalize_env}
 n_rand_acqopt: ${alg.n_rand_acqopt}
 crop_to_domain: True
 teleport: ${env.teleport}
+gp_fit_retries: 20
 fit_hypers: False
 save_figures: False
 hydra:

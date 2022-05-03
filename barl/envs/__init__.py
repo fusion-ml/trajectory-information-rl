@@ -164,8 +164,9 @@ except:
     logging.info("fusion dependencies not found, skipping")
 
 try:
-    from gym_anm.envs.anm4_env.anm4_easier import anm4_reward
+    from gym_anm.envs.anm4_env.anm4_easier import anm4_reward, unconstrained_anm4_reward
     reward_functions["gym_anm:ANM4Easier-v0"] = anm4_reward
+    reward_functions["gym_anm:ANM4Easiest-v0"] = unconstrained_anm4_reward
 except:
     logging.warning("anm dependencies not found, skipping")
 

@@ -562,7 +562,8 @@ def fit_hypers(config, fit_data, plot_fn, domain, expdir):
     for idx in range(len(fit_data.y[0])):
         data_fit = Namespace(x=fit_data.x, y=[yi[idx] for yi in fit_data.y])
         gp_params = get_gpflow_hypers_from_data(
-            data_fit, print_fit_hypers=True, opt_max_iter=config.env.gp.opt_max_iter
+            data_fit, print_fit_hypers=True, opt_max_iter=config.env.gp.opt_max_iter,
+            retries=config.gp_fit_retries,
         )
         logging.info(f"gp_params for output {idx} = {gp_params}")
 

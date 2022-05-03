@@ -15,6 +15,7 @@ from Box2D.b2 import (
     polygonShape,
     revoluteJointDef,
 )
+from tqdm import trange
 
 import gym
 from gym import error, spaces
@@ -28,7 +29,7 @@ SCALE = 30.0  # affects how fast-paced the game is, forces should be adjusted as
 MAIN_ENGINE_POWER = 13.0
 SIDE_ENGINE_POWER = 0.6
 
-INITIAL_RANDOM = 1000.0  # Set 1500 to make game harder
+INITIAL_RANDOM = 200.0 # 1000.0  # Set 1500 to make game harder
 
 LANDER_POLY = [(-14, +17), (-17, 0), (-17, -10), (+17, -10), (+17, 0), (+14, +17)]
 LEG_AWAY = 20
@@ -785,17 +786,21 @@ class LunarLanderContinuous:
 
 
 
-def test_reward():
+def test_reward(use_random=False):
     env = LunarLander()
     action_space = env.action_space
+    if use_random:
+        print("using random action")
 
     ep_act = []
     ep_rew = []
     obs = env.reset()
     ep_obs = [obs]
     for t in range(env.horizon):
-        # action = action_space.sample()
-        action = heuristic(env, obs)
+        if use_random:
+            action = action_space.sample()
+        else:
+            action = heuristic(env, obs)
         ep_act.append(action)
         no, rew, done, info = env.step(action)
         ep_rew.append(rew)
@@ -820,13 +825,16 @@ if __name__ == "__main__":
     norm_env = NormalizedEnv(LunarLander())
     Xs = []
     ys = []
+    returns = []
     ntrials = 10
-    FIT_TEST_SET = True
+    FIT_TEST_SET = False
     FIT_HYPERS = True
     TRAIN_FRAC = 0.7
-    for _ in range(ntrials):
-        obs, actions, rew = test_reward()
+    for i in trange(ntrials):
+        use_random = (i % 2) == 1
+        obs, actions, rew = test_reward(use_random=use_random)
         print(f"Return: {sum(rew)}")
+        returns.append(sum(rew))
         obs = np.array(obs)
         actions = np.array(actions)
         obs = norm_env.normalize_obs(obs)
@@ -835,6 +843,7 @@ if __name__ == "__main__":
         y = obs[1:, :] - obs[:-1, :]
         Xs.append(X)
         ys.append(y)
+    print(f"{np.mean(returns)=}")
     if not FIT_HYPERS:
         exit()
     X = np.concatenate(Xs, axis=0)
@@ -854,13 +863,14 @@ if __name__ == "__main__":
         X_test = X[train_set_size:, :]
         y_test = y[train_set_size:, :]
     else:
-        X_train = X
-        y_train = y
+        X_train = X.astype(np.float64)
+        y_train = y.astype(np.float64)
 
     for i in range(y.shape[1]):
         data = Namespace(x=X_train, y=y_train[:, i])
         test_data = Namespace(x=X_test, y=y_test[:, i]) if FIT_TEST_SET else None
-        gp_params = get_gpflow_hypers_from_data(data, print_fit_hypers=False, opt_max_iter=1000, test_data=test_data, retries=20)
+        gp_params = get_gpflow_hypers_from_data(data, print_fit_hypers=False, opt_max_iter=1000, test_data=test_data, retries=50)
+        print(f"Output dimension {i}:")
         print(gp_params)
 
 
