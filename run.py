@@ -552,7 +552,7 @@ def fit_hypers(config, fit_data, plot_fn, domain, expdir):
 
     # Plot hyper fitting data
     ax_obs_hyper_fit, fig_obs_hyper_fit = plot_fn(path=None, domain=domain)
-    if ax_obs_hyper_fit and config.save_figures:
+    if ax_obs_hyper_fit is not None and config.save_figures:
         plot(ax_obs_hyper_fit, fit_data.x, "o", color="k", ms=1)
         neatplot.save_figure(
             str(expdir / "mpc_obs_hyper_fit"), "png", fig=fig_obs_hyper_fit
@@ -563,7 +563,7 @@ def fit_hypers(config, fit_data, plot_fn, domain, expdir):
         data_fit = Namespace(x=fit_data.x, y=[yi[idx] for yi in fit_data.y])
         gp_params = get_gpflow_hypers_from_data(
             data_fit,
-            print_fit_hypers=True,
+            print_fit_hypers=False,
             opt_max_iter=config.env.gp.opt_max_iter,
             retries=config.gp_fit_retries,
         )

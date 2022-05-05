@@ -21,7 +21,10 @@ import gym
 from gym import error, spaces
 from gym.utils import EzPickle, seeding
 from barl.envs.wrappers import NormalizedEnv
-from barl.models.gpflow_gp import get_gpflow_hypers_from_data
+try:
+    from barl.models.gpflow_gp import get_gpflow_hypers_from_data
+except:
+    pass
 
 FPS = 50
 SCALE = 30.0  # affects how fast-paced the game is, forces should be adjusted as well
@@ -853,13 +856,13 @@ if __name__ == "__main__":
         y = obs[1:, :] - obs[:-1, :]
         Xs.append(X)
         ys.append(y)
-    print(f"{np.mean(returns)=}")
+    print(f"Mean returns: {np.mean(returns)}")
     if not FIT_HYPERS:
         exit()
     X = np.concatenate(Xs, axis=0)
     y = np.concatenate(ys, axis=0)
-    print(f"{X.shape=}")
-    print(f"{np.unique(X, axis=0).shape=}")
+    print(f"X shape: {X.shape}")
+    print(f"num uniques: {np.unique(X, axis=0).shape[0]}")
     X, unique_indices = np.unique(X, axis=0, return_index=True)
     y = y[unique_indices, ...]
     if FIT_TEST_SET:

@@ -267,7 +267,7 @@ def test_rew_fn(gt_rew, norm_rew_fn, old_obs, action, obs):
     x = np.concatenate([old_obs, action])
     y = obs
     norm_rew = norm_rew_fn(x, y)
-    assert np.allclose(gt_rew, norm_rew), f"{gt_rew=}, {norm_rew=}"
+    assert np.allclose(gt_rew, norm_rew), f"gt_rew: {gt_rew}, norm_rew: {norm_rew}"
 
 
 def test_update_function(start_obs, action, delta_obs, next_obs, update_fn):
