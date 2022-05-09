@@ -161,7 +161,26 @@ try:
     reward_functions["betanrotation-v0"] = betan_rotation_reward
     reward_functions["betatracking-fixed-v0"] = beta_tracking_rew
 except:
-    logging.info("fusion dependencies not found, skipping")
+    logging.info("old fusion dependencies not found, skipping")
+try:
+    from fusion_control.envs.gym_env import BetaTrackingGymEnv as NewBetaTrackingGymEnv
+    from fusion_control.envs.gym_env import BetaRotationTrackingGymEnv
+    from fusion_control.envs.rewards import TrackingReward
+
+    register(
+            id="newbetatracking-v0",
+            entry_point=NewBetaTrackingGymEnv,
+            )
+    _beta_env = NewBetaTrackingGymEnv()
+    reward_functions['newbetatracking-v0'] = _beta_env.get_reward
+    register(
+            id="newbetarotation-v0",
+            entry_point=BetaRotationTrackingGymEnv,
+            )
+    _beta_rotation_env = BetaRotationTrackingGymEnv()
+    reward_functions['newbetarotation-v0'] = _beta_rotation_env.get_reward
+except:
+    logging.warning("new fusion dependencies not found, skipping")
 
 try:
     from gym_anm.envs.anm4_env.anm4_easier import anm4_reward, unconstrained_anm4_reward
