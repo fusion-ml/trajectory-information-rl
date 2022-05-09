@@ -19,7 +19,8 @@ from barl.models.gpfs_gp import BatchMultiGpfsGp, TFMultiGpfsGp
 from barl.models.gpflow_gp import get_gpflow_hypers_from_data
 from barl.acq.acquisition import (
     MultiBaxAcqFunction,
-    MultiSetBaxAcqFunction,
+    JointSetBaxAcqFunction,
+    SumSetBaxAcqFunction,
     MCAcqFunction,
     UncertaintySamplingAcqFunction,
     BatchUncertaintySamplingAcqFunction,
@@ -476,7 +477,10 @@ def get_acq_fn(
         else:
             # new rollout barl
             acqfn_params["gp_model_params"] = gp_model_params
-            acqfn_class = MultiSetBaxAcqFunction
+            if config.alg.joint_eig:
+                acqfn_class = JointSetBaxAcqFunction
+            else:
+                acqfn_class = SumSetBaxAcqFunction
     return acqfn_class, acqfn_params
 
 

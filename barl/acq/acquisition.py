@@ -724,6 +724,23 @@ class MultiBaxAcqFunction(AlgoAcqFunction):
         return acq_list
 
 
+class SumSetBaxAcqFunction(MultiBaxAcqFunction):
+    def set_params(self, params):
+        super().set_params(params)
+
+    def __call__(self, x_set_list):
+        flat_set_list = []
+        for lil_list in x_set_list:
+            flat_set_list.extend(lil_list)
+        acq_list = self.get_acq_list_batch(flat_set_list)
+        current_idx = 0
+        for lil_list in x_set_list:
+            new_idx = current_idx + len(lil_list)
+            set_total_acq = sum(acq_list[current_idx:new_idx])
+            current_idx = new_idx
+        return set_total_acq
+
+
 class RewardSetAcqFunction(AcqFunction):
     def set_params(self, params):
         super().set_params(params)
@@ -839,7 +856,7 @@ class BatchUncertaintySamplingAcqFunction(AcqFunction):
         return list(fast_acq_list)
 
 
-class MultiSetBaxAcqFunction(AlgoAcqFunction):
+class JointSetBaxAcqFunction(AlgoAcqFunction):
     """
     Class for computing BAX acquisition functions.
     """
@@ -849,7 +866,7 @@ class MultiSetBaxAcqFunction(AlgoAcqFunction):
         super().set_params(params)
 
         params = dict_to_namespace(params)
-        self.params.name = getattr(params, "name", "MultiSetBaxAcqFunction")
+        self.params.name = getattr(params, "name", "JointSetBaxAcqFunction")
         self.base_smat = None
         self.base_lmat = None
         self.smats = defaultdict(lambda: None)
@@ -925,7 +942,7 @@ class MultiSetBaxAcqFunction(AlgoAcqFunction):
         reg = jnp.eye(samp_cov_list.shape[-1])[None, None, ...] * 1e-5
         reg_pred_cov = pred_cov + reg
         reg_samp_cov_list = samp_cov_list + reg
-        acq = MultiSetBaxAcqFunction.fast_acq_exe_normal(
+        acq = JointSetBaxAcqFunction.fast_acq_exe_normal(
             reg_pred_cov, reg_samp_cov_list
         )
         return acq
