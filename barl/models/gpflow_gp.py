@@ -238,6 +238,7 @@ def get_gpflow_hypers_from_data(
     """
     data = dict_to_namespace(data)
 
+    data.x = np.array(data.x)
     x_dim = data.x.shape[1]
     # Fit params with GPflow on data
     passed = False
