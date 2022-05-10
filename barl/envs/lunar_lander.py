@@ -16,6 +16,7 @@ from Box2D.b2 import (
     revoluteJointDef,
 )
 from tqdm import trange
+from time import sleep
 
 import gym
 from gym import error, spaces
@@ -23,6 +24,7 @@ from gym.utils import EzPickle, seeding
 from barl.envs.wrappers import NormalizedEnv
 try:
     from barl.models.gpflow_gp import get_gpflow_hypers_from_data
+    from barl.models.gpfs_gp import BatchMultiGpfsGp
 except:
     pass
 
@@ -830,6 +832,8 @@ def test_reward(use_random=False):
     ep_rew_hat = lunar_lander_reward(X, next_obs)
     assert np.allclose(ep_rew, ep_rew_hat, atol=0.01, rtol=0.01)
     print("reward function passes!")
+    print(ep_rew)
+    sleep(1)
     return ep_obs, ep_act, ep_rew
 
 
@@ -879,6 +883,7 @@ if __name__ == "__main__":
         X_train = X.astype(np.float64)
         y_train = y.astype(np.float64)
 
+    gp_params_list = []
     for i in range(y.shape[1]):
         data = Namespace(x=X_train, y=y_train[:, i])
         test_data = Namespace(x=X_test, y=y_test[:, i]) if FIT_TEST_SET else None
@@ -891,3 +896,44 @@ if __name__ == "__main__":
         )
         print(f"Output dimension {i}:")
         print(gp_params)
+        gp_params_list.append(gp_params)
+
+    Xs = []
+    ys = []
+    for i in trange(ntrials):
+        use_random = (i % 2) == 1
+        obs, actions, rew = test_reward(use_random=use_random)
+        print(f"Return: {sum(rew)}")
+        returns.append(sum(rew))
+        obs = np.array(obs)
+        actions = np.array(actions)
+        obs = norm_env.normalize_obs(obs)
+        actions = norm_env.normalize_action(actions)
+        X = np.concatenate([obs[:-1, :], actions], axis=-1)
+        y = obs[1:, :] - obs[:-1, :]
+        Xs.append(X)
+        ys.append(y)
+    new_X = np.concatenate(Xs, axis=0)
+    new_y = np.concatenate(ys, axis=0)
+    X_y = np.concatenate([new_X, new_y], axis=1)
+    np.random.shuffle(X_y)
+    obs_dim = norm_env.observation_space.low.shape[0]
+    action_dim = norm_env.action_space.low.shape[0]
+    new_X = X_y[:200, :-obs_dim]
+    new_Y = X_y[:200, -obs_dim:]
+    gp_params = {
+            'ls': [gpp['ls'] for gpp in gp_params_list],
+            'alpha': [max(gpp['alpha'], 0.01) for gpp in gp_params_list],
+            'sigma': 0.01,
+            'n_dimx': obs_dim + action_dim
+            }
+    gp_model_params = {
+            'n_dimy': obs_dim,
+            'gp_params': gp_params,
+            }
+    data = Namespace(x=list(X_train), y=list(y_train))
+    model = BatchMultiGpfsGp(gp_model_params, data)
+    mu_list, covs = model.get_post_mu_cov(list(new_X))
+    yhat = np.array(mu_list).T
+    residuals = new_Y - yhat
+    print(f"Mean Residual: {np.mean(np.abs(residuals))}")

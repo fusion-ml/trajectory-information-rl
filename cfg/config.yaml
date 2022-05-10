@@ -26,6 +26,7 @@ alg:
     num_s0_samps: 1
     open_loop_mpc: False
     sample_all_states: False
+    num_fs: 15
 mpc:
   nsamps: ${env.mpc.nsamps}
   planning_horizon: ${env.mpc.planning_horizon}

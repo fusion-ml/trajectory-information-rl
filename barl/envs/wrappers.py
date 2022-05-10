@@ -47,7 +47,7 @@ class NormalizedEnv(Env):
             unnorm_delta_obs = info["delta_obs"]
             norm_delta_obs = unnorm_delta_obs / self.unnorm_obs_space_size * 2
             info["delta_obs"] = norm_delta_obs
-        return self.normalize_obs(unnorm_obs), rew, done, info
+        return self.normalize_obs(unnorm_obs), float(rew), done, info
 
     def render(self, *args, **kwargs):
         return self._wrapped_env.render(*args, **kwargs)
@@ -206,8 +206,12 @@ def make_update_obs_fn(env, teleport=False, use_tf=False):
     periods = []
     obs_dim = env.observation_space.low.size
     obs_range = env.observation_space.high - env.observation_space.low
+    try:
+        pds = env.periodic_dimensions
+    except:
+        pds = []
     for i in range(obs_dim):
-        if i in env.periodic_dimensions:
+        if i in pds:
             periods.append(env.observation_space.high[i] - env.observation_space.low[i])
         else:
             periods.append(0)
