@@ -1109,7 +1109,7 @@ class UncertaintySamplingAcqFunction(AcqFunction):
 
         params = dict_to_namespace(params)
         self.params.name = getattr(params, "name", "UncertaintySamplingAcqFunction")
-        self.params.batch = params.batch
+        # self.params.batch = params.batch
 
     def entropy_given_normal_std(self, std_arr):
         """Return entropy given an array of 1D normal standard deviations."""
