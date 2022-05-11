@@ -9,4 +9,4 @@ use_mpc: False
 kgrl: False
 kg_policy: False
 gd_opt: False
-joint: False
+joint_eig: False

@@ -183,11 +183,12 @@ def main(config):
     # ==============================================
     #   Optionally: fit GP hyperparameters (then exit)
     # ==============================================
-    if config.fit_hypers:
+    if config.fit_hypers or config.eval_gp_hypers:
         fit_data = Namespace(
             x=test_mpc_data.x + test_data.x, y=test_mpc_data.y + test_data.y
         )
-        fit_hypers(config, fit_data, plot_fn, domain, dumper.expdir, obs_dim, action_dim)
+        gp_params = None if config.fit_hypers else gp_model_params
+        fit_hypers(config, fit_data, plot_fn, domain, dumper.expdir, obs_dim, action_dim, gp_params)
         # End script if hyper fitting bc need to include in config
         return
 
@@ -546,7 +547,7 @@ def get_acq_opt(config, obs_dim, action_dim, env, start_obs, update_fn, s0_sampl
     return acqopt_class, acqopt_params
 
 
-def fit_hypers(config, fit_data, plot_fn, domain, expdir, obs_dim, action_dim, test_set_frac=0.1):
+def fit_hypers(config, fit_data, plot_fn, domain, expdir, obs_dim, action_dim, gp_model_params, test_set_frac=0.1):
     # Use test_mpc_data to fit hyperparameters
     Xall = np.array(fit_data.x)
     Yall = np.array(fit_data.y)
@@ -559,43 +560,44 @@ def fit_hypers(config, fit_data, plot_fn, domain, expdir, obs_dim, action_dim, t
     Xtest = X_Y[train_size:, :xdim]
     Ytest = X_Y[train_size:, xdim:]
     fit_data = Namespace(x=Xtrain, y=Ytrain)
-    assert (
-        len(fit_data.x) <= 3000
-    ), "fit_data larger than preset limit (can cause memory issues)"
+    if gp_model_params is None:
+        assert (
+            len(fit_data.x) <= 3000
+        ), "fit_data larger than preset limit (can cause memory issues)"
 
-    logging.info("\n" + "=" * 60 + "\n Fitting Hyperparameters\n" + "=" * 60)
-    logging.info(f"Number of observations in fit_data: {len(fit_data.x)}")
+        logging.info("\n" + "=" * 60 + "\n Fitting Hyperparameters\n" + "=" * 60)
+        logging.info(f"Number of observations in fit_data: {len(fit_data.x)}")
 
-    # Plot hyper fitting data
-    ax_obs_hyper_fit, fig_obs_hyper_fit = plot_fn(path=None, domain=domain)
-    if ax_obs_hyper_fit is not None and config.save_figures:
-        plot(ax_obs_hyper_fit, fit_data.x, "o", color="k", ms=1)
-        neatplot.save_figure(
-            str(expdir / "mpc_obs_hyper_fit"), "png", fig=fig_obs_hyper_fit
-        )
+        # Plot hyper fitting data
+        ax_obs_hyper_fit, fig_obs_hyper_fit = plot_fn(path=None, domain=domain)
+        if ax_obs_hyper_fit is not None and config.save_figures:
+            plot(ax_obs_hyper_fit, fit_data.x, "o", color="k", ms=1)
+            neatplot.save_figure(
+                str(expdir / "mpc_obs_hyper_fit"), "png", fig=fig_obs_hyper_fit
+            )
 
-    # Perform hyper fitting
-    gp_params_list = []
-    for idx in trange(len(fit_data.y[0])):
-        data_fit = Namespace(x=fit_data.x, y=[yi[idx] for yi in fit_data.y])
-        gp_params = get_gpflow_hypers_from_data(
-            data_fit,
-            print_fit_hypers=False,
-            opt_max_iter=config.env.gp.opt_max_iter,
-            retries=config.gp_fit_retries,
-        )
-        logging.info(f"gp_params for output {idx} = {gp_params}")
-        gp_params_list.append(gp_params)
-    gp_params = {
-            'ls': [gpp['ls'] for gpp in gp_params_list],
-            'alpha': [max(gpp['alpha'], 0.01) for gpp in gp_params_list],
-            'sigma': 0.01,
-            'n_dimx': obs_dim + action_dim
-            }
-    gp_model_params = {
-            'n_dimy': obs_dim,
-            'gp_params': gp_params,
-            }
+        # Perform hyper fitting
+        gp_params_list = []
+        for idx in trange(len(fit_data.y[0])):
+            data_fit = Namespace(x=fit_data.x, y=[yi[idx] for yi in fit_data.y])
+            gp_params = get_gpflow_hypers_from_data(
+                data_fit,
+                print_fit_hypers=False,
+                opt_max_iter=config.env.gp.opt_max_iter,
+                retries=config.gp_fit_retries,
+            )
+            logging.info(f"gp_params for output {idx} = {gp_params}")
+            gp_params_list.append(gp_params)
+        gp_params = {
+                'ls': [gpp['ls'] for gpp in gp_params_list],
+                'alpha': [max(gpp['alpha'], 0.01) for gpp in gp_params_list],
+                'sigma': 0.01,
+                'n_dimx': obs_dim + action_dim
+                }
+        gp_model_params = {
+                'n_dimy': obs_dim,
+                'gp_params': gp_params,
+                }
     model = BatchMultiGpfsGp(gp_model_params, fit_data)
     mu_list, covs = model.get_post_mu_cov(list(Xtest))
     yhat = np.array(mu_list).T
@@ -645,6 +647,7 @@ def execute_gt_mpc(config, algo_class, algo_params, f, dumper, domain, plot_fn):
         pbar.set_postfix(stats)
 
     # Log and dump
+    print(f"MPC test set size: {len(test_mpc_data.x)}")
     returns = np.array(returns)
     dumper.add("GT Returns", returns, log_mean_std=True)
     dumper.add("Path Lengths", path_lengths, log_mean_std=True)

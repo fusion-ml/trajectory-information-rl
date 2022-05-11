@@ -164,7 +164,7 @@ except:
     logging.info("old fusion dependencies not found, skipping")
 try:
     from fusion_control.envs.gym_env import BetaTrackingGymEnv as NewBetaTrackingGymEnv
-    from fusion_control.envs.gym_env import BetaRotationTrackingGymEnv
+    from fusion_control.envs.gym_env import BetaRotationTrackingGymEnv, BetaRotationTrackingMultiGymEnv
     from fusion_control.envs.rewards import TrackingReward
 
     register(
@@ -178,7 +178,12 @@ try:
             entry_point=BetaRotationTrackingGymEnv,
             )
     _beta_rotation_env = BetaRotationTrackingGymEnv()
-    reward_functions['newbetarotation-v0'] = _beta_rotation_env.get_reward
+    register(
+            id="multibetarotation-v0",
+            entry_point=BetaRotationTrackingMultiGymEnv,
+            )
+    _multi_beta_rotation_env = BetaRotationTrackingMultiGymEnv()
+    reward_functions['multibetarotation-v0'] = _multi_beta_rotation_env.get_reward
 except:
     logging.warning("new fusion dependencies not found, skipping")
 

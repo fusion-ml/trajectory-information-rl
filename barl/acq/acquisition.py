@@ -12,7 +12,8 @@ import logging
 from collections import defaultdict
 from scipy.stats import norm as sps_norm
 from functools import partial
-from tqdm import tqdm
+from tqdm import tqdm, trange
+import math
 
 from ..util.base import Base
 from ..util.misc_util import dict_to_namespace, flatten
@@ -725,6 +726,7 @@ class MultiBaxAcqFunction(AlgoAcqFunction):
 
 
 class SumSetBaxAcqFunction(MultiBaxAcqFunction):
+    BATCH_SIZE = 100
     def set_params(self, params):
         super().set_params(params)
 
@@ -732,13 +734,19 @@ class SumSetBaxAcqFunction(MultiBaxAcqFunction):
         flat_set_list = []
         for lil_list in x_set_list:
             flat_set_list.extend(lil_list)
-        acq_list = self.get_acq_list_batch(flat_set_list)
+        acq_list = []
+        nbatches = math.ceil(len(flat_set_list) / self.BATCH_SIZE)
+        for i in trange(nbatches):
+            acq_batch = flat_set_list[i * self.BATCH_SIZE:(i + 1) * self.BATCH_SIZE]
+            acq_list.extend(self.get_acq_list_batch(acq_batch))
         current_idx = 0
+        set_acq_val = []
         for lil_list in x_set_list:
             new_idx = current_idx + len(lil_list)
             set_total_acq = sum(acq_list[current_idx:new_idx])
+            set_acq_val.append(set_total_acq)
             current_idx = new_idx
-        return set_total_acq
+        return set_acq_val
 
 
 class RewardSetAcqFunction(AcqFunction):
