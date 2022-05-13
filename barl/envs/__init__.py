@@ -178,6 +178,7 @@ try:
             entry_point=BetaRotationTrackingGymEnv,
             )
     _beta_rotation_env = BetaRotationTrackingGymEnv()
+    reward_functions['newbetarotation-v0'] = _beta_rotation_env.get_reward
     register(
             id="multibetarotation-v0",
             entry_point=BetaRotationTrackingMultiGymEnv,
