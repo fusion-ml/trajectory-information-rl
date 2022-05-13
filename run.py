@@ -440,7 +440,7 @@ def get_acq_fn(
 ):
     if config.alg.uncertainty_sampling:
         acqfn_params = {}
-        if config.alg.open_loop:
+        if config.alg.open_loop or config.alg.rollout_sampling:
             acqfn_class = BatchUncertaintySamplingAcqFunction
             acqfn_params["gp_model_params"] = gp_model_params
         else:

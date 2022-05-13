@@ -1065,7 +1065,6 @@ class JointSetBaxAcqFunction(AlgoAcqFunction):
         # slow_acq_list = self.get_acq_list_batch(x_set_list)
         return list(fast_acq_list)
 
-
 class MCAcqFunction(AcqFunction):
     """
     Acquisition function which wraps, duplicates, and calls a stochastic acquisition

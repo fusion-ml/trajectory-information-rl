@@ -1,0 +1,10 @@
+learn_reward: False
+use_acquisition: True
+n_rand_acqopt: 1
+num_fs: 15
+use_acquisition: True
+use_mpc: False
+kgrl: False
+kg_policy: False
+gd_opt: False
+joint_eig: True
