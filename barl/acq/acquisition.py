@@ -749,6 +749,30 @@ class SumSetBaxAcqFunction(MultiBaxAcqFunction):
         return set_acq_val
 
 
+class SumSetUSAcqFunction(UncertaintySamplingAcqFunction):
+    BATCH_SIZE = 100
+    def set_params(self, params):
+        super().set_params(params)
+
+    def __call__(self, x_set_list):
+        flat_set_list = []
+        for lil_list in x_set_list:
+            flat_set_list.extend(lil_list)
+        acq_list = []
+        nbatches = math.ceil(len(flat_set_list) / self.BATCH_SIZE)
+        for i in trange(nbatches):
+            acq_batch = flat_set_list[i * self.BATCH_SIZE:(i + 1) * self.BATCH_SIZE]
+            acq_list.extend(self.get_acq_list_batch(acq_batch))
+        current_idx = 0
+        set_acq_val = []
+        for lil_list in x_set_list:
+            new_idx = current_idx + len(lil_list)
+            set_total_acq = sum(acq_list[current_idx:new_idx])
+            set_acq_val.append(set_total_acq)
+            current_idx = new_idx
+        return set_acq_val
+
+
 class RewardSetAcqFunction(AcqFunction):
     def set_params(self, params):
         super().set_params(params)
