@@ -442,7 +442,7 @@ def get_acq_fn(
     if config.alg.uncertainty_sampling:
         acqfn_params = {}
         if config.alg.open_loop or config.alg.rollout_sampling:
-            if joint_eig:
+            if config.alg.joint_eig:
                 acqfn_class = BatchUncertaintySamplingAcqFunction
             else:
                 acqfn_class = SumSetUSAcqFunction
