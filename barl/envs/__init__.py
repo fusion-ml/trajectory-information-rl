@@ -11,7 +11,7 @@ from barl.envs.goddard import GoddardEnv, goddard_reward
 # from barl.util.envs.pets_cartpole import PETSCartpoleEnv, cartpole_reward
 from barl.envs.acrobot import AcrobotEnv, acrobot_reward
 from barl.envs.lava_path import LavaPathEnv, lava_path_reward, ShortLavaPathEnv
-from barl.envs.weird_gain import WeirdGainEnv, weird_gain_reward
+from barl.envs.weird_gain import WeirdGainEnv, weird_gain_reward, WeirderGainEnv
 from barl.envs.lunar_lander import LunarLander, lunar_lander_reward
 
 # register each environment we wanna use
@@ -76,6 +76,10 @@ register(
     id="weirdgain-v0",
     entry_point=WeirdGainEnv,
 )
+register(
+    id="weirdergain-v0",
+    entry_point=WeirderGainEnv,
+)
 reward_functions = {
     "bacpendulum-v0": pendulum_reward,
     "bacpendulum-test-v0": pendulum_reward,
@@ -90,6 +94,7 @@ reward_functions = {
     "lavapath-v0": lava_path_reward,
     "shortlavapath-v0": lava_path_reward,
     "weirdgain-v0": weird_gain_reward,
+    "weirdergain-v0": weird_gain_reward,
 }
 tf_reward_functions = {
     "bacpendulum-v0": pendulum_reward,

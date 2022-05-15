@@ -50,6 +50,46 @@ class WeirdGainEnv(gym.Env):
         return self.x, rew, False, {}
 
 
+class WeirderGainEnv(gym.Env):
+    def __init__(self):
+        self.observation_space = spaces.Box(
+            low=np.array([-10, -10]), high=np.array([10, 10])
+        )
+        self.action_space = spaces.Box(low=-np.ones(2), high=np.ones(2))
+        self.x = None
+        self.start_space_low = np.array([-10, -6])
+        self.start_space_high = np.array([-5, -5])
+        self.periodic_dimensions = []
+        self.horizon = 10
+
+    def reset(self, obs=None):
+        if obs is None:
+            self.x = np.random.uniform(self.start_space_low)
+        else:
+            self.x = obs
+        return self.x
+
+    def get_B(self):
+        # just some arbitrary continuous function from state to 2x2 mx
+        x_gain = np.sin(self.x[1] * np.pi / 5) * 3
+        y_gain = np.cos(self.x[0] * np.pi / 7) * 3
+        angle = 0.1
+        scaling = np.array([[x_gain, 0], [0, y_gain]]) @ np.array([[np.cos(angle), -np.sin(angle)],
+                                                                  [np.sin(angle), np.cos(angle)]])
+
+        return scaling
+
+    def step(self, action):
+        B = self.get_B()
+        delta_x = B @ action
+        self.x += delta_x
+        self.x = np.clip(
+            self.x, self.observation_space.low, self.observation_space.high
+        )
+        rew = _weird_gain_rew(self.x)
+        return self.x, rew, False, {}
+
+
 def _weird_gain_rew(x):
     return -np.sum(np.abs(x - GOAL), axis=-1)
 
