@@ -13,7 +13,7 @@ mpc:
   beta: 3
   gamma: 1.25
   xi: 0.3
-  num_iters: 5
+  num_iters: 8
   actions_per_plan: 1
 eigmpc:
   nsamps: 50
@@ -22,5 +22,5 @@ eigmpc:
   beta: 3
   gamma: 1.25
   xi: 0.3
-  num_iters: 5
+  num_iters: 8
   actions_per_plan: 1
