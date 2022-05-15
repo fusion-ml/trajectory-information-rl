@@ -3,8 +3,8 @@ normalize_env: True
 teleport: False
 tf_precision: 64
 gp:
-  ls: [[0.59, 0.67, 1.82, 18953], [0.53, 0.48, 158458, 1.72]]
-  alpha: [0.29, 0.25]
+  ls: [[0.53, 0.24, 1.45, 74538], [0.333, 0.387, 29351, 0.952]]
+  alpha: [0.34, 0.18]
   sigma: 0.01
 mpc:
   nsamps: 50

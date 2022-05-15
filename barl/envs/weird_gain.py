@@ -71,12 +71,9 @@ class WeirderGainEnv(gym.Env):
 
     def get_B(self):
         # just some arbitrary continuous function from state to 2x2 mx
-        x_gain = np.sin(self.x[1] * np.pi / 5) * 3
+        x_gain = np.sin(self.x[1] * np.pi / 5) * 3 + np.cos(self.x[1] * np.pi / 3)
         y_gain = np.cos(self.x[0] * np.pi / 7) * 3
-        angle = 0.1
-        scaling = np.array([[x_gain, 0], [0, y_gain]]) @ np.array([[np.cos(angle), -np.sin(angle)],
-                                                                  [np.sin(angle), np.cos(angle)]])
-
+        scaling = np.array([[x_gain, 0], [0, y_gain]])
         return scaling
 
     def step(self, action):
