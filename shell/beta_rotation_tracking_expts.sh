@@ -3,5 +3,6 @@
 # python run.py -m name=mpc_beta_rotation_tracking alg=mpc num_iters=500 eval_frequency=20 env=new_beta_rotation seed="range(5)" hydra/launcher=joblib
 # python run.py -m name=random_beta_rotation_tracking alg=random num_iters=500 eval_frequency=20 env=new_beta_rotation seed="range(5)" hydra/launcher=joblib
 # python run.py -m name=us_beta_rotation_tracking alg=us num_iters=1000 eval_frequency=20 env=new_beta_rotation seed="range(5)" hydra/launcher=joblib
-# python run.py -m name=sum_barl_beta_rotation_tracking alg=sum_barl num_iters=500 eval_frequency=20 env=new_beta_rotation seed="range(5)" hydra/launcher=joblib
-python run.py alg=sum_barl num_iters=500 eval_frequency=20 env=new_beta_rotation
+python run.py -m name=sum_barl_beta_rotation_tracking alg=sum_barl num_iters=500 eval_frequency=20 env=new_beta_rotation seed="range(5)" hydra/launcher=joblib
+python run.py -m name=sus_beta_rotation_tracking alg=sus num_iters=500 eval_frequency=20 env=new_beta_rotation seed="range(5)" hydra/launcher=joblib
+python run.py -m name=rus_beta_rotation_tracking alg=rus num_iters=500 eval_frequency=20 env=new_beta_rotation seed="range(5)" hydra/launcher=joblib
