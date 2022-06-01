@@ -65,6 +65,7 @@ num_samples_mc: ${alg.num_samples_mc}
 num_init_data: 1
 test_set_size: 1000
 tf_eager: False
+sample_special_distribution: False
 tf_precision: ${env.tf_precision}
 n_paths: 15
 sample_exe: ${env.sample_exe}

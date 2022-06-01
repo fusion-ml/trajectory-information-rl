@@ -30,7 +30,7 @@ class LavaPathEnv(gym.Env):
         Box(low=np.array([0.5, -8]), high=np.array([10, 8])),
     ]
 
-    def __init__(self):
+    def __init__(self, offset_start=False):
         # Observation space is [x, y, x_dot, y_dot]
         self.observation_space = Box(
             low=np.array([-20, -20, -10, -10]), high=np.array([20, 20, 10, 10])
@@ -59,6 +59,9 @@ class LavaPathEnv(gym.Env):
         self.x = None
         self.x_dot = None
         self.horizon = 200
+
+        # do we offset the start_distirbution?
+        self.offset_start = offset_start
 
     def construct_obs(self):
         return np.concatenate([self.x, self.x_dot])
@@ -146,6 +149,8 @@ class LavaPathEnv(gym.Env):
         if obs is None:
             # Start at the bottom of map, centered w.r.t bridge
             self.x = np.array([0, -10]) + np.random.uniform([-0.5, -0.5], [0.5, 0.5])
+            if self.offset_start:
+                self.x += np.array([-3, 0])
 
             # Start with zero velocity
             self.x_dot = np.array([0, 0])
@@ -245,6 +250,26 @@ def lava_path_reward(x, next_obs):
             + LavaPathEnv.lava_penalty * lava
         )
     return reward
+
+
+def off_lava_dist(nsamps):
+    # needs to return a list of numpy arrays
+    '''
+    goal is to sample from the leftward path to the goal
+    '''
+    breakpoint()
+    samps_per_leg = nsamps // 3
+    legs = [
+            [[-11, -11], [-1, -8]],
+            [[-15, -11], [-10, 8]],
+            [[-15, 8],  [1, 12]]
+            ]
+    samps = []
+    for i, (low, high) in enumerate(legs):
+        nsamps_this = samps_per_leg if i < 2 else nsamps - (2 * samps_per_leg)
+        samps.append(np.random.uniform(low, high, size=nsamps_this)
+    samps = np.concatenate(samps, axis=0)
+    return samps
 
 
 def test_lava_path():

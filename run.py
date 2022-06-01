@@ -393,6 +393,8 @@ def get_initial_data(config, env, f, domain, dumper, plot_fn):
             np.concatenate([env.reset(), env.action_space.sample()])
             for _ in range(config.num_init_data)
         ]
+    elif config.sample_special_distribution:
+        data.x = envs.special_dists[config.env.name](config.num_init_data)
     else:
         data.x = unif_random_sample_domain(domain, config.num_init_data)
     try:

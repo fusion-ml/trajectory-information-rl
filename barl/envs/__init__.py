@@ -10,7 +10,7 @@ from barl.envs.goddard import GoddardEnv, goddard_reward
 
 # from barl.util.envs.pets_cartpole import PETSCartpoleEnv, cartpole_reward
 from barl.envs.acrobot import AcrobotEnv, acrobot_reward
-from barl.envs.lava_path import LavaPathEnv, lava_path_reward, ShortLavaPathEnv
+from barl.envs.lava_path import LavaPathEnv, lava_path_reward, ShortLavaPathEnv, off_lava_dist
 from barl.envs.weird_gain import WeirdGainEnv, weird_gain_reward, WeirderGainEnv
 from barl.envs.lunar_lander import LunarLander, lunar_lander_reward
 
@@ -69,6 +69,11 @@ register(
     entry_point=LavaPathEnv,
 )
 register(
+    id="offlavapath-v0",
+    entry_point=LavaPathEnv,
+    kwargs={"offset_start": True},
+)
+register(
     id="shortlavapath-v0",
     entry_point=ShortLavaPathEnv,
 )
@@ -92,10 +97,14 @@ reward_functions = {
     "pilcocartpole-trig-v0": pilco_cartpole_reward,
     "bacrobot-v0": acrobot_reward,
     "lavapath-v0": lava_path_reward,
+    "offlavapath-v0": lava_path_reward,
     "shortlavapath-v0": lava_path_reward,
     "weirdgain-v0": weird_gain_reward,
     "weirdergain-v0": weird_gain_reward,
 }
+special_dists = {
+    'offlavapath-v0': off_lava_dist,
+    }
 tf_reward_functions = {
     "bacpendulum-v0": pendulum_reward,
     "pilcocartpole-v0": tf_pilco_cartpole_reward,
