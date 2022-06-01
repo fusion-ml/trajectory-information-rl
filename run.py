@@ -189,7 +189,16 @@ def main(config):
             x=test_mpc_data.x + test_data.x, y=test_mpc_data.y + test_data.y
         )
         gp_params = None if config.fit_hypers else gp_model_params
-        fit_hypers(config, fit_data, plot_fn, domain, dumper.expdir, obs_dim, action_dim, gp_params)
+        fit_hypers(
+            config,
+            fit_data,
+            plot_fn,
+            domain,
+            dumper.expdir,
+            obs_dim,
+            action_dim,
+            gp_params,
+        )
         # End script if hyper fitting bc need to include in config
         return
 
@@ -551,7 +560,17 @@ def get_acq_opt(config, obs_dim, action_dim, env, start_obs, update_fn, s0_sampl
     return acqopt_class, acqopt_params
 
 
-def fit_hypers(config, fit_data, plot_fn, domain, expdir, obs_dim, action_dim, gp_model_params, test_set_frac=0.1):
+def fit_hypers(
+    config,
+    fit_data,
+    plot_fn,
+    domain,
+    expdir,
+    obs_dim,
+    action_dim,
+    gp_model_params,
+    test_set_frac=0.1,
+):
     # Use test_mpc_data to fit hyperparameters
     Xall = np.array(fit_data.x)
     Yall = np.array(fit_data.y)
@@ -593,23 +612,23 @@ def fit_hypers(config, fit_data, plot_fn, domain, expdir, obs_dim, action_dim, g
             logging.info(f"gp_params for output {idx} = {gp_params}")
             gp_params_list.append(gp_params)
         gp_params = {
-                'ls': [gpp['ls'] for gpp in gp_params_list],
-                'alpha': [max(gpp['alpha'], 0.01) for gpp in gp_params_list],
-                'sigma': 0.01,
-                'n_dimx': obs_dim + action_dim
-                }
+            "ls": [gpp["ls"] for gpp in gp_params_list],
+            "alpha": [max(gpp["alpha"], 0.01) for gpp in gp_params_list],
+            "sigma": 0.01,
+            "n_dimx": obs_dim + action_dim,
+        }
         gp_model_params = {
-                'n_dimy': obs_dim,
-                'gp_params': gp_params,
-                }
+            "n_dimy": obs_dim,
+            "gp_params": gp_params,
+        }
     model = BatchMultiGpfsGp(gp_model_params, fit_data)
     mu_list, covs = model.get_post_mu_cov(list(Xtest))
     yhat = np.array(mu_list).T
     ev = explained_variance_score(Ytest, yhat)
     print(f"Explained Variance on test data: {ev:.2%}")
     for i in range(Ytest.shape[1]):
-        y_i = Ytest[:, i:i+1]
-        yhat_i = yhat[:, i:i+1]
+        y_i = Ytest[:, i : i + 1]
+        yhat_i = yhat[:, i : i + 1]
         ev_i = explained_variance_score(y_i, yhat_i)
         print(f"EV on dim {i}: {ev_i}")
 
