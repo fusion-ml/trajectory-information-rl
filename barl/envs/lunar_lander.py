@@ -22,6 +22,7 @@ import gym
 from gym import error, spaces
 from gym.utils import EzPickle, seeding
 from barl.envs.wrappers import NormalizedEnv
+
 try:
     from barl.models.gpflow_gp import get_gpflow_hypers_from_data
     from barl.models.gpfs_gp import BatchMultiGpfsGp
@@ -922,15 +923,15 @@ if __name__ == "__main__":
     new_X = X_y[:200, :-obs_dim]
     new_Y = X_y[:200, -obs_dim:]
     gp_params = {
-            'ls': [gpp['ls'] for gpp in gp_params_list],
-            'alpha': [max(gpp['alpha'], 0.01) for gpp in gp_params_list],
-            'sigma': 0.01,
-            'n_dimx': obs_dim + action_dim
-            }
+        "ls": [gpp["ls"] for gpp in gp_params_list],
+        "alpha": [max(gpp["alpha"], 0.01) for gpp in gp_params_list],
+        "sigma": 0.01,
+        "n_dimx": obs_dim + action_dim,
+    }
     gp_model_params = {
-            'n_dimy': obs_dim,
-            'gp_params': gp_params,
-            }
+        "n_dimy": obs_dim,
+        "gp_params": gp_params,
+    }
     data = Namespace(x=list(X_train), y=list(y_train))
     model = BatchMultiGpfsGp(gp_model_params, data)
     mu_list, covs = model.get_post_mu_cov(list(new_X))

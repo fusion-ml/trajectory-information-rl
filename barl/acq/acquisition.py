@@ -727,6 +727,7 @@ class MultiBaxAcqFunction(AlgoAcqFunction):
 
 class SumSetBaxAcqFunction(MultiBaxAcqFunction):
     BATCH_SIZE = 100
+
     def set_params(self, params):
         super().set_params(params)
 
@@ -737,7 +738,7 @@ class SumSetBaxAcqFunction(MultiBaxAcqFunction):
         acq_list = []
         nbatches = math.ceil(len(flat_set_list) / self.BATCH_SIZE)
         for i in trange(nbatches):
-            acq_batch = flat_set_list[i * self.BATCH_SIZE:(i + 1) * self.BATCH_SIZE]
+            acq_batch = flat_set_list[i * self.BATCH_SIZE : (i + 1) * self.BATCH_SIZE]
             acq_list.extend(self.get_acq_list_batch(acq_batch))
         current_idx = 0
         set_acq_val = []
@@ -747,7 +748,6 @@ class SumSetBaxAcqFunction(MultiBaxAcqFunction):
             set_acq_val.append(set_total_acq)
             current_idx = new_idx
         return set_acq_val
-
 
 
 class RewardSetAcqFunction(AcqFunction):
@@ -1066,6 +1066,7 @@ class JointSetBaxAcqFunction(AlgoAcqFunction):
         # slow_acq_list = self.get_acq_list_batch(x_set_list)
         return list(fast_acq_list)
 
+
 class MCAcqFunction(AcqFunction):
     """
     Acquisition function which wraps, duplicates, and calls a stochastic acquisition
@@ -1378,6 +1379,7 @@ class KGRLAcqFunction(PILCOAcqFunction):
 
 class SumSetUSAcqFunction(UncertaintySamplingAcqFunction):
     BATCH_SIZE = 100
+
     def set_params(self, params):
         super().set_params(params)
 
@@ -1388,7 +1390,7 @@ class SumSetUSAcqFunction(UncertaintySamplingAcqFunction):
         acq_list = []
         nbatches = math.ceil(len(flat_set_list) / self.BATCH_SIZE)
         for i in trange(nbatches):
-            acq_batch = flat_set_list[i * self.BATCH_SIZE:(i + 1) * self.BATCH_SIZE]
+            acq_batch = flat_set_list[i * self.BATCH_SIZE : (i + 1) * self.BATCH_SIZE]
             acq_list.extend(self.get_acq_list_batch(acq_batch))
         current_idx = 0
         set_acq_val = []
