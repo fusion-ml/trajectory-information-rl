@@ -11,10 +11,10 @@ import numpy as np
 def in_lava(x, lava_pits):
     # TODO add intersection checking to make sure we don't jump over lava
 
+    x = x[:2]
     lava = False
     for lava_pit in lava_pits:
         lava = lava_pit.contains(x) | lava
-
     return lava
 
 
@@ -26,8 +26,8 @@ class LavaPathEnv(gym.Env):
 
     # For each lava pit, we have
     lava_pits = [
-        Box(low=np.array([-10, -8]), high=np.array([-0.5, 8])),
-        Box(low=np.array([0.5, -8]), high=np.array([10, 8])),
+        Box(low=np.array([-10, -8]), high=np.array([-0.5, 8]), dtype=np.float64),
+        Box(low=np.array([0.5, -8]), high=np.array([10, 8]), dtype=np.float64),
     ]
 
     def __init__(self, offset_start=False):
@@ -257,30 +257,34 @@ def off_lava_dist(nsamps):
     '''
     goal is to sample from the leftward path to the goal
     '''
-    breakpoint()
     samps_per_leg = nsamps // 3
     legs = [
-            [[-11, -11], [-1, -8]],
-            [[-15, -11], [-10, 8]],
-            [[-15, 8],  [1, 12]]
+            [[-11, -11, -5, -5, -1, -1], [-1, -8, 5, 5, 1, 1]],
+            [[-15, -11, -5, -5, -1, -1], [-10, 8, 5, 5, 1, 1]],
+            [[-15, 8, -5, -5, -1, -1],  [1, 12, 5, 5, 1, 1]],
             ]
     samps = []
     for i, (low, high) in enumerate(legs):
         nsamps_this = samps_per_leg if i < 2 else nsamps - (2 * samps_per_leg)
-        samps.append(np.random.uniform(low, high, size=nsamps_this)
+        samps.append(np.random.uniform(low, high, size=(nsamps_this, len(low))))
     samps = np.concatenate(samps, axis=0)
-    return samps
+    return list(samps)
 
 
 def test_lava_path():
     env = LavaPathEnv()
-    n_tests = 100
+    n_tests = 5000
     observations = []
     actions = []
     next_observations = []
     rewards = []
-    for _ in range(n_tests):
-        obs = env.reset()
+    lava = in_lava([-8, -4, 4, 3], env.lava_pits)
+    assert lava, "point in lava isn't tripping the lava function"
+    for i in range(n_tests):
+        if i % env.horizon == 0:
+            obs = env.reset()
+        else:
+            obs = next_obs
         observations.append(obs)
         action = env.action_space.sample()
         actions.append(action)
