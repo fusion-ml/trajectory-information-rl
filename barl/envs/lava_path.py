@@ -222,8 +222,8 @@ class LavaPathEnv(gym.Env):
 
 
 class ShortLavaPathEnv(LavaPathEnv):
-    def __init__(self):
-        super().__init__()
+    def __init__(self, offset_start=False):
+        super().__init__(offset_start=offset_start)
         self.horizon = 20
 
     def step(self, action):

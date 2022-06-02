@@ -70,7 +70,7 @@ register(
 )
 register(
     id="offlavapath-v0",
-    entry_point=LavaPathEnv,
+    entry_point=ShortLavaPathEnv,
     kwargs={"offset_start": True},
 )
 register(
