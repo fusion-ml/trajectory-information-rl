@@ -276,7 +276,10 @@ class BetaTrackingGymEnv(gym.Env):
 
         self._state = None
         self._target = None
-        self.horizon = 30
+        if shuffle:
+            self.horizon = 15
+        else:
+            self.horizon = 30
         self.periodic_dimensions = []
 
     def reset(self, obs=None):

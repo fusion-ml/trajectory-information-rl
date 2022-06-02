@@ -14,12 +14,15 @@ import hydra
 import random
 from matplotlib import pyplot as plt
 import gpflow.config
+from sklearn.metrics import explained_variance_score
 
 from barl.models.gpfs_gp import BatchMultiGpfsGp, TFMultiGpfsGp
 from barl.models.gpflow_gp import get_gpflow_hypers_from_data
 from barl.acq.acquisition import (
     MultiBaxAcqFunction,
-    MultiSetBaxAcqFunction,
+    JointSetBaxAcqFunction,
+    SumSetBaxAcqFunction,
+    SumSetUSAcqFunction,
     MCAcqFunction,
     UncertaintySamplingAcqFunction,
     BatchUncertaintySamplingAcqFunction,
@@ -142,7 +145,10 @@ def main(config):
     # Make a test set for model evalution separate from the controller
     test_data = Namespace()
     test_data.x = unif_random_sample_domain(domain, config.test_set_size)
-    test_data.y = f(test_data.x)
+    try:
+        test_data.y = f(test_data.x)
+    except TypeError:
+        test_data = None
 
     # Set model
     gp_model_class, gp_model_params = get_model(config, env, obs_dim, action_dim)
@@ -168,17 +174,31 @@ def main(config):
     # ==============================================
     #   Computing groundtruth trajectories
     # ==============================================
-    true_path, test_mpc_data = execute_gt_mpc(
-        config, algo_class, algo_params, f, dumper, domain, plot_fn
-    )
+    try:
+        true_path, test_mpc_data = execute_gt_mpc(
+            config, algo_class, algo_params, f, dumper, domain, plot_fn
+        )
+    except TypeError:
+        true_path = None
+        test_mpc_data = None
     # ==============================================
     #   Optionally: fit GP hyperparameters (then exit)
     # ==============================================
-    if config.fit_hypers:
+    if config.fit_hypers or config.eval_gp_hypers:
         fit_data = Namespace(
             x=test_mpc_data.x + test_data.x, y=test_mpc_data.y + test_data.y
         )
-        fit_hypers(config, fit_data, plot_fn, domain, dumper.expdir)
+        gp_params = None if config.fit_hypers else gp_model_params
+        fit_hypers(
+            config,
+            fit_data,
+            plot_fn,
+            domain,
+            dumper.expdir,
+            obs_dim,
+            action_dim,
+            gp_params,
+        )
         # End script if hyper fitting bc need to include in config
         return
 
@@ -226,7 +246,7 @@ def main(config):
         #   Periodically run evaluation and plot
         # ==============================================
         if i % config.eval_frequency == 0 or i + 1 == config.num_iters:
-            if model is None:
+            if model is None and len(data.x) > 0:
                 model = gp_model_class(gp_model_params, data)
             # =======================================================================
             #    Evaluate MPC:
@@ -271,7 +291,16 @@ def main(config):
             )
 
         # Query function, update data
-        y_next = f([x_next])[0]
+        try:
+            y_next = f([x_next])[0]
+        except TypeError:
+            # if the env doesn't support spot queries, simply take the action
+            action = x_next[-action_dim:]
+            next_obs, rew, done, info = env.step(action)
+            y_next = next_obs - current_obs
+        x_next = np.array(x_next).astype(np.float64)
+        y_next = np.array(y_next).astype(np.float64)
+
         data.x.append(x_next)
         data.y.append(y_next)
         dumper.add("x", x_next)
@@ -366,7 +395,13 @@ def get_initial_data(config, env, f, domain, dumper, plot_fn):
         ]
     else:
         data.x = unif_random_sample_domain(domain, config.num_init_data)
-    data.y = f(data.x)
+    try:
+        data.y = f(data.x)
+    except TypeError:
+        logging.warning("Environment doesn't seem to support teleporting")
+        data.x = []
+        data.y = []
+        return data
     dumper.extend("x", data.x)
     dumper.extend("y", data.y)
 
@@ -415,8 +450,11 @@ def get_acq_fn(
 ):
     if config.alg.uncertainty_sampling:
         acqfn_params = {}
-        if config.alg.open_loop:
-            acqfn_class = BatchUncertaintySamplingAcqFunction
+        if config.alg.open_loop or config.alg.rollout_sampling:
+            if config.alg.joint_eig:
+                acqfn_class = BatchUncertaintySamplingAcqFunction
+            else:
+                acqfn_class = SumSetUSAcqFunction
             acqfn_params["gp_model_params"] = gp_model_params
         else:
             acqfn_class = UncertaintySamplingAcqFunction
@@ -454,7 +492,10 @@ def get_acq_fn(
         else:
             # new rollout barl
             acqfn_params["gp_model_params"] = gp_model_params
-            acqfn_class = MultiSetBaxAcqFunction
+            if config.alg.joint_eig:
+                acqfn_class = JointSetBaxAcqFunction
+            else:
+                acqfn_class = SumSetBaxAcqFunction
     return acqfn_class, acqfn_params
 
 
@@ -519,30 +560,77 @@ def get_acq_opt(config, obs_dim, action_dim, env, start_obs, update_fn, s0_sampl
     return acqopt_class, acqopt_params
 
 
-def fit_hypers(config, fit_data, plot_fn, domain, expdir):
+def fit_hypers(
+    config,
+    fit_data,
+    plot_fn,
+    domain,
+    expdir,
+    obs_dim,
+    action_dim,
+    gp_model_params,
+    test_set_frac=0.1,
+):
     # Use test_mpc_data to fit hyperparameters
-    assert (
-        len(fit_data.x) <= 3000
-    ), "fit_data larger than preset limit (can cause memory issues)"
+    Xall = np.array(fit_data.x)
+    Yall = np.array(fit_data.y)
+    X_Y = np.concatenate([Xall, Yall], axis=1)
+    np.random.shuffle(X_Y)
+    train_size = int((1 - test_set_frac) * X_Y.shape[0])
+    xdim = Xall.shape[1]
+    Xtrain = X_Y[:train_size, :xdim]
+    Ytrain = X_Y[:train_size, xdim:]
+    Xtest = X_Y[train_size:, :xdim]
+    Ytest = X_Y[train_size:, xdim:]
+    fit_data = Namespace(x=Xtrain, y=Ytrain)
+    if gp_model_params is None:
+        assert (
+            len(fit_data.x) <= 3000
+        ), "fit_data larger than preset limit (can cause memory issues)"
 
-    logging.info("\n" + "=" * 60 + "\n Fitting Hyperparameters\n" + "=" * 60)
-    logging.info(f"Number of observations in fit_data: {len(fit_data.x)}")
+        logging.info("\n" + "=" * 60 + "\n Fitting Hyperparameters\n" + "=" * 60)
+        logging.info(f"Number of observations in fit_data: {len(fit_data.x)}")
 
-    # Plot hyper fitting data
-    ax_obs_hyper_fit, fig_obs_hyper_fit = plot_fn(path=None, domain=domain)
-    if ax_obs_hyper_fit and config.save_figures:
-        plot(ax_obs_hyper_fit, fit_data.x, "o", color="k", ms=1)
-        neatplot.save_figure(
-            str(expdir / "mpc_obs_hyper_fit"), "png", fig=fig_obs_hyper_fit
-        )
+        # Plot hyper fitting data
+        ax_obs_hyper_fit, fig_obs_hyper_fit = plot_fn(path=None, domain=domain)
+        if ax_obs_hyper_fit is not None and config.save_figures:
+            plot(ax_obs_hyper_fit, fit_data.x, "o", color="k", ms=1)
+            neatplot.save_figure(
+                str(expdir / "mpc_obs_hyper_fit"), "png", fig=fig_obs_hyper_fit
+            )
 
-    # Perform hyper fitting
-    for idx in range(len(fit_data.y[0])):
-        data_fit = Namespace(x=fit_data.x, y=[yi[idx] for yi in fit_data.y])
-        gp_params = get_gpflow_hypers_from_data(
-            data_fit, print_fit_hypers=True, opt_max_iter=config.env.gp.opt_max_iter
-        )
-        logging.info(f"gp_params for output {idx} = {gp_params}")
+        # Perform hyper fitting
+        gp_params_list = []
+        for idx in trange(len(fit_data.y[0])):
+            data_fit = Namespace(x=fit_data.x, y=[yi[idx] for yi in fit_data.y])
+            gp_params = get_gpflow_hypers_from_data(
+                data_fit,
+                print_fit_hypers=False,
+                opt_max_iter=config.env.gp.opt_max_iter,
+                retries=config.gp_fit_retries,
+            )
+            logging.info(f"gp_params for output {idx} = {gp_params}")
+            gp_params_list.append(gp_params)
+        gp_params = {
+            "ls": [gpp["ls"] for gpp in gp_params_list],
+            "alpha": [max(gpp["alpha"], 0.01) for gpp in gp_params_list],
+            "sigma": 0.01,
+            "n_dimx": obs_dim + action_dim,
+        }
+        gp_model_params = {
+            "n_dimy": obs_dim,
+            "gp_params": gp_params,
+        }
+    model = BatchMultiGpfsGp(gp_model_params, fit_data)
+    mu_list, covs = model.get_post_mu_cov(list(Xtest))
+    yhat = np.array(mu_list).T
+    ev = explained_variance_score(Ytest, yhat)
+    print(f"Explained Variance on test data: {ev:.2%}")
+    for i in range(Ytest.shape[1]):
+        y_i = Ytest[:, i : i + 1]
+        yhat_i = yhat[:, i : i + 1]
+        ev_i = explained_variance_score(y_i, yhat_i)
+        print(f"EV on dim {i}: {ev_i}")
 
 
 def execute_gt_mpc(config, algo_class, algo_params, f, dumper, domain, plot_fn):
@@ -582,6 +670,7 @@ def execute_gt_mpc(config, algo_class, algo_params, f, dumper, domain, plot_fn):
         pbar.set_postfix(stats)
 
     # Log and dump
+    print(f"MPC test set size: {len(test_mpc_data.x)}")
     returns = np.array(returns)
     dumper.add("GT Returns", returns, log_mean_std=True)
     dumper.add("Path Lengths", path_lengths, log_mean_std=True)
@@ -623,6 +712,13 @@ def get_next_point(
 ):
     exe_path_list = []
     model = None
+    if len(data.x) == 0:
+        return (
+            np.concatenate([current_obs, action_space.sample()]),
+            exe_path_list,
+            model,
+            current_obs,
+        )
     if config.alg.use_acquisition:
         model = gp_model_class(gp_model_params, data)
         # Set and optimize acquisition function
@@ -732,6 +828,8 @@ def evaluate_mpc(
     update_fn,
     reward_fn,
 ):
+    if model is None:
+        return
     with Timer("Evaluate the current MPC policy"):
         # execute the best we can
         # this is required to delete the current execution path
@@ -782,7 +880,8 @@ def evaluate_mpc(
                 np.concatenate([obs, action])
                 for obs, action in zip(real_obs, real_actions)
             ]
-            real_path_mpc.y = f(real_path_mpc.x)
+            real_obs_np = np.array(real_obs)
+            real_path_mpc.y = list(real_obs_np[1:, ...] - real_obs_np[:-1, ...])
             real_path_mpc.y_hat = postmean_fn(real_path_mpc.x)
             mses.append(mse(real_path_mpc.y, real_path_mpc.y_hat))
             stats = {
@@ -800,18 +899,21 @@ def evaluate_mpc(
         current_mpc_mse = np.mean(mses)
         # this is commented out because I don't feel liek reimplementing it for the Bayes action
         # current_mpc_likelihood = model_likelihood(model, all_x_mpc, all_y_mpc)
-        test_y_hat = postmean_fn(test_data.x)
-        random_mse = mse(test_data.y, test_y_hat)
-        random_likelihood = model_likelihood(model, test_data.x, test_data.y)
-        gt_mpc_y_hat = postmean_fn(test_mpc_data.x)
-        gt_mpc_mse = mse(test_mpc_data.y, gt_mpc_y_hat)
-        gt_mpc_likelihood = model_likelihood(model, test_mpc_data.x, test_mpc_data.y)
         dumper.add("Model MSE (current real MPC)", current_mpc_mse)
-        dumper.add("Model MSE (random test set)", random_mse)
-        dumper.add("Model MSE (GT MPC)", gt_mpc_mse)
-        # dumper.add('Model Likelihood (current MPC)', current_mpc_likelihood)
-        dumper.add("Model Likelihood (random test set)", random_likelihood)
-        dumper.add("Model Likelihood (GT MPC)", gt_mpc_likelihood)
+        if test_data is not None:
+            test_y_hat = postmean_fn(test_data.x)
+            random_mse = mse(test_data.y, test_y_hat)
+            random_likelihood = model_likelihood(model, test_data.x, test_data.y)
+            gt_mpc_y_hat = postmean_fn(test_mpc_data.x)
+            gt_mpc_mse = mse(test_mpc_data.y, gt_mpc_y_hat)
+            gt_mpc_likelihood = model_likelihood(
+                model, test_mpc_data.x, test_mpc_data.y
+            )
+            dumper.add("Model MSE (random test set)", random_mse)
+            dumper.add("Model MSE (GT MPC)", gt_mpc_mse)
+            # dumper.add('Model Likelihood (current MPC)', current_mpc_likelihood)
+            dumper.add("Model Likelihood (random test set)", random_likelihood)
+            dumper.add("Model Likelihood (GT MPC)", gt_mpc_likelihood)
         return real_paths_mpc
 
 
@@ -837,13 +939,16 @@ def make_plots(
     dumper,
     i,
 ):
+    if len(data.x) == 0:
+        return
     # Initialize various axes and figures
     ax_all, fig_all = plot_fn(path=None, domain=domain)
     ax_postmean, fig_postmean = plot_fn(path=None, domain=domain)
     ax_samp, fig_samp = plot_fn(path=None, domain=domain)
     ax_obs, fig_obs = plot_fn(path=None, domain=domain)
     # Plot true path and posterior path samples
-    ax_all, fig_all = plot_fn(true_path, ax_all, fig_all, domain, "true")
+    if true_path is not None:
+        ax_all, fig_all = plot_fn(true_path, ax_all, fig_all, domain, "true")
     if ax_all is None:
         return
     # Plot observations

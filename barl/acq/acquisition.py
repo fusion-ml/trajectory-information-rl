@@ -12,7 +12,8 @@ import logging
 from collections import defaultdict
 from scipy.stats import norm as sps_norm
 from functools import partial
-from tqdm import tqdm
+from tqdm import tqdm, trange
+import math
 
 from ..util.base import Base
 from ..util.misc_util import dict_to_namespace, flatten
@@ -724,6 +725,31 @@ class MultiBaxAcqFunction(AlgoAcqFunction):
         return acq_list
 
 
+class SumSetBaxAcqFunction(MultiBaxAcqFunction):
+    BATCH_SIZE = 100
+
+    def set_params(self, params):
+        super().set_params(params)
+
+    def __call__(self, x_set_list):
+        flat_set_list = []
+        for lil_list in x_set_list:
+            flat_set_list.extend(lil_list)
+        acq_list = []
+        nbatches = math.ceil(len(flat_set_list) / self.BATCH_SIZE)
+        for i in trange(nbatches):
+            acq_batch = flat_set_list[i * self.BATCH_SIZE : (i + 1) * self.BATCH_SIZE]
+            acq_list.extend(self.get_acq_list_batch(acq_batch))
+        current_idx = 0
+        set_acq_val = []
+        for lil_list in x_set_list:
+            new_idx = current_idx + len(lil_list)
+            set_total_acq = sum(acq_list[current_idx:new_idx])
+            set_acq_val.append(set_total_acq)
+            current_idx = new_idx
+        return set_acq_val
+
+
 class RewardSetAcqFunction(AcqFunction):
     def set_params(self, params):
         super().set_params(params)
@@ -745,7 +771,7 @@ class RewardSetAcqFunction(AcqFunction):
         rew_x = x_data[:, :-1, :].reshape(
             (-1, self.params.obs_dim + self.params.action_dim)
         )
-        next_obs_data = x_data[:, 1:, :self.params.obs_dim].reshape(
+        next_obs_data = x_data[:, 1:, : self.params.obs_dim].reshape(
             (-1, self.params.obs_dim)
         )
         rewards = (
@@ -839,7 +865,7 @@ class BatchUncertaintySamplingAcqFunction(AcqFunction):
         return list(fast_acq_list)
 
 
-class MultiSetBaxAcqFunction(AlgoAcqFunction):
+class JointSetBaxAcqFunction(AlgoAcqFunction):
     """
     Class for computing BAX acquisition functions.
     """
@@ -849,7 +875,7 @@ class MultiSetBaxAcqFunction(AlgoAcqFunction):
         super().set_params(params)
 
         params = dict_to_namespace(params)
-        self.params.name = getattr(params, "name", "MultiSetBaxAcqFunction")
+        self.params.name = getattr(params, "name", "JointSetBaxAcqFunction")
         self.base_smat = None
         self.base_lmat = None
         self.smats = defaultdict(lambda: None)
@@ -925,7 +951,7 @@ class MultiSetBaxAcqFunction(AlgoAcqFunction):
         reg = jnp.eye(samp_cov_list.shape[-1])[None, None, ...] * 1e-5
         reg_pred_cov = pred_cov + reg
         reg_samp_cov_list = samp_cov_list + reg
-        acq = MultiSetBaxAcqFunction.fast_acq_exe_normal(
+        acq = JointSetBaxAcqFunction.fast_acq_exe_normal(
             reg_pred_cov, reg_samp_cov_list
         )
         return acq
@@ -1109,7 +1135,7 @@ class UncertaintySamplingAcqFunction(AcqFunction):
 
         params = dict_to_namespace(params)
         self.params.name = getattr(params, "name", "UncertaintySamplingAcqFunction")
-        self.params.batch = params.batch
+        # self.params.batch = params.batch
 
     def entropy_given_normal_std(self, std_arr):
         """Return entropy given an array of 1D normal standard deviations."""
@@ -1349,6 +1375,31 @@ class KGRLAcqFunction(PILCOAcqFunction):
             risks.append(tf.reduce_mean(risk_samps))
 
         return tf.reduce_mean(risks)
+
+
+class SumSetUSAcqFunction(UncertaintySamplingAcqFunction):
+    BATCH_SIZE = 100
+
+    def set_params(self, params):
+        super().set_params(params)
+
+    def __call__(self, x_set_list):
+        flat_set_list = []
+        for lil_list in x_set_list:
+            flat_set_list.extend(lil_list)
+        acq_list = []
+        nbatches = math.ceil(len(flat_set_list) / self.BATCH_SIZE)
+        for i in trange(nbatches):
+            acq_batch = flat_set_list[i * self.BATCH_SIZE : (i + 1) * self.BATCH_SIZE]
+            acq_list.extend(self.get_acq_list_batch(acq_batch))
+        current_idx = 0
+        set_acq_val = []
+        for lil_list in x_set_list:
+            new_idx = current_idx + len(lil_list)
+            set_total_acq = sum(acq_list[current_idx:new_idx])
+            set_acq_val.append(set_total_acq)
+            current_idx = new_idx
+        return set_acq_val
 
 
 class KGRLPolicyAcqFunction(PILCOAcqFunction):

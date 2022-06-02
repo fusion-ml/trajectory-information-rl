@@ -20,11 +20,13 @@ tf_data_x = tf.convert_to_tensor(np.array(data_x))
 tf_data_y = tf.convert_to_tensor(np.array(data_y).reshape(-1, 1))
 
 # Set GP hypers and kernel
-kernvar = 5.0 ** 2
-noisevar = 1e-2 ** 2
+kernvar = 5.0**2
+noisevar = 1e-2**2
 period = 4.0
 
-kexp1 = kernels.SquaredExponential(variance=kernvar, lengthscales=[1.0, 1.5], active_dims=[0, 1])
+kexp1 = kernels.SquaredExponential(
+    variance=kernvar, lengthscales=[1.0, 1.5], active_dims=[0, 1]
+)
 kexp2 = kernels.SquaredExponential(variance=1.0, lengthscales=1.0, active_dims=[2])
 kper = kernels.Periodic(kexp2, period=period)
 gpf_kernel = kernels.Product([kexp1, kper])
@@ -42,7 +44,9 @@ paths = model.generate_paths(num_samples=n_fsamp, num_bases=n_bases)
 _ = model.set_paths(paths)
 
 # x_list of inputs pts: [[sample_1: pt_1, pt_2, ...], [sample_2: pt_1, pt_2, ...], ...]
-x_list = [[[0.0, 0.0, 0.0], [0.0, 1.0, 4.0], [0.01, 0.0, 8.0]]] #, [[10.0, 10.0], [10.0, 6.0]], [[10.0, 10.0], [9.8, 9.8]]]
+x_list = [
+    [[0.0, 0.0, 0.0], [0.0, 1.0, 4.0], [0.01, 0.0, 8.0]]
+]  # , [[10.0, 10.0], [10.0, 6.0]], [[10.0, 10.0], [9.8, 9.8]]]
 xvars = np.array(x_list)
 
 y_tf = model.predict_f_samples(Xnew=xvars, sample_axis=0)

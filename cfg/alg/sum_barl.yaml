@@ -1,0 +1,12 @@
+learn_reward: False
+num_iters: 1000
+use_acquisition: True
+eig: True
+rollout_sampling: True
+n_rand_acqopt: 1
+num_fs: 15
+use_mpc: False
+kgrl: False
+kg_policy: False
+gd_opt: False
+joint_eig: False

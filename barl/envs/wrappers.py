@@ -47,7 +47,7 @@ class NormalizedEnv(Env):
             unnorm_delta_obs = info["delta_obs"]
             norm_delta_obs = unnorm_delta_obs / self.unnorm_obs_space_size * 2
             info["delta_obs"] = norm_delta_obs
-        return self.normalize_obs(unnorm_obs), rew, done, info
+        return self.normalize_obs(unnorm_obs), float(rew), done, info
 
     def render(self, *args, **kwargs):
         return self._wrapped_env.render(*args, **kwargs)
@@ -119,6 +119,17 @@ class NormalizedEnv(Env):
         act_ranged = act01 * size
         unnorm_act = act_ranged + low
         return unnorm_act
+
+    def normalize_action(self, action):
+        if len(action.shape) == 1:
+            low = self.unnorm_action_space.low
+            size = self.unnorm_action_space_size
+        else:
+            low = self.unnorm_action_space.low[None, :]
+            size = self.unnorm_action_space_size[None, :]
+        pos_action = action - low
+        norm_action = (pos_action / size * 2) - 1
+        return norm_action
 
 
 def make_normalized_reward_function(norm_env, reward_function, use_tf=False):
@@ -195,8 +206,12 @@ def make_update_obs_fn(env, teleport=False, use_tf=False):
     periods = []
     obs_dim = env.observation_space.low.size
     obs_range = env.observation_space.high - env.observation_space.low
+    try:
+        pds = env.periodic_dimensions
+    except:
+        pds = []
     for i in range(obs_dim):
-        if i in env.periodic_dimensions:
+        if i in pds:
             periods.append(env.observation_space.high[i] - env.observation_space.low[i])
         else:
             periods.append(0)
@@ -256,7 +271,7 @@ def test_rew_fn(gt_rew, norm_rew_fn, old_obs, action, obs):
     x = np.concatenate([old_obs, action])
     y = obs
     norm_rew = norm_rew_fn(x, y)
-    assert np.allclose(gt_rew, norm_rew), f"{gt_rew=}, {norm_rew=}"
+    assert np.allclose(gt_rew, norm_rew), f"gt_rew: {gt_rew}, norm_rew: {norm_rew}"
 
 
 def test_update_function(start_obs, action, delta_obs, next_obs, update_fn):

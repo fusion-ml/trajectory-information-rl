@@ -370,7 +370,7 @@ def evaluate_policy(policy, env, start_obs=None, mpc_pass=False, autobatch=False
         obs, rew, done, info = env.step(action)
         observations.append(obs)
         actions.append(action)
-        rewards.append(rew)
+        rewards.append(float(rew))
         if done:
             break
     return observations, actions, rewards

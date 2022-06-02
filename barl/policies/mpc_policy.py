@@ -16,7 +16,7 @@ from ..util.misc_util import dict_to_namespace
 
 class BayesMPCPolicy(Base):
     """
-    An optimizer that finds an action sequence that optimizes the MultiSetBaxAcqFunction
+    An optimizer that finds an action sequence that optimizes the JointSetBaxAcqFunction
     uses posterior function samples in order to figure out what samples will come from future actions.
     """
 

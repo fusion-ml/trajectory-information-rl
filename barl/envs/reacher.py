@@ -145,7 +145,9 @@ if __name__ == "__main__":
         next_obs, rew, done, info = env.step(action)
         x = np.concatenate([obs, action])
         other_rew = reacher_reward(x, next_obs)
-        assert np.allclose(rew, other_rew, atol=1e-2), f"rew={rew}, other_rew={other_rew}"
+        assert np.allclose(
+            rew, other_rew, atol=1e-2
+        ), f"rew={rew}, other_rew={other_rew}"
         obs = next_obs
         new_obs = env.reset(obs)
         assert np.allclose(new_obs, obs, atol=1e-2), f"new_obs={new_obs}, obs={obs}"

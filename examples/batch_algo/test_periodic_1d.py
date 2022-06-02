@@ -23,8 +23,8 @@ tf_data_y = tf.convert_to_tensor(np.array(data_y).reshape(-1, 1))
 
 # Set GP hypers and kernel
 ls = 0.3
-kernvar = 1.0 ** 2
-noisevar = 0.1 ** 2
+kernvar = 1.0**2
+noisevar = 0.1**2
 period = 4.0
 
 kexp = kernels.SquaredExponential(variance=kernvar, lengthscales=ls, active_dims=[0])
@@ -48,6 +48,6 @@ y_out = model.predict_f_samples(Xnew=xvars, sample_axis=0)
 y_out = y_out.numpy()
 
 for x, y in zip(xvars, y_out):
-    plt.plot(x.flatten(), y.flatten(), c='b')
-plt.scatter(data_x, data_y, c='r', s=100)
+    plt.plot(x.flatten(), y.flatten(), c="b")
+plt.scatter(data_x, data_y, c="r", s=100)
 plt.show()

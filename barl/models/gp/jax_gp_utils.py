@@ -3,7 +3,7 @@ In order to take advantage of jax's vectorization and
 JIT compilation, I thought it would be good to make a
 functional decoupled GP implementation.
 
-This was initially designed for use by the MultiSetBaxAcqFunction
+This was initially designed for use by the JointSetBaxAcqFunction
 and still play nicely with the gp_params used by the BARL library
 """
 import jax.numpy as jnp

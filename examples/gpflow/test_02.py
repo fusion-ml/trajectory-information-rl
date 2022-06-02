@@ -39,8 +39,8 @@ def join_print_columns(col_list):
 
 # Fit hyperparameters
 gp_params = get_gpflow_hypers_from_data(data, print_fit_hypers=True)
-print(f'gp_params = {gp_params}')
-print('\n--------------------\n\n')
+print(f"gp_params = {gp_params}")
+print("\n--------------------\n\n")
 
 # Define two GpflowGp models
 gpfp_params = dict(fixed_noise=False, sigma=0.1, print_fit_hypers=True)
@@ -65,23 +65,25 @@ x_test_gpf = np.array(x_test).reshape(-1, n_dimx)
 y_pred_mean_fixedsig, y_pred_var_fixedsig = model_fixedsig.predict_f(x_test_gpf)
 y_pred_mean, y_pred_var = model.predict_f(x_test_gpf)
 
-col_names = ('y_test', 'y_pred_fixedsig', 'y_pred', '2*std_fixedsig', '2*std')
-print(f'Columns: {col_names}')
+col_names = ("y_test", "y_pred_fixedsig", "y_pred", "2*std_fixedsig", "2*std")
+print(f"Columns: {col_names}")
 join_print_columns(
     [
         y_test,
         y_pred_mean_fixedsig,
         y_pred_mean,
-        2*np.sqrt(y_pred_var_fixedsig),
-        2*np.sqrt(y_pred_var),
+        2 * np.sqrt(y_pred_var_fixedsig),
+        2 * np.sqrt(y_pred_var),
     ]
 )
 
-error_model = np.abs(y_test.reshape(-1) -  y_pred_mean.numpy().reshape(-1))
-error_model_fixedsig = np.abs(y_test.reshape(-1) -  y_pred_mean_fixedsig.numpy().reshape(-1))
+error_model = np.abs(y_test.reshape(-1) - y_pred_mean.numpy().reshape(-1))
+error_model_fixedsig = np.abs(
+    y_test.reshape(-1) - y_pred_mean_fixedsig.numpy().reshape(-1)
+)
 
-print(f'mean(error_model) = {np.mean(error_model)}')
-print(f'mean(error_model_fixedsig) = {np.mean(error_model_fixedsig)}')
+print(f"mean(error_model) = {np.mean(error_model)}")
+print(f"mean(error_model_fixedsig) = {np.mean(error_model_fixedsig)}")
 
 
-#breakpoint()
+# breakpoint()

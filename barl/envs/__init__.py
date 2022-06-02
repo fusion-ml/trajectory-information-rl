@@ -11,7 +11,8 @@ from barl.envs.goddard import GoddardEnv, goddard_reward
 # from barl.util.envs.pets_cartpole import PETSCartpoleEnv, cartpole_reward
 from barl.envs.acrobot import AcrobotEnv, acrobot_reward
 from barl.envs.lava_path import LavaPathEnv, lava_path_reward, ShortLavaPathEnv
-from barl.envs.weird_gain import WeirdGainEnv, weird_gain_reward
+from barl.envs.weird_gain import WeirdGainEnv, weird_gain_reward, WeirderGainEnv
+from barl.envs.lunar_lander import LunarLander, lunar_lander_reward
 
 # register each environment we wanna use
 register(
@@ -40,6 +41,11 @@ register(
 register(
     id="goddard-v0",
     entry_point=GoddardEnv,
+)
+
+register(
+    id="barllunarlander-v0",
+    entry_point=LunarLander,
 )
 # register(
 #     id='petscartpole-v0',
@@ -70,6 +76,10 @@ register(
     id="weirdgain-v0",
     entry_point=WeirdGainEnv,
 )
+register(
+    id="weirdergain-v0",
+    entry_point=WeirderGainEnv,
+)
 reward_functions = {
     "bacpendulum-v0": pendulum_reward,
     "bacpendulum-test-v0": pendulum_reward,
@@ -78,11 +88,13 @@ reward_functions = {
     "goddard-v0": goddard_reward,
     # 'petscartpole-v0': cartpole_reward,
     "pilcocartpole-v0": pilco_cartpole_reward,
+    "barllunarlander-v0": lunar_lander_reward,
     "pilcocartpole-trig-v0": pilco_cartpole_reward,
     "bacrobot-v0": acrobot_reward,
     "lavapath-v0": lava_path_reward,
     "shortlavapath-v0": lava_path_reward,
     "weirdgain-v0": weird_gain_reward,
+    "weirdergain-v0": weird_gain_reward,
 }
 tf_reward_functions = {
     "bacpendulum-v0": pendulum_reward,
@@ -154,12 +166,40 @@ try:
     reward_functions["betanrotation-v0"] = betan_rotation_reward
     reward_functions["betatracking-fixed-v0"] = beta_tracking_rew
 except:
-    logging.info("fusion dependencies not found, skipping")
+    logging.info("old fusion dependencies not found, skipping")
+try:
+    from fusion_control.envs.gym_env import BetaTrackingGymEnv as NewBetaTrackingGymEnv
+    from fusion_control.envs.gym_env import (
+        BetaRotationTrackingGymEnv,
+        BetaRotationTrackingMultiGymEnv,
+    )
+    from fusion_control.envs.rewards import TrackingReward
+
+    register(
+        id="newbetatracking-v0",
+        entry_point=NewBetaTrackingGymEnv,
+    )
+    _beta_env = NewBetaTrackingGymEnv()
+    reward_functions["newbetatracking-v0"] = _beta_env.get_reward
+    register(
+        id="newbetarotation-v0",
+        entry_point=BetaRotationTrackingGymEnv,
+    )
+    _beta_rotation_env = BetaRotationTrackingGymEnv()
+    reward_functions["newbetarotation-v0"] = _beta_rotation_env.get_reward
+    register(
+        id="multibetarotation-v0",
+        entry_point=BetaRotationTrackingMultiGymEnv,
+    )
+    _multi_beta_rotation_env = BetaRotationTrackingMultiGymEnv()
+    reward_functions["multibetarotation-v0"] = _multi_beta_rotation_env.get_reward
+except:
+    logging.warning("new fusion dependencies not found, skipping")
 
 try:
-    from gym_anm.envs.anm4_env.anm4_easier import anm4_reward
+    from gym_anm.envs.anm4_env.anm4_easier import anm4_reward, unconstrained_anm4_reward
+
     reward_functions["gym_anm:ANM4Easier-v0"] = anm4_reward
+    reward_functions["gym_anm:ANM4Easiest-v0"] = unconstrained_anm4_reward
 except:
     logging.warning("anm dependencies not found, skipping")
-
-

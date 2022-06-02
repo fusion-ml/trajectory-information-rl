@@ -37,18 +37,18 @@ domain = [elt for elt in zip(low, high)]
 # Set algorithm
 algo_class = MPC
 algo_params = dict(
-        start_obs=start_obs,
-        env=plan_env,
-        reward_function=pendulum_reward,
-        base_nsamps=10,
-        planning_horizon=20,
-        n_elites=3,
-        beta=3,
-        gamma=1.25,
-        xi=0.3,
-        num_iters=3,
-        actions_per_plan=6,
-        domain=domain,
+    start_obs=start_obs,
+    env=plan_env,
+    reward_function=pendulum_reward,
+    base_nsamps=10,
+    planning_horizon=20,
+    n_elites=3,
+    beta=3,
+    gamma=1.25,
+    xi=0.3,
+    num_iters=3,
+    actions_per_plan=6,
+    domain=domain,
 )
 algo = algo_class(algo_params)
 

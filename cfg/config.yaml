@@ -26,6 +26,8 @@ alg:
     num_s0_samps: 1
     open_loop_mpc: False
     sample_all_states: False
+    num_fs: 15
+    joint_eig: False
 mpc:
   nsamps: ${env.mpc.nsamps}
   planning_horizon: ${env.mpc.planning_horizon}
@@ -73,7 +75,9 @@ normalize_env: ${env.normalize_env}
 n_rand_acqopt: ${alg.n_rand_acqopt}
 crop_to_domain: True
 teleport: ${env.teleport}
+gp_fit_retries: 20
 fit_hypers: False
+eval_gp_hypers: False
 save_figures: False
 hydra:
   job:

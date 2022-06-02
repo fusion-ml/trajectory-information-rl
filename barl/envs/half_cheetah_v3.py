@@ -131,7 +131,9 @@ def half_cheetah_reward(x, next_obs):
 
 if __name__ == "__main__":
     env = HalfCheetahEnv()
-    print(f"env.observation_space={env.observation_space}, env.action_space={env.action_space}")
+    print(
+        f"env.observation_space={env.observation_space}, env.action_space={env.action_space}"
+    )
     og_obs = env.reset()
     obs = og_obs
     done = False
