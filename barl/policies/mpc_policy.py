@@ -75,7 +75,7 @@ class BayesMPCPolicy(Base):
             self.params.action_sequence = mean
             action = mean[0, :]
             self.params.actions_until_plan -= 1
-            return mean
+            return action
 
         initial_variance_divisor = 4
         action_upper_bound = self.params.action_upper_bound
@@ -153,7 +153,10 @@ class BayesMPCPolicy(Base):
             # might need to flatten tensors for this
             current_obs = self.params.update_fn(current_obs, deltas)
             # rewards is a matrix num_samples x num_fs
-            rewards = self.params.reward_fn(x, current_obs)
+            flat_x = x.reshape((-1, x.shape[-1]))
+            flat_current_obs = current_obs.reshape((-1, current_obs.shape[-1]))
+            rewards = self.params.reward_fn(flat_x, flat_current_obs)
+            rewards = rewards.reshape(x.shape[:-1])
             # average across function samples and add to sample_rewturns
             sample_returns += rewards.mean(axis=0)
         return sample_returns

@@ -108,6 +108,15 @@ class NormalizedEnv(Env):
         unnorm_obs = obs_ranged + low
         return unnorm_obs
 
+    def normalize_data(self, data):
+        obs_dim = self.observation_space.low.size
+        obs = data[..., :obs_dim]
+        action = data[..., obs_dim:]
+        norm_obs = self.normalize_obs(obs)
+        norm_action = self.normalize_action(action)
+        norm_data = np.concatenate([norm_obs, norm_action], axis=-1)
+        return norm_data
+
     def unnormalize_action(self, action):
         if len(action.shape) == 1:
             low = self.unnorm_action_space.low

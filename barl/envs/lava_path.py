@@ -224,7 +224,7 @@ class LavaPathEnv(gym.Env):
 class ShortLavaPathEnv(LavaPathEnv):
     def __init__(self, offset_start=False):
         super().__init__(offset_start=offset_start)
-        self.horizon = 20
+        self.horizon = 20 if not offset_start else 50
 
     def step(self, action):
         # we ignore the info from the first step (this allows for some "clipping"
@@ -245,10 +245,13 @@ def lava_path_reward(x, next_obs):
         lava = np.array([in_lava(xi, LavaPathEnv.lava_pits) for xi in x_prob]).astype(
             int
         )
-        reward = (
-            -np.sum((x_prob - LavaPathEnv.goal) ** 2, axis=-1) / 800
-            + LavaPathEnv.lava_penalty * lava
-        )
+        try:
+            reward = (
+                -np.sum((x_prob - LavaPathEnv.goal) ** 2, axis=-1) / 800
+                + LavaPathEnv.lava_penalty * lava
+            )
+        except:
+            breakpoint()
     return reward
 
 
