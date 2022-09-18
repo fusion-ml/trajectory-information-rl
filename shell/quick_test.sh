@@ -1,1 +1,1 @@
-python run.py env=test-pendulum num_iters=10 eval_frequency=2
+python run.py alg=tip env=test-pendulum num_iters=20 eval_frequency=2

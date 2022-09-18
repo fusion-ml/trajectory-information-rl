@@ -26,15 +26,10 @@ from barl.acq.acquisition import (
     MCAcqFunction,
     UncertaintySamplingAcqFunction,
     BatchUncertaintySamplingAcqFunction,
-    KGRLAcqFunction,
-    KGRLPolicyAcqFunction,
-    PILCOAcqFunction,
     RewardSetAcqFunction,
 )
 from barl.acq.acqoptimize import (
     AcqOptimizer,
-    KGAcqOptimizer,
-    KGPolicyAcqOptimizer,
     PolicyAcqOptimizer,
 )
 from barl.alg.mpc import MPC
