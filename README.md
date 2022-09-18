@@ -6,6 +6,7 @@ To install dependencies for this code, make a virtual environment with a modern
 Python version (>= 3.8) and install the requirements as follows:
 ```bash
 $ python -m venv venvbarl
+$ source venvbarl/bin/activate
 $ pip install -r requirements.txt
 ```
 
