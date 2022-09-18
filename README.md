@@ -1,5 +1,13 @@
 # Bayesian Active Reinforcement Learning
 
+This repository contains the implementations necessary to reproduce the experiments from two papers:
+
+[An Experimental Design Perspective on Model-Based Reinforcement Learning](https://openreview.net/forum?id=0no8Motr-zO)
+and
+[Exploration via Planning for Information about the Optimal Trajectory](TODO). The former paper proposes an "acquisition function" that prospectively evaluates the value of individual dynamics datapoints for learning a dynamics model that can be used to solve a specified task in a Markov Decision Process. The latter generalizes this acquisition function to a cost function that can be used for planning into the future to find data that will be valuable in the solution of the task at hand. This latter can be used as a traditional model-based reinforcement learning algorithm that starts from the initial state distribution and rolls out its exploration policy by taking sequential actions in the environment for the duration of an episode.
+
+In the following sections we give instructions on how to install, execute, and extend the code for research purposes.
+
 ## Installation
 
 To install dependencies for this code, make a virtual environment with a modern
@@ -12,8 +20,7 @@ $ pip install -r requirements.txt
 
 ## Running Experiments
 We have script files inside the `shell/` directory that reproduce the experiments built off of this codebase.
-Those are the methods TIP, sTIP, BARL, MPC, EIG_T, DIP, and sDIP from the paper. We will release a separate repository that uses the environments in this one
-inside `bax/envs/` but runs PETS, SAC, and PPO.
+Those are the methods TIP, sTIP, BARL, MPC, EIG_T, DIP, and sDIP from the paper. 
 To reproduce these, run
 ```bash
 $ ./shell/{exp_name}_expts.sh
