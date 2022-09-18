@@ -357,7 +357,7 @@ def configure(config):
 
 def get_env(config):
     env = gym.make(config.env.name)
-    env.seed(config.seed)
+    # env.seed(config.seed)
     # set plot fn
     plot_fn = partial(plotters[config.env.name], env=env)
 

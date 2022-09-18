@@ -3,7 +3,7 @@
 ## Installation
 
 To install dependencies for this code, make a virtual environment with a modern
-Python version and run
+Python version (>= 3.8) and run
 ```bash
 $ pip install -r requirements.txt
 ```

@@ -39,8 +39,6 @@ gpflow==2.2.1
 -e git+https://github.com/j-wilson/GPflowSampling.git@bc9c553fe4d8f522726f002c18df9965246df345#egg=gpflow_sampling
 grpcio==1.34.1
 gym==0.18.3
-h5py==3.1.0
-httpstan==4.5.0
 hydra-core==1.1.1
 idna==2.10
 imageio==2.9.0
@@ -80,20 +78,20 @@ nbconvert==6.1.0
 nbformat==5.1.3
 nest-asyncio==1.5.1
 notebook==6.4.0
-numpy==1.19.5
+# numpy>=1.19.5
 oauthlib==3.1.1
 omegaconf==2.1.0
-opencv-python==4.5.3.56
+# opencv-python==4.5.3.56
 opt-einsum==3.3.0
 packaging==20.9
-pandas==1.3.2
+# pandas==1.3.2
 pandocfilters==1.4.3
 parso==0.8.2
 pastel==0.2.1
 pathspec==0.8.1
 pexpect==4.8.0
 pickleshare==0.7.5
-Pillow==8.2.0
+# Pillow==8.2.0
 pluggy==0.13.1
 prometheus-client==0.11.0
 prompt-toolkit==3.0.19
@@ -111,7 +109,6 @@ pylev==1.4.0
 pyparsing==2.4.7
 pyrsistent==0.17.3
 pysimdjson==3.2.0
-pystan==2.19.1.1
 pytest==6.2.4
 python-dateutil==2.8.1
 pytz==2021.1
@@ -124,7 +121,7 @@ requests==2.25.1
 requests-oauthlib==1.3.0
 rsa==4.7.2
 scikit-learn==0.24.2
-scipy==1.7.0
+# scipy==1.7.0
 seaborn==0.11.2
 Send2Trash==1.7.1
 six==1.15.0
