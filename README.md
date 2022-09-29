@@ -1,4 +1,4 @@
-# Bayesian Active Reinforcement Learning
+# Trajectory Information Reinforcement Learning
 
 This repository contains the implementations necessary to reproduce the experiments from two papers:
 
