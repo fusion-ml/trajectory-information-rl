@@ -27,6 +27,7 @@ $ ./shell/{exp_name}_expts.sh
 ```
 The `exp_name` should be one of `reacher`, `pendulum`, or `cartpole`.
 The fusion dependencies are a bit more involved and rely on proprietary data so we have not included them here.
+So running `./shell/beta_tracking_expts.sh` and `./shell/beta_rotation_expts.sh` will not work.
 
 ## Adding a New Environment
 One obvious use of this codebase is to compare to subsequent algorithms in order to ascertain their relative performance.
