@@ -52,10 +52,6 @@ try:
     from barl.envs.reacher import BACReacherEnv, reacher_reward, tf_reacher_reward
 
     register(
-        id="bacswimmer-v0",
-        entry_point=BACSwimmerEnv,
-    )
-    register(
         id="bacreacher-v0",
         entry_point=BACReacherEnv,
     )
