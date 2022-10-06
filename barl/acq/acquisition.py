@@ -520,7 +520,6 @@ class BaxAcqFunction(AlgoAcqFunction):
         return acq_list
 
 
-
 class RandBaxAcqFunction(BaxAcqFunction):
     """
     Wrapper on BaxAcqFunction for random search acquisition, when we still want various
@@ -1128,8 +1127,6 @@ class UncertaintySamplingAcqFunction(AcqFunction):
         """Class is callable and returns acquisition function on x_list."""
         acq_list = self.get_acq_list_batch(x_list)
         return acq_list
-
-
 
 
 class SumSetUSAcqFunction(UncertaintySamplingAcqFunction):
