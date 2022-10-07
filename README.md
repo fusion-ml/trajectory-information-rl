@@ -4,7 +4,19 @@ This repository contains the implementations necessary to reproduce the experime
 
 [An Experimental Design Perspective on Model-Based Reinforcement Learning](https://openreview.net/forum?id=0no8Motr-zO)
 and
-[Exploration via Planning for Information about the Optimal Trajectory](TODO). The former paper proposes an "acquisition function" that prospectively evaluates the value of individual dynamics datapoints for learning a dynamics model that can be used to solve a specified task in a Markov Decision Process. The latter generalizes this acquisition function to a cost function that can be used for planning into the future to find data that will be valuable in the solution of the task at hand. This latter can be used as a traditional model-based reinforcement learning algorithm that starts from the initial state distribution and rolls out its exploration policy by taking sequential actions in the environment for the duration of an episode.
+[Exploration via Planning for Information about the Optimal Trajectory](TODO).
+
+The former paper proposes an "acquisition function" that prospectively evaluates the value of individual dynamics datapoints for learning a dynamics model that can be used to solve a specified task in a Markov Decision Process. We refer to this method as **Bayes active RL (BARL)**, and we illustrate it in the diagram below.
+
+<p align="center">
+    <img src="docs/images/barl-cartoon.svg" alt="" width="75%" align="top">
+</p>
+
+The latter paper generalizes this acquisition function to a cost function that can be used for planning into the future to find data that will be valuable in the solution of the task at hand. This can be used as a traditional model-based reinforcement learning algorithm that starts from the initial state distribution and rolls out its exploration policy by taking sequential actions in the environment for the duration of an episode. We refer to this method as **trajectory information planning (TIP)**, and we illustrate it in the diagram below.
+
+<p align="center">
+    <img src="docs/images/tip-cartoon.svg" alt="" width="75%" align="top">
+</p>
 
 In the following sections we give instructions on how to install, execute, and extend the code for research purposes.
 
