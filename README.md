@@ -1,10 +1,11 @@
 # Trajectory Information Reinforcement Learning
 
-This repository contains the implementations necessary to reproduce the experiments from two papers:
+This repository contains implementations to reproduce the experiments from two papers:
 
-[An Experimental Design Perspective on Model-Based Reinforcement Learning](https://openreview.net/forum?id=0no8Motr-zO)
-and
-[Exploration via Planning for Information about the Optimal Trajectory](TODO).
+- [An Experimental Design Perspective on Model-Based Reinforcement
+  Learning](https://arxiv.org/abs/2112.05244) (*ICLR 2022*)
+- [Exploration via Planning for Information about the Optimal Trajectory](TODO)
+  (*NeurIPS 2022*)
 
 The former paper proposes an "acquisition function" that prospectively evaluates the value of individual dynamics datapoints for learning a dynamics model that can be used to solve a specified task in a Markov Decision Process. We refer to this method as **Bayes active RL (BARL)**, and we illustrate it in the diagram below.
 
