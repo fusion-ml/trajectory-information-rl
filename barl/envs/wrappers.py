@@ -8,7 +8,6 @@ class NormalizedEnv(Env):
     def __init__(self, wrapped_env):
         """
         Normalizes obs to be between -1 and 1
-        doesn't touch actions
         """
         self._wrapped_env = wrapped_env
         self.unnorm_action_space = self._wrapped_env.action_space

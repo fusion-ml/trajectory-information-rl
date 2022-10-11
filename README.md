@@ -1,10 +1,23 @@
 # Trajectory Information Reinforcement Learning
 
-This repository contains the implementations necessary to reproduce the experiments from two papers:
+This repository contains implementations to reproduce the experiments from two papers:
 
-[An Experimental Design Perspective on Model-Based Reinforcement Learning](https://openreview.net/forum?id=0no8Motr-zO)
-and
-[Exploration via Planning for Information about the Optimal Trajectory](TODO). The former paper proposes an "acquisition function" that prospectively evaluates the value of individual dynamics datapoints for learning a dynamics model that can be used to solve a specified task in a Markov Decision Process. The latter generalizes this acquisition function to a cost function that can be used for planning into the future to find data that will be valuable in the solution of the task at hand. This latter can be used as a traditional model-based reinforcement learning algorithm that starts from the initial state distribution and rolls out its exploration policy by taking sequential actions in the environment for the duration of an episode.
+- [An Experimental Design Perspective on Model-Based Reinforcement
+  Learning](https://arxiv.org/abs/2112.05244) (*ICLR 2022*)
+- [Exploration via Planning for Information about the Optimal Trajectory](TODO)
+  (*NeurIPS 2022*)
+
+The former paper proposes an "acquisition function" that prospectively evaluates the value of individual dynamics datapoints for learning a dynamics model that can be used to solve a specified task in a Markov Decision Process. We refer to this method as **Bayes active RL (BARL)**, and we illustrate it in the diagram below.
+
+<p align="center">
+    <img src="docs/images/barl-cartoon.svg" alt="" width="75%" align="top">
+</p>
+
+The latter paper generalizes this acquisition function to a cost function that can be used for planning into the future to find data that will be valuable in the solution of the task at hand. This can be used as a traditional model-based reinforcement learning algorithm that starts from the initial state distribution and rolls out its exploration policy by taking sequential actions in the environment for the duration of an episode. We refer to this method as **trajectory information planning (TIP)**, and we illustrate it in the diagram below.
+
+<p align="center">
+    <img src="docs/images/tip-cartoon.svg" alt="" width="75%" align="top">
+</p>
 
 In the following sections we give instructions on how to install, execute, and extend the code for research purposes.
 
@@ -45,3 +58,25 @@ We have included a script for tuning GP kernel parameters as part of `run.py` vi
 As we are using zeroth order stochastic optimization algorithms for our controller and in particular the [iCEM algorithm](https://is.mpg.de/publications/pinnerietal2020-icem), we have several parameters which increase the computational cost of the controller but may result in a better action sequence. These are the base number of samples `nsamps` per iteration, the planning horizon `planning_horizon`, the number of elites `n_elites`, the number of iterations `num_iters`, and the number of actions to execute before replanning `actions_per_plan`. In general larger numbers of samples, a number of elites roughly 10%-20% of the number of samples, a larger number of iterations, a medium planning horizon (10 or so), and a small number of actions between each replanning step lead to the best performance if the time can be spared.
 
 Example configurations that match those used in experiments in our paper can be found in the environment config files in `cfg/env/*.yaml`. We recommend starting with similar values and changing them to be more accurate or faster as needed. The code by default runs a handful of episodes on the ground truth dynamics using the same control settings, so if that doesn't reach the desired level of performance we recommend increasing the controller budget.
+
+## Citation
+
+If this code is helpful, please feel free to cite the following papers:
+
+```
+@inproceedings{mehta2022an,
+    title       = {An Experimental Design Perspective on Model-Based Reinforcement Learning},
+    author      = {Mehta, Viraj and Paria, Biswajit and Schneider, Jeff and Ermon, Stefano and Neiswanger, Willie},
+    booktitle   = {International Conference on Learning Representations},
+    year        = {2022}
+}
+```
+
+```
+@inproceedings{mehta2022exploration,
+    title       = {Exploration via Planning for Information about the Optimal Trajectory},
+    author      = {Mehta, Viraj and Char, Ian and Abbate, Joseph and Conlin, Rory and Boyer, Mark and Ermon, Stefano and Schneider, Jeff and Neiswanger, Willie},
+    booktitle   = {Advances in Neural Information Processing Systems},
+    year        = {2022}
+}
+```
