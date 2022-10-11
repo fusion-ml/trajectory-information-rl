@@ -26,15 +26,10 @@ from barl.acq.acquisition import (
     MCAcqFunction,
     UncertaintySamplingAcqFunction,
     BatchUncertaintySamplingAcqFunction,
-    KGRLAcqFunction,
-    KGRLPolicyAcqFunction,
-    PILCOAcqFunction,
     RewardSetAcqFunction,
 )
 from barl.acq.acqoptimize import (
     AcqOptimizer,
-    KGAcqOptimizer,
-    KGPolicyAcqOptimizer,
     PolicyAcqOptimizer,
 )
 from barl.alg.mpc import MPC
@@ -357,7 +352,7 @@ def configure(config):
 
 def get_env(config):
     env = gym.make(config.env.name)
-    env.seed(config.seed)
+    # env.seed(config.seed)
     # set plot fn
     plot_fn = partial(plotters[config.env.name], env=env)
 
